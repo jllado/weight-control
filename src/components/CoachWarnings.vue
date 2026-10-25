@@ -2,41 +2,57 @@
   <div v-if="active.length || has_history || error || loading" class="coach-warnings">
     <span v-if="active.length" class="warning-indicator-wrap">
       <Button v-tooltip.top="warning_tooltip"
+            ref="warning_indicator"
             icon="pi pi-exclamation-triangle" class="p-button-outlined p-button-warning warning-indicator" aria-describedby="coach-warnings-tooltip"
             :aria-label="`Current Coach warnings: ${active.length} ${active.length === 1 ? 'warning, ' + active[0].label : 'warnings'}`" @focus="tooltip_event($event, 'mouseenter')" @blur="tooltip_event($event, 'mouseleave')" @click="open" />
       <CountBadge :value="active.length" tone="warning" />
     </span>
-    <Button v-else-if="has_history" v-tooltip.top="warning_tooltip" aria-label="Coach history" aria-describedby="coach-warnings-tooltip" icon="pi pi-history" class="p-button-outlined p-button-secondary warning-indicator" @focus="tooltip_event($event, 'mouseenter')" @blur="tooltip_event($event, 'mouseleave')" @click="open" />
+    <Button v-else-if="has_history" ref="warning_indicator" v-tooltip.top="warning_tooltip" aria-label="Coach history" aria-describedby="coach-warnings-tooltip" icon="pi pi-history" class="p-button-outlined p-button-secondary warning-indicator" @focus="tooltip_event($event, 'mouseenter')" @blur="tooltip_event($event, 'mouseleave')" @click="open" />
     <span v-else-if="loading" role="status" class="warning-loading">Checking Coach warnings…</span>
     <div v-if="error" role="alert" class="warning-error">{{ error }} <Button label="Retry" class="p-button-text" @click="refresh" /></div>
-    <Dialog v-model:visible="visible" header="Current Coach warnings" modal appendTo="body" :style="{width: '36rem'}" :breakpoints="{'640px': '95vw'}">
+    <Dialog v-model:visible="visible" header="Current Coach warnings" modal appendTo="body" :style="{width: '36rem'}" :breakpoints="{'640px': '95vw'}" :closeOnEscape="!revisions_visible" @hide="restore_warning_focus">
       <p v-if="!active.length">No active warnings.</p>
       <article v-for="warning in active" :key="warning.id" class="warning-detail">
         <h3><i class="pi pi-exclamation-triangle" aria-hidden="true"></i> {{ warning.label }}</h3>
-        <p>{{ warning.content.explanation }}</p>
-        <p><strong>Evidence:</strong> {{ warning.content.evidence }}</p>
-        <p><strong>Next step:</strong> {{ warning.content.action }}</p>
-        <p v-if="warning.content.onsetDate">Since approximately {{ warning.content.onsetDate }}</p>
-        <p class="warning-date">Last reviewed {{ warning.content.reviewedDate }}</p>
-        <Button label="Review history" icon="pi pi-history" class="p-button-text" @click="show_revisions(warning)" />
+        <WarningProgressCard v-if="warning.progress" :warning="warning" :show-title="false" />
+        <p v-else class="warning-date">Progress not recorded</p>
+        <div v-if="warning.progress && warning.version !== warning.progress.sourceVersion" class="warning-current-update">
+          <p class="warning-date">Current update {{ format_date(warning.content.reviewedDate) }}</p>
+          <p>{{ warning.content.explanation }}</p>
+          <p><strong>Current next step:</strong> {{ warning.content.action }}</p>
+        </div>
+        <template v-if="!warning.progress">
+          <p>{{ warning.content.explanation }}</p>
+          <p><strong>Evidence:</strong> {{ warning.content.evidence }}</p>
+          <p><strong>Next step:</strong> {{ warning.content.action }}</p>
+          <p v-if="warning.content.onsetDate">Since approximately {{ warning.content.onsetDate }}</p>
+          <p class="warning-date">Last reviewed {{ warning.content.reviewedDate }}</p>
+        </template>
+        <Button label="Review history" icon="pi pi-history" class="p-button-text" @click="show_revisions(warning, $event)" />
       </article>
-      <p>Coach reviews and resolves warnings during coaching sessions.</p>
+      <p>Coach reviews warnings in daily reflections and coaching sessions.</p>
       <Button v-if="has_history" label="Resolved history" icon="pi pi-history" class="p-button-text" :loading="history_loading" @click="load_history(0)" :disabled="history_loading" />
       <div v-if="history_error" role="alert">{{ history_error }}</div>
       <article v-for="warning in history.items" :key="warning.id" class="warning-detail">
         <h3>{{ warning.label }} · Resolved</h3>
-        <p>{{ warning.content.explanation }}</p>
-        <p>{{ warning.resolutionRationale }}</p>
-        <p class="warning-date">Last reviewed {{ warning.content.reviewedDate }}</p>
-        <Button label="Review history" class="p-button-text" @click="show_revisions(warning)" />
+        <WarningProgressCard v-if="warning.progress" :warning="warning" :show-title="false" />
+        <template v-if="!warning.progress">
+          <p>{{ warning.content.explanation }}</p>
+          <p class="warning-date">Last reviewed {{ warning.content.reviewedDate }}</p>
+        </template>
+        <p v-if="warning.resolutionRationale && (!warning.progress || warning.version !== warning.progress.sourceVersion)">
+          <strong>Current resolution:</strong> {{ warning.resolutionRationale }}
+        </p>
+        <Button label="Review history" class="p-button-text" @click="show_revisions(warning, $event)" />
       </article>
       <Button v-if="history.hasMore" label="More history" class="p-button-outlined" :loading="history_loading" @click="load_history(history.page + 1)" :disabled="history_loading" />
       <template #footer><div class="action-group"><Button label="Close" class="p-button-secondary" @click="visible = false" /></div></template>
     </Dialog>
-    <Dialog v-model:visible="revisions_visible" :header="revision_title" modal appendTo="body" :style="{width: '36rem'}" :breakpoints="{'640px': '95vw'}">
+    <Dialog v-model:visible="revisions_visible" :header="revision_title" modal appendTo="body" :style="{width: '36rem'}" :breakpoints="{'640px': '95vw'}" @hide="restore_revision_focus">
       <p v-if="revisions_error" role="alert">{{ revisions_error }}</p>
       <article v-for="revision in revisions.items" :key="revision.version" class="warning-detail">
         <h3>{{ revision.content.reviewedDate }} · {{ revision.status === 'ACTIVE' ? 'Active' : 'Resolved' }}</h3>
+        <WarningProgressCard v-if="revision.progress && revision.version === revision.progress.sourceVersion" :warning="revision" />
         <p>{{ revision.content.explanation }}</p>
         <p><strong>Evidence:</strong> {{ revision.content.evidence }}</p>
         <p><strong>Next step:</strong> {{ revision.content.action }}</p>
@@ -50,12 +66,14 @@
 
 <script>
 import service from '../services/CoachWarningService';
+import dayjs from 'dayjs';
 import Tooltip from 'primevue/tooltip';
 import CountBadge from './CountBadge.vue';
+import WarningProgressCard from './WarningProgressCard.vue';
 
 export default {
   emits: ['active-updated'],
-  components: {CountBadge},
+  components: {CountBadge, WarningProgressCard},
   directives: {tooltip: {
     ...Tooltip,
     beforeMount(el, binding, vnode) {
@@ -73,7 +91,7 @@ export default {
       active: [], has_history: false, loading: false, error: '', visible: false,
       history: {items: [], page: -1, hasMore: false}, history_loading: false, history_error: '',
       revisions: {items: [], page: -1, hasMore: false}, revisions_loading: false, revisions_error: '',
-      revisions_visible: false, revision_id: null, revision_title: ''
+      revisions_visible: false, revision_id: null, revision_title: '', revision_opener: null
     };
   },
   mounted() {
@@ -86,6 +104,7 @@ export default {
     document.removeEventListener('visibilitychange', this.on_visibility);
   },
   methods: {
+    format_date(date) { return dayjs(`${date}T00:00:00`).format('D MMM YYYY'); },
     position_tooltip(instance) {
       instance.align = function(el) {
         this.alignTop(el);
@@ -106,6 +125,8 @@ export default {
       this.error = '';
       try {
         const data = await service.overview();
+        // PrimeVue leaves a visible tooltip behind when its bound text changes.
+        this.$refs.warning_indicator?.$el.dispatchEvent(new MouseEvent('mouseleave'));
         this.active = data.active;
         this.has_history = data.hasHistory;
         this.$emit('active-updated', this.active);
@@ -122,7 +143,14 @@ export default {
       } catch { this.history_error = 'Could not load resolved history. Try again.'; }
       finally { this.history_loading = false; }
     },
-    show_revisions(warning) {
+    restore_warning_focus() {
+      const indicator = this.$refs.warning_indicator.$el;
+      indicator.focus();
+      indicator.dispatchEvent(new MouseEvent('mouseleave'));
+    },
+    restore_revision_focus() { this.revision_opener.focus(); },
+    show_revisions(warning, event) {
+      this.revision_opener = event.currentTarget;
       this.revision_id = warning.id;
       this.revision_title = `${warning.label} · Reviews`;
       this.revisions = {items: [], page: -1, hasMore: false};

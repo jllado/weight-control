@@ -5,7 +5,9 @@ const labels = {
     PAIN_INCREASE: 'Increased pain', HEALTH_CHANGE: 'Health change'
 };
 
+export function warningLabel(type) { return labels[type]; }
+
 export default class CoachWarning {
     constructor(data) { Object.assign(this, data); }
-    get label() { return labels[this.type]; }
+    get label() { return warningLabel(this.type); }
 }

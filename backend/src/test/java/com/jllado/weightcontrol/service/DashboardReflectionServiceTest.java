@@ -170,6 +170,7 @@ class DashboardReflectionServiceTest {
             reflectionRepository,
             dailyStatusRepository,
             snapshotService,
+            org.mockito.Mockito.mock(DailyWarningReviewService.class),
             healthDataContextService,
             properties,
             new ObjectMapper().findAndRegisterModules().disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS),
@@ -549,7 +550,8 @@ class DashboardReflectionServiceTest {
             List.of("Sleep data is sparse"),
             List.of("Keep logging consistently"),
             new com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionSection("No meals recorded.", "Record meal portions."),
-            new com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionSection("No workouts recorded.", "Discuss a suitable workout.")
+            new com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionSection("No workouts recorded.", "Discuss a suitable workout."),
+            new com.jllado.weightcontrol.api.dto.ReflectionDtos.WarningReviewEnvelope(java.time.LocalDate.now(com.jllado.weightcontrol.util.DateTimes.USER_ZONE), List.of(), List.of())
         );
     }
 
@@ -563,7 +565,8 @@ class DashboardReflectionServiceTest {
             List.of("Sleep data is sparse"),
             List.of("Keep logging consistently"),
             new com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionSection("No meals recorded.", "Record meal portions."),
-            new com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionSection("No workouts recorded.", "Discuss a suitable workout.")
+            new com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionSection("No workouts recorded.", "Discuss a suitable workout."),
+            new com.jllado.weightcontrol.api.dto.ReflectionDtos.WarningReviewEnvelope(java.time.LocalDate.now(com.jllado.weightcontrol.util.DateTimes.USER_ZONE), List.of(), List.of())
         );
     }
 

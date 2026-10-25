@@ -95,6 +95,10 @@ test('repository reflection import preserves daily and weekly save contracts', (
     assert.equal(daily.additionalProperties, false);
     assert.equal(weekly.additionalProperties, false);
     assert.ok(daily.required.includes('meals') && daily.required.includes('workouts'));
+    assert.ok(daily.required.includes('warningReview'));
+    assert.equal(daily.properties.warningReview.$ref, '#/components/schemas/WarningReviewEnvelope');
+    assert.equal(body.properties.warningReview.$ref, daily.properties.warningReview.$ref);
+    assert.equal(weekly.properties.warningReview, undefined);
     assert.ok(weekly.required.includes('confirmed'));
     assert.deepEqual(weekly.properties.confirmed.enum, [true]);
     assert.equal(section.type, 'object');
@@ -105,6 +109,23 @@ test('repository reflection import preserves daily and weekly save contracts', (
     assert.equal(daily.properties.nextActions.$ref, '#/components/schemas/DailyNextActionList');
     assert.equal(value.components.schemas.DailyNextActionList.items.maxLength, 200);
     assert.deepEqual(legacy.type, ['object', 'null']);
+});
+
+test('daily warning review schema requires a dated complete set and preserves nullable legacy snapshots', () => {
+    const value = yaml.load(fs.readFileSync(path.resolve(__dirname, '../../docs/coach/coach-action.openapi.yaml'), 'utf8'));
+    const schemas = value.components.schemas;
+    assert.deepEqual(schemas.WarningReviewEnvelope.required, ['reviewedDate', 'reviews', 'newWarnings']);
+    assert.equal(schemas.WarningReviewEnvelope.properties.reviews.items.$ref, '#/components/schemas/ExistingWarningReview');
+    assert.equal(schemas.WarningReviewEnvelope.properties.newWarnings.items.$ref, '#/components/schemas/NewWarningReview');
+    assert.deepEqual(schemas.ExistingWarningReview.required, ['id', 'version', 'assessment']);
+    assert.deepEqual(schemas.NewWarningReview.required, ['requestKey', 'type', 'assessment']);
+    assert.equal(schemas.WarningAssessment.properties.direction.$ref, '#/components/schemas/WarningDirection');
+    assert.deepEqual(schemas.WarningDirection.enum,
+        ['IMPROVING', 'UNCHANGED', 'WORSENING', 'RESOLVED', 'INSUFFICIENT_EVIDENCE']);
+    assert.equal(schemas.Reflection.properties.warningReview.$ref, '#/components/schemas/WarningReviewSnapshot');
+    assert.equal(schemas.WarningReviewSnapshot.properties.items.items.$ref, '#/components/schemas/WarningReviewItem');
+    assert.equal(schemas.WarningResponse.properties.progress.$ref, '#/components/schemas/WarningProgress');
+    assert.match(schemas.WarningAssessment.properties.resolutionCriteria.description, /25,200.*21,600.*sufficient recent evidence/);
 });
 
 

@@ -863,6 +863,7 @@ paths:
                 planProgressRationale: {type: string, minLength: 1, maxLength: 120}
                 meals: {$ref: "#/components/schemas/ReflectionWriteSection"}
                 workouts: {$ref: "#/components/schemas/ReflectionWriteSection"}
+                warningReview: {$ref: "#/components/schemas/WarningReviewEnvelope"}
                 positiveSignals: {$ref: "#/components/schemas/InsightList"}
                 watchouts: {$ref: "#/components/schemas/InsightList"}
                 nextActions: {$ref: "#/components/schemas/DailyNextActionList"}
@@ -891,7 +892,7 @@ paths:
                   - $ref: "#/components/schemas/Reflection"
                   - $ref: "#/components/schemas/WeeklyReflection"
         "400":
-          description: Invalid reflection; validation errors name fields and constraints without rejected values. Correct and reconfirm changed text.
+          description: Invalid reflection; field validation lists paths and constraints, while semantic warning-review errors return an actionable message with an empty errors array. Correct and reconfirm changed text.
           content:
             application/json:
               schema:
@@ -920,8 +921,8 @@ paths:
               schema: {$ref: "#/components/schemas/WarningReadResponse"}
     post:
       operationId: saveCoachWarning
-      summary: Automatically create, update or resolve a Coach warning
-      description: Send exactly one create, update or resolve payload. Include id only for update or resolve. Reuse a create UUID only for exact retries; updates and resolution require the retrieved version. No confirmation is required for warning writes.
+      summary: Create, update or resolve a standalone Coach warning
+      description: Standalone only; DAILY warning reviews and new warnings go in one saveReflection request. Send one create/update/resolve payload, with id for update/resolve. Reuse create UUID only for exact retries. Update/resolve needs the retrieved version. Standalone writes need no separate confirmation.
       x-openai-isConsequential: false
       requestBody:
         required: true
@@ -2962,7 +2963,7 @@ components:
         message: {type: string, description: Explanation of the rejected request.}
         errors:
           type: array
-          description: Present for request-field validation failures; omitted for other bad requests.
+          description: Field errors for request validation; empty for semantic bad requests.
           items:
             type: object
             required: [field, message]
@@ -2981,6 +2982,7 @@ components:
         - nextActions
         - meals
         - workouts
+        - warningReview
       properties:
         title:
           type: string
@@ -3002,12 +3004,97 @@ components:
           $ref: "#/components/schemas/ReflectionWriteSection"
         workouts:
           $ref: "#/components/schemas/ReflectionWriteSection"
+        warningReview:
+          $ref: "#/components/schemas/WarningReviewEnvelope"
         positiveSignals:
           $ref: "#/components/schemas/InsightList"
         watchouts:
           $ref: "#/components/schemas/InsightList"
         nextActions:
           $ref: "#/components/schemas/DailyNextActionList"
+    WarningDirection:
+      type: string
+      enum: [IMPROVING, UNCHANGED, WORSENING, RESOLVED, INSUFFICIENT_EVIDENCE]
+    WarningAssessment:
+      type: object
+      additionalProperties: false
+      description: A complete current warning review. A direction other than INSUFFICIENT_EVIDENCE requires a dated earlier comparison; RESOLVED requires resolutionRationale. Use the user's personal goals and evidence, not invented streaks.
+      required: [direction, assessment, evidence, nextAction, resolutionCriteria, criteriaProgress, recentStart, recentEnd]
+      properties:
+        direction: {$ref: "#/components/schemas/WarningDirection"}
+        assessment: {type: string, minLength: 1, maxLength: 500, description: Concise answer to whether the warning is improving and why.}
+        evidence: {type: string, minLength: 1, maxLength: 2000, description: Dated observations, relevant quantities and uncertainty for this warning.}
+        nextAction: {type: string, minLength: 1, maxLength: 500}
+        resolutionCriteria: {type: string, minLength: 1, maxLength: 500, description: "State evidence-based resolution conditions. For sleep, inclusive minimums are ≥25,200 seconds in bed and ≥21,600 seconds asleep, with sufficient recent evidence; one isolated shortfall does not prove sustained disruption. Retain criteria or explain changes."}
+        criteriaProgress: {type: string, minLength: 1, maxLength: 500, description: Current progress toward the stated resolution criteria.}
+        recentStart: {type: string, format: date}
+        recentEnd: {type: string, format: date}
+        priorStart: {type: string, format: date, nullable: true, description: Supply together with priorEnd for a dated comparison.}
+        priorEnd: {type: string, format: date, nullable: true}
+        criteriaChangeReason: {type: string, maxLength: 500, nullable: true}
+        resolutionRationale: {type: string, maxLength: 2000, nullable: true}
+    ExistingWarningReview:
+      type: object
+      additionalProperties: false
+      required: [id, version, assessment]
+      properties:
+        id: {type: integer, format: int64, minimum: 1}
+        version: {type: integer, format: int64, minimum: 0}
+        assessment: {$ref: "#/components/schemas/WarningAssessment"}
+    NewWarningReview:
+      type: object
+      additionalProperties: false
+      required: [requestKey, type, assessment]
+      properties:
+        requestKey: {type: string, format: uuid}
+        type: {$ref: "#/components/schemas/WarningType"}
+        onsetDate: {type: string, format: date, nullable: true}
+        assessment: {$ref: "#/components/schemas/WarningAssessment"}
+    WarningReviewEnvelope:
+      type: object
+      additionalProperties: false
+      description: Required for every DAILY save. Use today's Europe/Madrid date, review every currently active warning exactly once, and include explicit empty arrays when none. A newly detected warning needs its own initial progress; an exact retry after creation may conflict and requires read-back before another write.
+      required: [reviewedDate, reviews, newWarnings]
+      properties:
+        reviewedDate: {type: string, format: date}
+        reviews: {type: array, items: {$ref: "#/components/schemas/ExistingWarningReview"}}
+        newWarnings: {type: array, items: {$ref: "#/components/schemas/NewWarningReview"}}
+    WarningProgress:
+      type: [object, "null"]
+      description: Latest dated DAILY assessment, retained through later standalone warning edits; null for legacy warnings.
+      required: [direction, assessment, evidence, nextAction, resolutionCriteria, criteriaProgress, recentStart, recentEnd, reviewedDate, sourceVersion, initialReview]
+      properties:
+        direction: {$ref: "#/components/schemas/WarningDirection"}
+        assessment: {type: string}
+        evidence: {type: string}
+        nextAction: {type: string}
+        resolutionCriteria: {type: string}
+        criteriaProgress: {type: string}
+        recentStart: {type: string, format: date}
+        recentEnd: {type: string, format: date}
+        priorStart: {type: string, format: date, nullable: true}
+        priorEnd: {type: string, format: date, nullable: true}
+        criteriaChangeReason: {type: string, nullable: true}
+        resolutionRationale: {type: string, nullable: true}
+        reviewedDate: {type: string, format: date}
+        sourceVersion: {type: integer, format: int64, minimum: 0}
+        initialReview: {type: boolean}
+    WarningReviewItem:
+      type: object
+      required: [id, type, status, version, progress]
+      properties:
+        id: {type: integer, format: int64}
+        type: {$ref: "#/components/schemas/WarningType"}
+        status: {type: string, enum: [ACTIVE, RESOLVED]}
+        version: {type: integer, format: int64}
+        progress: {$ref: "#/components/schemas/WarningProgress"}
+    WarningReviewSnapshot:
+      type: [object, "null"]
+      description: Null means the historical reflection had no recorded warning review; an empty items array means the dated review found no active warnings.
+      required: [reviewedDate, items]
+      properties:
+        reviewedDate: {type: string, format: date}
+        items: {type: array, items: {$ref: "#/components/schemas/WarningReviewItem"}}
     ReflectionWriteSection:
       type: object
       additionalProperties: false
@@ -4416,6 +4503,8 @@ components:
           $ref: "#/components/schemas/ReflectionSection"
         workouts:
           $ref: "#/components/schemas/ReflectionSection"
+        warningReview:
+          $ref: "#/components/schemas/WarningReviewSnapshot"
         positiveSignals:
           $ref: "#/components/schemas/InsightList"
         watchouts:
@@ -5127,6 +5216,7 @@ components:
         updatedAt: {type: string, format: date-time}
         resolvedAt: {type: string, format: date-time, nullable: true}
         version: {type: integer, format: int64}
+        progress: {$ref: "#/components/schemas/WarningProgress"}
     WarningWriteRequest:
       type: object
       description: Exactly one create, update or resolve payload. id is required for update or resolve and omitted for create.

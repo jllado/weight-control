@@ -102,6 +102,8 @@ Follow imports and service calls from these starting points rather than enumerat
 
 The app's daily reflection archive reads fixed, newest-first ten-row pages from `GET /api/reflections?page=N` (zero-based), while Home reads the default first page for its latest-reflection advice. The private DAILY Coach overview remains a separate unpaged `getOverview(User)` contract; paging the app does not change its Actions, schema or GPT instructions.
 
+Every new DAILY reflection save carries `warningReview` with today's Europe/Madrid review date, one versioned assessment for each active Coach warning, and explicit arrays for newly detected warnings. `DashboardReflectionService` and `DailyWarningReviewService` validate the complete active set under the same user-row lock used by standalone warning writes, then commit warning revisions, any new warnings, the reflection snapshot and the success notification together. A historical selected reflection date still limits the reflection's evidence; the separately dated current-warning review can use current evidence. Legacy reflection snapshots are null, while a completed review with no warnings stores an empty `items` array. WEEKLY saves remain separate.
+
 ## Cross-cutting flows
 
 ### Frontend API changes

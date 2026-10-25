@@ -24,6 +24,7 @@ import com.jllado.weightcontrol.domain.PersonalRecordDomain;
 import com.jllado.weightcontrol.domain.PersonalRecordEventKind;
 import com.jllado.weightcontrol.domain.PersonalRecordMetric;
 import com.jllado.weightcontrol.domain.PersonalRecordUnit;
+import com.jllado.weightcontrol.domain.WarningProgress;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -296,12 +297,16 @@ public final class CoachDtos {
         Long id, CoachWarningType type,
         CoachWarningStatus status, WarningContent content,
         String resolutionRationale, Instant createdAt, Instant updatedAt,
-        Instant resolvedAt, long version
+        Instant resolvedAt, long version, WarningProgress progress
     ) {
         public static WarningResponse from(CoachWarning warning) {
+            return from(warning, null);
+        }
+
+        public static WarningResponse from(CoachWarning warning, WarningProgress progress) {
             return new WarningResponse(warning.getId(), warning.getType(), warning.getStatus(),
                 new WarningContent(warning.getExplanation(), warning.getEvidence(), warning.getAction(), warning.getOnsetDate(), warning.getReviewedDate()),
-                warning.getResolutionRationale(), warning.getCreatedAt(), warning.getUpdatedAt(), warning.getResolvedAt(), warning.getVersion());
+                warning.getResolutionRationale(), warning.getCreatedAt(), warning.getUpdatedAt(), warning.getResolvedAt(), warning.getVersion(), progress);
         }
     }
 

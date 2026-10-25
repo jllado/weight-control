@@ -48,14 +48,14 @@ public class CoachWarningService {
 
     @Transactional(readOnly = true)
     public WarningOverview overview(User user) {
-        return new WarningOverview(warnings.findByUserAndStatusOrderByTypeAsc(user, CoachWarningStatus.ACTIVE).stream().map(WarningResponse::from).toList(),
+        return new WarningOverview(warnings.findByUserAndStatusOrderByTypeAsc(user, CoachWarningStatus.ACTIVE).stream().map(this::current).toList(),
             warnings.findByUserAndStatusOrderByUpdatedAtDescIdDesc(user, CoachWarningStatus.RESOLVED, PageRequest.of(0, 1)).hasContent());
     }
 
     @Transactional(readOnly = true)
     public WarningPage history(User user, int page) {
         var result = warnings.findByUserAndStatusOrderByUpdatedAtDescIdDesc(user, CoachWarningStatus.RESOLVED, pageRequest(page));
-        return new WarningPage(result.map(WarningResponse::from).toList(), page, result.hasNext());
+        return new WarningPage(result.map(this::current).toList(), page, result.hasNext());
     }
 
     @Transactional(readOnly = true)
@@ -66,12 +66,16 @@ public class CoachWarningService {
     }
 
     public WarningResponse create(User user, CreateWarningRequest request) {
+        return create(user, request, null);
+    }
+
+    public WarningResponse create(User user, CreateWarningRequest request, WarningProgress progress) {
         lock(user);
         String payload = encode(request);
         var existing = warnings.findByUserAndRequestKey(user, request.requestKey().toString());
         if (existing.isPresent()) {
             if (!existing.get().getCreatePayload().equals(payload)) throw conflict("Request key already used for different warning values");
-            return WarningResponse.from(existing.get());
+            return current(existing.get());
         }
         if (warnings.existsByUserAndTypeAndStatus(user, request.type(), CoachWarningStatus.ACTIVE)) throw conflict("This warning type is already active; retrieve and update it");
         CoachWarning warning = new CoachWarning();
@@ -82,27 +86,47 @@ public class CoachWarningService {
         warning.setCreatePayload(payload);
         warning.setCreatedAt(Instant.now());
         apply(warning, request.content());
-        return save(warning);
+        return save(warning, progress);
     }
 
     public WarningResponse update(User user, Long id, UpdateWarningRequest request) {
         lock(user);
         CoachWarning warning = editable(user, id, request.version());
+        WarningProgress progress = current(warning).progress();
         apply(warning, request.content());
         warning.setVersion(warning.getVersion() + 1);
-        return save(warning);
+        return save(warning, progress);
     }
 
     public WarningResponse resolve(User user, Long id, ResolveWarningRequest request) {
         lock(user);
         CoachWarning warning = editable(user, id, request.version());
+        WarningProgress progress = current(warning).progress();
         validateReview(warning, request.reviewedDate());
         warning.setReviewedDate(request.reviewedDate());
         warning.setStatus(CoachWarningStatus.RESOLVED);
         warning.setResolutionRationale(request.rationale());
         warning.setResolvedAt(Instant.now());
         warning.setVersion(warning.getVersion() + 1);
-        return save(warning);
+        return save(warning, progress);
+    }
+
+    public WarningResponse reviewDaily(User user, Long id, long version, WarningContent content, WarningProgress progress) {
+        lock(user);
+        CoachWarning warning = editable(user, id, version);
+        apply(warning, content);
+        if (progress.direction() == WarningDirection.RESOLVED) {
+            warning.setStatus(CoachWarningStatus.RESOLVED);
+            warning.setResolutionRationale(progress.resolutionRationale());
+            warning.setResolvedAt(Instant.now());
+        }
+        warning.setVersion(warning.getVersion() + 1);
+        return save(warning, progress);
+    }
+
+    @Transactional(readOnly = true)
+    public WarningResponse current(User user, Long id) {
+        return current(owned(user, id));
     }
 
     private void lock(User user) {
@@ -133,10 +157,15 @@ public class CoachWarningService {
         if (warning.getReviewedDate() != null && date.isBefore(warning.getReviewedDate())) throw conflict("Review date must not move backwards");
     }
 
-    private WarningResponse save(CoachWarning warning) {
+    private WarningResponse current(CoachWarning warning) {
+        return decode(revisions.findByWarningIdAndVersion(warning.getId(), warning.getVersion())
+            .orElseThrow(() -> new IllegalStateException("Warning revision is missing")).getSnapshot());
+    }
+
+    private WarningResponse save(CoachWarning warning, WarningProgress progress) {
         warning.setUpdatedAt(Instant.now());
         warnings.saveAndFlush(warning);
-        WarningResponse response = WarningResponse.from(warning);
+        WarningResponse response = WarningResponse.from(warning, progress);
         CoachWarningRevision revision = new CoachWarningRevision();
         revision.setWarning(warning);
         revision.setVersion(warning.getVersion());

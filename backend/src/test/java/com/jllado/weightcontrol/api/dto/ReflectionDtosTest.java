@@ -5,9 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.jllado.weightcontrol.api.dto.ReflectionDtos.SaveReflectionRequest;
 import com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionSection;
+import com.jllado.weightcontrol.api.dto.ReflectionDtos.WarningReviewEnvelope;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import java.util.List;
+import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 
 class ReflectionDtosTest {
@@ -120,7 +122,8 @@ class ReflectionDtosTest {
 
     private SaveReflectionRequest withSections(ReflectionSection meals, ReflectionSection workouts) {
         return new SaveReflectionRequest("Title", "Summary", null, null,
-            List.of("Positive"), List.of("Watch"), List.of("Action"), meals, workouts);
+            List.of("Positive"), List.of("Watch"), List.of("Action"), meals, workouts,
+            new WarningReviewEnvelope(LocalDate.of(2026, 10, 25), List.of(), List.of()));
     }
 
     private SaveReflectionRequest request(
@@ -141,7 +144,8 @@ class ReflectionDtosTest {
             watchouts,
             nextActions,
             new ReflectionSection("No meal evidence recorded.", "Record meals."),
-            new ReflectionSection("No workout evidence recorded.", "Review training.")
+            new ReflectionSection("No workout evidence recorded.", "Review training."),
+            new WarningReviewEnvelope(LocalDate.of(2026, 10, 25), List.of(), List.of())
         );
     }
 }
