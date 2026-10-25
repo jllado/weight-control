@@ -774,4 +774,4 @@ The saved-detail three-period layout and paired email cards group Workout activi
 
 - [x] Widen only the general DAILY next action to 200 characters and keep other reflection limits unchanged.
 - [x] Give Coach a 160-character composition target and an exact final-body count before proposal and save.
-- [ ] Validate the shared contract, deploy it, publish the private GPT and independently verify source/live identities and a read-only DAILY proposal.
+- [x] Validate the shared contract, deploy it, publish the private GPT and independently verify source/live identities and a read-only DAILY proposal; see [reflection validation acceptance](coach-gpt.md#reflection-validation-acceptance).
