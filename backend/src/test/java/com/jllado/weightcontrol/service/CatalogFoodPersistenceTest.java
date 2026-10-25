@@ -38,6 +38,58 @@ class CatalogFoodPersistenceTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired org.springframework.transaction.support.TransactionTemplate transactions;
 
+    @Test void coachFoodLookupBoundsMatchesAndKeepsUserOwnership() {
+        var owner = user("fiber-lookup");
+        var other = user("fiber-lookup-other");
+        for (int i = 0; i < 23; i++) service.create(owner, food("Oats " + i, 100, DishUnit.GRAM, 380));
+        service.create(owner, food("Blueberries", 100, DishUnit.GRAM, 57));
+        service.create(other, food("Oats private", 100, DishUnit.GRAM, 380));
+        var deleted = service.create(owner, food("Oats deleted", 100, DishUnit.GRAM, 380));
+        service.delete(owner, deleted.id());
+        var date = LocalDate.of(2026, 8, 12);
+        var result = context.getHealthContext(owner, date, date, java.util.Set.of(CoachDomain.FOODS), 0, 25, " OATS ");
+        var foods = (com.jllado.weightcontrol.api.dto.CoachDtos.FoodsContext) result.data().get(CoachDomain.FOODS);
+        assertEquals(20, foods.foods().size());
+        assertEquals("oats", foods.query());
+        assertTrue(foods.hasMore());
+        assertFalse(foods.preview());
+        assertTrue(foods.foods().stream().allMatch(food -> food.name().startsWith("Oats ") && !food.name().equals("Oats private") && !food.name().equals("Oats deleted")));
+        var noMatch = context.getHealthContext(owner, date, date, java.util.Set.of(CoachDomain.FOODS), 0, 25, "Missing");
+        assertTrue(((com.jllado.weightcontrol.api.dto.CoachDtos.FoodsContext) noMatch.data().get(CoachDomain.FOODS)).foods().isEmpty());
+    }
+
+    @Test void fiberReferencesScaleAcrossSaveReloadAndRejectLossAtomically() throws Exception {
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules();
+        var owner = user("fiber-portions");
+        var json = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree("""
+            {"name":"Oats","quantity":50,"unit":"GRAM","calories":190,
+             "proteinGrams":6,"carbohydrateGrams":30,"fatGrams":4,
+             "vitaminDMicrograms":0,"magnesiumMilligrams":50,"omega3Milligrams":null,
+             "nutrientSource":"Label","nutrientsEstimated":false,"nutrientSchemaVersion":2,
+             "fiberGrams":4,"fiberSource":"Label: 8g/100g","fiberEstimated":false,
+             "reference":{"quantity":100,"calories":380,"proteinGrams":12,"carbohydrateGrams":60,
+                "fatGrams":8,"vitaminDMicrograms":0,"magnesiumMilligrams":100,"fiberGrams":8}}
+            """);
+        var food = mapper.treeToValue(json, MealDishRequest.class);
+        var catalog = service.create(owner, food);
+        var saved = meals.create(owner, meal(food));
+        assertEquals(new BigDecimal("4.00"), meals.findAll(owner).getFirst().getDishes().getFirst().getFiberGrams());
+        json.put("quantity", 75).put("fiberGrams", 6);
+        var edited = mapper.treeToValue(json, MealDishRequest.class);
+        meals.update(owner, saved.getId(), new MealRequest(LocalDate.of(2026, 8, 12), MealType.SNACK, 0, null, null, null, null, null, List.of(edited), null, 2));
+        var reloaded = meals.findAll(owner).getFirst().getDishes().getFirst();
+        assertEquals(new BigDecimal("6.00"), reloaded.getFiberGrams());
+        assertEquals(new BigDecimal("8.00"), reloaded.getReferenceFiberGrams());
+        assertEquals("Label: 8g/100g", reloaded.getFiberSource());
+        assertFalse(reloaded.getFiberEstimated());
+        ((com.fasterxml.jackson.databind.node.ObjectNode) json.get("reference")).putNull("fiberGrams");
+        var invalid = mapper.treeToValue(json, MealDishRequest.class);
+        assertThrows(BadRequestException.class, () -> meals.update(owner, saved.getId(), new MealRequest(LocalDate.of(2026, 8, 12), MealType.SNACK, 0, null, null, null, null, null, List.of(invalid), null, 2)));
+        assertEquals(new BigDecimal("6.00"), meals.findAll(owner).getFirst().getDishes().getFirst().getFiberGrams());
+        assertEquals(new BigDecimal("4.00"), service.findAll(owner).getFirst().fiberGrams());
+        assertEquals(catalog.id(), service.findAll(owner).getFirst().id());
+    }
+
     @Test void newNutrientsSurviveEverySnapshotAndUnawareReplacementsAreRejected() throws Exception {
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules()
             .disable(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);

@@ -2053,7 +2053,7 @@ components:
           multipleOf: 0.01
         epaDhaMilligrams: {type: [number, "null"], minimum: 0}
         alaMilligrams: {type: [number, "null"], minimum: 0}
-        fiberGrams: {type: [number, "null"], minimum: 0}
+        fiberGrams: {type: [number, "null"], minimum: 0, description: "Fiber for this reference portion. When consumed fiber is known, the reference fiber must also be known; never reuse a null reference for a researched value."}
     DishReferenceWrite:
       allOf:
         - $ref: "#/components/schemas/DishReference"
@@ -2065,7 +2065,7 @@ components:
             magnesiumMilligrams: {type: number, minimum: 0}
             epaDhaMilligrams: {type: [number, "null"], minimum: 0}
             alaMilligrams: {type: [number, "null"], minimum: 0}
-            fiberGrams: {type: [number, "null"], minimum: 0}
+            fiberGrams: {type: [number, "null"], minimum: 0, description: "Fiber for this reference portion. When consumed fiber is known, the reference fiber must also be known; never reuse a null reference for a researched value."}
     NutritionDish:
       type: object
       additionalProperties: false
@@ -2128,7 +2128,7 @@ components:
         alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
         alaSource: {type: [string, "null"], maxLength: 500}
         alaEstimated: {type: [boolean, "null"]}
-        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Fiber in grams for this portion. Reuse known saved values; research missing fiber from the product label or a matching composition source even for saved foods. Confirm estimates with source and matching reference fiber. Unsupported stays null; zero requires evidence. Do not alter saved templates or history without authorization."}
         fiberSource: {type: [string, "null"], maxLength: 500}
         fiberEstimated: {type: [boolean, "null"]}
     MealDish:
@@ -2193,7 +2193,7 @@ components:
         alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
         alaSource: {type: [string, "null"], maxLength: 500}
         alaEstimated: {type: [boolean, "null"]}
-        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Fiber in grams for this portion. Reuse known saved values; research missing fiber from the product label or a matching composition source even for saved foods. Confirm estimates with source and matching reference fiber. Unsupported stays null; zero requires evidence. Do not alter saved templates or history without authorization."}
         fiberSource: {type: [string, "null"], maxLength: 500}
         fiberEstimated: {type: [boolean, "null"]}
     MealDishWrite:
@@ -2252,7 +2252,7 @@ components:
         alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
         alaSource: {type: [string, "null"], maxLength: 500}
         alaEstimated: {type: [boolean, "null"]}
-        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Fiber in grams for this portion. Reuse known saved values; research missing fiber from the product label or a matching composition source even for saved foods. Confirm estimates with source and matching reference fiber. Unsupported stays null; zero requires evidence. Do not alter saved templates or history without authorization."}
         fiberSource: {type: [string, "null"], maxLength: 500}
         fiberEstimated: {type: [boolean, "null"]}
     CoachMealDishWrite:
@@ -2318,7 +2318,7 @@ components:
         alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
         alaSource: {type: [string, "null"], maxLength: 500}
         alaEstimated: {type: [boolean, "null"]}
-        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Fiber in grams for this portion. Reuse known saved values; research missing fiber from the product label or a matching composition source even for saved foods. Confirm estimates with source and matching reference fiber. Unsupported stays null; zero requires evidence. Do not alter saved templates or history without authorization."}
         fiberSource: {type: [string, "null"], maxLength: 500}
         fiberEstimated: {type: [boolean, "null"]}
     MealType:
@@ -4995,7 +4995,7 @@ components:
         alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
         alaSource: {type: [string, "null"], maxLength: 500}
         alaEstimated: {type: [boolean, "null"]}
-        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Fiber in grams for this portion. Reuse known saved values; research missing fiber from the product label or a matching composition source even for saved foods. Confirm estimates with source and matching reference fiber. Unsupported stays null; zero requires evidence. Do not alter saved templates or history without authorization."}
         fiberSource: {type: [string, "null"], maxLength: 500}
         fiberEstimated: {type: [boolean, "null"]}
     CoachHealthEntryWrite:
