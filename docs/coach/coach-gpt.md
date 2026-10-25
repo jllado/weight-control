@@ -12,7 +12,7 @@ Create or update the private custom GPT at https://chatgpt.com/gpts/editor and k
 - Authentication: select `API key`, choose `Bearer`, and enter the value of `CHATGPT_ACTION_TOKEN` from the ignored local `.env`.
 - Frontend link: set `VITE_CHATGPT_COACH_URL` to the saved private GPT URL.
 - Knowledge files: none.
-- Recommended model: **Thinking 5.6** (`gpt-5-6-thinking`); use **Medium** power for meal saves. Selecting Pro can retain the failed consequential-Action handoff even within GPT-5.6; see [save investigation](../save-performance.md#confirmed-dinner-comparison).
+- Recommended model: **Thinking 6** (`gpt-6-thinking`); use **Medium** power for meal saves. A GPT recommendation does not override a remembered account model or power, so verify the actual selection in each conversation. The tested Thinking 6 Medium draft passed sourced-nutrient review and its exact `confirmed:false` `createMeal` call reached approval and was rejected before persistence; this does not prove a `confirmed:true` save. The earlier GPT-5.6 Medium successful save and Pro handoff failure remain in the [save investigation](../save-performance.md#confirmed-dinner-comparison).
 
 ## Targeted food search acceptance — October 25, 2026
 
