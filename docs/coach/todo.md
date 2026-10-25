@@ -760,8 +760,8 @@ The saved-detail three-period layout and paired email cards group Workout activi
 - [x] Bound existing `getHealthContext(FOODS)` to 20 owner-scoped active foods per literal, case-insensitive `foodQuery`; expose normalized `query`, `hasMore` and explicit no-query `preview` metadata.
 - [x] Preserve complete app Foods CRUD, DISHES and unrelated context domains, and the existing 30 Action operations; cover 20/21 matches, SQL wildcard literals, ownership, deletion and invalid queries in focused backend tests.
 - [x] Update the Action schema and GPT meal instructions to require targeted search and refinement before absence or `addToCatalog` conclusions while staying within the 8,000-character instruction limit.
-- [ ] Pass the complete release gate, deploy the app, and verify the expected source tree and readiness independently.
-- [ ] Publish the exact private GPT schema/instructions after deployment; read back version, live version, hashes, visibility, authentication and model, then run fresh read-only food lookup acceptance.
+- [x] Pass the complete release gate, deploy the app, and verify the expected source tree and readiness independently.
+- [x] Publish the exact private GPT schema/instructions after deployment; read back version, live version, hashes, visibility, authentication and model, then run fresh read-only food lookup acceptance.
 
 ## Coach reusable dish writes
 
