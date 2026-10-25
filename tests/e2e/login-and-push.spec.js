@@ -479,6 +479,12 @@ function madridDate(date = new Date()) {
     return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+function madridOffset(date) {
+    const parts = new Intl.DateTimeFormat('en-GB', {timeZone: 'Europe/Madrid', timeZoneName: 'longOffset'})
+        .formatToParts(new Date(`${date}T12:00:00Z`));
+    return parts.find(part => part.type === 'timeZoneName').value.slice(3);
+}
+
 function routineReminderDashboard(date, routinesDone = 0) {
     const mood = {average: null, morning: null, midday: null, evening: null};
     const status = {
@@ -4369,7 +4375,7 @@ test('routine reminder content and actions remain visible at mobile and desktop 
     const date = madridDate();
     const routineName = 'Morning weigh-in with a deliberately long title for responsive layout';
     await mockRoutineReminderHome(page, [routine(1, routineName, '07:30:00')], {
-        initialNotifications: [{id: 80, type: 'ROUTINE', title: 'Routine reminder', message: routineName, reminderDate: date, availableAt: `${date}T07:30:00+02:00`, actionUrl: `/?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10&notificationId=80`}]
+        initialNotifications: [{id: 80, type: 'ROUTINE', title: 'Routine reminder', message: routineName, reminderDate: date, availableAt: `${date}T07:30:00${madridOffset(date)}`, actionUrl: `/?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10&notificationId=80`}]
     });
 
     await page.setViewportSize({width: 1280, height: 800});
