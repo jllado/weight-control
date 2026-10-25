@@ -13,6 +13,23 @@ import org.junit.jupiter.api.Test;
 class NutrientSummaryTest {
     private final ObjectMapper mapper = new ObjectMapper().disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 
+    @Test void rejectsRecordedFiberWithAnUnknownReferenceInsteadOfSilentlyDiscardingIt() throws Exception {
+        var request = mapper.readValue("""
+            {"name":"Oats","calories":190,"quantity":50,"unit":"GRAM",
+             "vitaminDMicrograms":0,"magnesiumMilligrams":65,
+             "nutrientSource":"Saved composition","nutrientsEstimated":true,
+             "fiberGrams":4,"fiberSource":"Product label: 8 g/100 g","fiberEstimated":false,
+             "reference":{"quantity":100,"calories":380,"vitaminDMicrograms":0,
+               "magnesiumMilligrams":130,"fiberGrams":null}}
+            """, MealDishRequest.class);
+        var food = new MealDish();
+        food.setCalories(123);
+        food.setFiberGrams(BigDecimal.TEN);
+        assertThrows(BadRequestException.class, () -> DishNutrition.apply(food, request));
+        assertEquals(123, food.getCalories());
+        assertEquals(BigDecimal.TEN, food.getFiberGrams());
+    }
+
     @Test void scalesEpaDhaIndependentlyAndRoundTripsItsEvidence() throws Exception {
         var request = mapper.readValue("""
             {"name":"Fish","calories":50,"quantity":50,"unit":"GRAM",

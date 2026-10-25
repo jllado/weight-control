@@ -599,7 +599,8 @@ class ChatGptCoachActionControllerTest {
             to,
             Set.of(first, second),
             0,
-            25
+            25,
+            null
         )).thenReturn(response);
 
         mockMvc.perform(get("/api/chatgpt-actions/coach/context")
@@ -615,7 +616,8 @@ class ChatGptCoachActionControllerTest {
             to,
             Set.of(first, second),
             0,
-            25
+            25,
+            null
         );
     }
 
@@ -635,7 +637,7 @@ class ChatGptCoachActionControllerTest {
         LocalDate from = LocalDate.of(2026, 8, 1);
         LocalDate to = LocalDate.of(2026, 8, 16);
         when(currentUserService.requireUser()).thenReturn(user);
-        when(healthDataContextService.getHealthContext(user, from, to, Set.of(), 0, 25))
+        when(healthDataContextService.getHealthContext(user, from, to, Set.of(), 0, 25, null))
             .thenThrow(new com.jllado.weightcontrol.service.BadRequestException("At least one Coach domain is required"));
         mockMvc.perform(get("/api/chatgpt-actions/coach/context")
                 .param("from", "2026-08-01")
@@ -659,7 +661,7 @@ class ChatGptCoachActionControllerTest {
             new CoachDataSemantics(true, true, true, true),
             new LinkedHashMap<>()
         );
-        when(healthDataContextService.getHealthContext(user, from, to, Set.of(CoachDomain.RECORDS), 2, 10))
+        when(healthDataContextService.getHealthContext(user, from, to, Set.of(CoachDomain.RECORDS), 2, 10, null))
             .thenReturn(response);
 
         mockMvc.perform(get("/api/chatgpt-actions/coach/context")
@@ -670,7 +672,18 @@ class ChatGptCoachActionControllerTest {
                 .param("recordsPageSize", "10"))
             .andExpect(status().isOk());
 
-        verify(healthDataContextService).getHealthContext(user, from, to, Set.of(CoachDomain.RECORDS), 2, 10);
+        verify(healthDataContextService).getHealthContext(user, from, to, Set.of(CoachDomain.RECORDS), 2, 10, null);
+    }
+
+    @Test
+    void contextPassesFoodQueryToTheOwnedCatalogLookup() throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        mockMvc.perform(get("/api/chatgpt-actions/coach/context")
+                .param("from", "2026-08-12").param("to", "2026-08-12")
+                .param("domains", "FOODS").param("foodQuery", "Oats"))
+            .andExpect(status().isOk());
+        verify(healthDataContextService).getHealthContext(user, LocalDate.of(2026, 8, 12),
+            LocalDate.of(2026, 8, 12), Set.of(CoachDomain.FOODS), 0, 25, "Oats");
     }
 
     @Test

@@ -130,7 +130,7 @@ public final class CoachDtos {
         }
     }
 
-    public record FoodsContext(List<NutritionDishData> foods) { }
+    public record FoodsContext(List<NutritionDishData> foods, int matchedFoods) { }
 
     /**
      * Compact nutrition evidence for broad Coach reviews. Detailed meals and fasting periods

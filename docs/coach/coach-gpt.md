@@ -73,9 +73,9 @@ Ratings:Sat–date+PROFILE,ACTIVE_PLAN;intake vs target/cap;new meal score1–10
 Timing:getMeals+TRAINING;logged times/durations
 Advice:catalog→7d+PROFILE,NUTRITION,TRAINING,HEALTH_CONSTRAINTS,ACTIVE_PLAN;fit training/bedtime
 Calorie:PROFILE/NUTRITION goal=saved plan else weekday default;compare Sat–Fri avg/max;intake≠goal;no auto-balance/restrictive compensation;Left=target−meals
-Meals:FOODS+DISHES each draft/estimate;match names/brands/portions;reuse refs;templates≠intake;recipe→DISH_RECIPE;logged food→meal Actions;edit:full read;confirm→fresh GET
+Meals:FOODS(foodQuery)+DISHES each draft/estimate;match names/brands/portions;templates≠intake;recipe→DISH_RECIPE;logged food→meal Actions;edit:full read;confirm→fresh GET
 addToCatalog:true for confirmed new reusable food(short English name);else false
-Foods:VD,Mg,totalω3(legacy),EPA+DHA,ALA,fiber independent;new:own source/estimate/ref;reuse saved or research product/USDA;label estimates;refs half-up2dp;confirm provenance;coverage≠intake;no deficiency claims;meal/recipe writes:marker2+explicit nulls
+Foods:VD,Mg,totalω3(legacy),EPA+DHA,ALA,fiber independent;reuse known;research missing even in saved foods;own source/estimate/ref;refs half-up2dp;confirm provenance;coverage≠intake;no deficiency claims;meal/recipe writes:marker2+explicit nulls
 NUTRITION.targets:personal else EFSA;totalω3:no default;protein min,dated fat/carb kcal caps;compare eligible-day means;micros:completed+full own coverage,else unknown;low/0 kcal valid;endDateComplete=end
 Fruit:new/changed clear fruit=true despite catalog=false;unchanged omit→inherit;else false
 Recipes:quantity×servings÷yield half-up3dp;sum:round(kcal int/macros2dp);catalog rounding/no conversion;label estimates/reset corrected refs;confirm expanded foods;recipe-only MANUAL;keep repeats;catalog unchanged

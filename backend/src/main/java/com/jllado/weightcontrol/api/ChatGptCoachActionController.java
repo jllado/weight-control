@@ -173,7 +173,8 @@ public class ChatGptCoachActionController {
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
         @RequestParam Set<CoachDomain> domains,
         @RequestParam(defaultValue = "0") int recordsPage,
-        @RequestParam(defaultValue = "25") int recordsPageSize
+        @RequestParam(defaultValue = "25") int recordsPageSize,
+        @RequestParam(required = false) String foodQuery
     ) {
         return healthDataContextService.getHealthContext(
             currentUserService.requireUser(),
@@ -181,7 +182,8 @@ public class ChatGptCoachActionController {
             to,
             domains,
             recordsPage,
-            recordsPageSize
+            recordsPageSize,
+            foodQuery
         );
     }
 
