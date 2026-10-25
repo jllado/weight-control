@@ -424,13 +424,15 @@ async function mockAuthenticatedAgenda(page, agenda) {
     });
 }
 
-async function mockAuthenticatedReflections(page, reflection = null, actionConfigured = reflection !== null) {
+async function mockAuthenticatedReflections(page, reflection = null, actionConfigured = reflection !== null, history = null) {
+    const reflections = history || (reflection === null ? [] : [reflection]);
     await page.route('https://accounts.google.com/gsi/client', route => route.fulfill({
         contentType: 'application/javascript',
         body: googleClientScript
     }));
     await page.route('**/api/**', route => {
-        const path = new URL(route.request().url()).pathname;
+        const url = new URL(route.request().url());
+        const path = url.pathname;
         if (path === '/api/urge-pauses') return route.fulfill({json: {pause: null, serverNow: new Date().toISOString()}});
         if (path === '/api/auth/me') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({email: 'jllado@gmail.com', displayName: 'Jordi', authenticated: true})});
@@ -439,20 +441,28 @@ async function mockAuthenticatedReflections(page, reflection = null, actionConfi
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(profile)});
         }
         if (path === '/api/reflections') {
+            const pageIndex = Number(url.searchParams.get('page') || 0);
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({
                 firstTrackedDate: '2026-07-01',
                 lastCompletedDate: '2026-08-13',
                 actionConfigured,
-                reflections: reflection === null ? [] : [{
-                    reflectionDate: reflection.reflectionDate,
-                    generatedAt: reflection.generatedAt,
-                    title: reflection.title,
-                    planProgressScore: reflection.planProgressScore
-                }]
+                reflections: reflections.slice(pageIndex * 10, (pageIndex + 1) * 10).map(item => ({
+                    reflectionDate: item.reflectionDate,
+                    generatedAt: item.generatedAt,
+                    title: item.title,
+                    planProgressScore: item.planProgressScore
+                })),
+                page: pageIndex,
+                size: 10,
+                totalElements: reflections.length,
+                totalPages: Math.ceil(reflections.length / 10)
             })});
         }
-        if (path === '/api/reflections/2026-08-13') {
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify(reflection)});
+        if (path.startsWith('/api/reflections/')) {
+            const saved = reflections.find(item => item.reflectionDate === path.slice('/api/reflections/'.length));
+            return saved
+                ? route.fulfill({contentType: 'application/json', body: JSON.stringify(saved)})
+                : route.fulfill({status: 204});
         }
         return route.fulfill({contentType: 'application/json', body: '[]'});
     });
@@ -467,6 +477,12 @@ function madridDate(date = new Date()) {
     });
     const parts = Object.fromEntries(formatter.formatToParts(date).map(part => [part.type, part.value]));
     return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function madridOffset(date) {
+    const parts = new Intl.DateTimeFormat('en-GB', {timeZone: 'Europe/Madrid', timeZoneName: 'longOffset'})
+        .formatToParts(new Date(`${date}T12:00:00Z`));
+    return parts.find(part => part.type === 'timeZoneName').value.slice(3);
 }
 
 function routineReminderDashboard(date, routinesDone = 0) {
@@ -706,7 +722,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(routineReminderDashboard(requestedDate || date, routinesDone))});
         }
         if (path === '/api/reflections') {
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify({reflections: [], actionConfigured: false})});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({firstTrackedDate: null, lastCompletedDate: null, actionConfigured: false, reflections: [], page: 0, size: 10, totalElements: 0, totalPages: 0})});
         }
         if (path === '/api/push/config') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({enabled: pushEnabled, publicKey: pushEnabled ? 'test-public-key' : null, timeZone: 'Europe/Madrid'})});
@@ -1081,7 +1097,7 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             return route.fulfill({status: 200, contentType: 'application/json', body: '{}'});
         }
         if (path === '/api/reflections') {
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify({reflections: [], actionConfigured: false})});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({firstTrackedDate: null, lastCompletedDate: null, actionConfigured: false, reflections: [], page: 0, size: 10, totalElements: 0, totalPages: 0})});
         }
         if (path === '/api/decision-outcomes' && request.method() === 'POST') {
             const outcome = request.postDataJSON();
@@ -4026,8 +4042,8 @@ for (const [trigger, description] of automaticRoutineRules) {
         await dialog.locator('#routine').fill('Assigned routine with a longer editable name');
         for (const width of [376, 390, 1280]) {
             await page.setViewportSize({width, height: 900});
-            expect(await dialog.evaluate(element => element.getBoundingClientRect().left >= 0 && element.getBoundingClientRect().right <= innerWidth)).toBe(true);
-            expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+            await expect.poll(() => dialog.evaluate(element => element.getBoundingClientRect().left >= 0 && element.getBoundingClientRect().right <= innerWidth)).toBe(true);
+            await expect.poll(() => dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
             await dialog.screenshot({path: testInfo.outputPath(`routine-checkbox-${trigger}-${width}.png`), animations: 'disabled'});
         }
         const disabled = page.waitForRequest(request => request.url().endsWith('/api/routines/1') && request.method() === 'PUT');
@@ -4359,7 +4375,7 @@ test('routine reminder content and actions remain visible at mobile and desktop 
     const date = madridDate();
     const routineName = 'Morning weigh-in with a deliberately long title for responsive layout';
     await mockRoutineReminderHome(page, [routine(1, routineName, '07:30:00')], {
-        initialNotifications: [{id: 80, type: 'ROUTINE', title: 'Routine reminder', message: routineName, reminderDate: date, availableAt: `${date}T07:30:00+02:00`, actionUrl: `/?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10&notificationId=80`}]
+        initialNotifications: [{id: 80, type: 'ROUTINE', title: 'Routine reminder', message: routineName, reminderDate: date, availableAt: `${date}T07:30:00${madridOffset(date)}`, actionUrl: `/?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10&notificationId=80`}]
     });
 
     await page.setViewportSize({width: 1280, height: 800});
@@ -6416,6 +6432,111 @@ test('reflection mobile panel and date navigation match the dashboard dimensions
     await expect(historyScore).toHaveText('7/10');
     expect(await historyScore.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
     await reflectionPage.close();
+});
+
+function reflectionArchiveFixture(count) {
+    return Array.from({length: count}, (_, index) => ({
+        reflectionDate: new Date(Date.UTC(2026, 7, 13 - index)).toISOString().slice(0, 10),
+        generatedAt: '2026-08-13T20:00:00Z', model: 'ChatGPT',
+        title: `Daily reflection ${index + 1}`, summary: `Summary ${index + 1}`,
+        positiveSignals: ['A positive signal.'], watchouts: ['A watchout.'], nextActions: ['A next action.']
+    }));
+}
+
+test('reflection archive pages ten saved days, preserves detail and refreshes the current page', async ({page}, testInfo) => {
+    const history = reflectionArchiveFixture(23);
+    await mockAuthenticatedReflections(page, history[0], true, history);
+    await page.setViewportSize({width: 390, height: 844});
+    await openSpaRoute(page, '/reflections');
+    const capture = async (stage, width) => {
+        await page.setViewportSize({width, height: 900});
+        await page.screenshot({path: testInfo.outputPath(`reflection-archive-${stage}-${width}.png`), fullPage: true, animations: 'disabled'});
+    };
+
+    const archive = page.locator('.history-section');
+    await expect(archive.locator('.history-item')).toHaveCount(10);
+    await expect(archive.locator('.history-heading')).toContainText('1–10 of 23 saved');
+    await expect(archive.locator('.history-item strong').filter({hasText: /^Daily reflection 11$/})).toHaveCount(0);
+    await expect(archive.locator('.p-paginator-current:visible')).toHaveText('1–10 of 23');
+    await expect(archive.locator('.p-paginator-page:visible')).toHaveCount(0);
+    await expect(archive.locator('.p-paginator-prev:visible')).toBeDisabled();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    for (const width of [639, 640]) {
+        await page.setViewportSize({width, height: 900});
+        await expect(archive.locator('.p-paginator-current:visible')).toHaveText('1–10 of 23');
+        await expect(archive.locator('.p-paginator-page:visible')).toHaveCount(0);
+    }
+    await page.setViewportSize({width: 641, height: 900});
+    await expect(archive.locator('.p-paginator-current:visible')).toHaveCount(0);
+    await expect(archive.locator('.p-paginator-page:visible')).toHaveCount(3);
+    for (const width of [376, 390, 640, 960, 1280]) await capture('first', width);
+    await page.setViewportSize({width: 390, height: 844});
+
+    await archive.locator('.p-paginator-next:visible').click();
+    await expect(archive.locator('.history-heading')).toContainText('11–20 of 23 saved');
+    await expect(archive.locator('.history-item')).toHaveCount(10);
+    await expect(archive.locator('.history-item').first()).toContainText('Daily reflection 11');
+    await expect(archive.locator('.history-item').first()).toBeFocused();
+    for (const width of [376, 390, 640, 960, 1280]) await capture('middle', width);
+    await page.setViewportSize({width: 390, height: 844});
+    await archive.locator('.history-item').first().press('Enter');
+    await expect(page).toHaveURL(new RegExp(`date=${history[10].reflectionDate}`));
+    await expect(page.locator('.reflection-canvas')).toBeFocused();
+    await expect(page.locator('.reflection-result h2')).toHaveText('Daily reflection 11');
+    await expect(archive.locator('.history-heading')).toContainText('11–20 of 23 saved');
+    await capture('detail-focus', 390);
+    history[10].title = 'Updated daily reflection 11';
+    await page.getByRole('button', {name: 'Refresh reflection', exact: true}).click();
+    await expect(archive.locator('.history-heading')).toContainText('11–20 of 23 saved');
+    await expect(archive.locator('.history-item').first()).toContainText('Updated daily reflection 11');
+
+    await page.setViewportSize({width: 1280, height: 900});
+    await expect(archive.locator('.p-paginator-page:visible')).toHaveCount(3);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await archive.locator('.p-paginator-next:visible').click();
+    await expect(archive.locator('.history-heading')).toContainText('21–23 of 23 saved');
+    await expect(archive.locator('.history-item')).toHaveCount(3);
+    await expect(archive.locator('.p-paginator-next:visible')).toBeDisabled();
+    for (const width of [376, 390, 640, 960, 1280]) await capture('last', width);
+
+    const reloadedPage = await page.context().newPage();
+    await mockAuthenticatedReflections(reloadedPage, history[0], true, history);
+    await openSpaRoute(reloadedPage, `/reflections?date=${history[10].reflectionDate}`);
+    await expect(reloadedPage.locator('.reflection-result h2')).toHaveText('Updated daily reflection 11');
+    await expect(reloadedPage.locator('.history-heading')).toContainText('1–10 of 23 saved');
+});
+
+test('reflection archive retains its page on a loading error and retries inline', async ({page}, testInfo) => {
+    const history = reflectionArchiveFixture(23);
+    await mockAuthenticatedReflections(page, history[0], true, history);
+    let failOnce = true;
+    let releasePageRequest;
+    const heldPageRequest = new Promise(resolve => { releasePageRequest = resolve; });
+    await page.route('**/api/reflections?page=1', async route => {
+        if (failOnce) {
+            failOnce = false;
+            await heldPageRequest;
+            return route.fulfill({status: 503, contentType: 'application/json', body: '{}'});
+        }
+        return route.fallback();
+    });
+    await page.setViewportSize({width: 390, height: 844});
+    await openSpaRoute(page, '/reflections');
+
+    const archive = page.locator('.history-section');
+    await archive.locator('.p-paginator-next:visible').click();
+    await expect(archive).toHaveAttribute('aria-busy', 'true');
+    await expect(archive.getByRole('status')).toHaveText('Loading reflection history…');
+    await expect(archive.locator('.p-paginator-next:visible')).toBeDisabled();
+    releasePageRequest();
+    await expect(archive.locator('.history-heading')).toContainText('1–10 of 23 saved');
+    await expect(archive.locator('.history-item').first()).toContainText('Daily reflection 1');
+    await expect(archive.getByRole('alert')).toContainText('Could not load reflection history');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({path: testInfo.outputPath('reflection-archive-error-390.png'), fullPage: true, animations: 'disabled'});
+    await archive.getByRole('button', {name: 'Retry history'}).click();
+    await expect(archive.locator('.history-heading')).toContainText('11–20 of 23 saved');
+    await expect(archive.getByRole('alert')).toHaveCount(0);
 });
 
 for (const width of [1280, 960, 760, 640, 575, 390, 376, 320]) {

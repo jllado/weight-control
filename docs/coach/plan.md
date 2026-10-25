@@ -299,6 +299,8 @@ For image feedback, describe observable features and uncertainty without diagnos
 
 For reflections, keep the existing overview, context, generate, and save sequence; prefer weekly or milestone reflections rather than encouraging repetitive daily generation.
 
+The app's daily reflection history uses fixed ten-item, newest-first pages from `GET /api/reflections?page=N`. Its page selection stays local to the view, while `?date=YYYY-MM-DD` independently opens detail and a fresh load starts the archive on page zero. The private DAILY Coach overview keeps the complete unpaged response for both overview routes; this app-only pagination needs no GPT publication.
+
 When a reflection has an active plan, save a 1-to-10 plan-progress score and concise rationale with its structured result. The score is historical output for that reflection and does not change when the active plan changes later. Without an active plan, save the reflection without a rating rather than substituting a general wellness score.
 
 For writes, obtain explicit confirmation in the immediately preceding user message and never infer confirmation from an earlier conversation turn.

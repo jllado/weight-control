@@ -2,11 +2,14 @@ package com.jllado.weightcontrol.api;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 import com.jllado.weightcontrol.domain.DashboardReflection;
+import com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionOverviewResponse;
+import com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionSummaryResponse;
 import com.jllado.weightcontrol.domain.InAppNotification;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.security.CurrentUserService;
@@ -27,6 +30,37 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 class ChatGptReflectionActionControllerTest {
+
+    @Test
+    void dailyCoachOverviewKeepsTheUnpagedShapeForBothRoutes() throws Exception {
+        var owner = new User();
+        var currentUser = mock(CurrentUserService.class);
+        var reflections = mock(DashboardReflectionService.class);
+        when(currentUser.requireUser()).thenReturn(owner);
+        var summaries = java.util.stream.IntStream.range(0, 13)
+            .mapToObj(index -> new ReflectionSummaryResponse(LocalDate.of(2026, 10, 20).minusDays(index),
+                Instant.parse("2026-10-20T08:00:00Z"), "Daily " + index, null))
+            .toList();
+        when(reflections.getOverview(owner)).thenReturn(new ReflectionOverviewResponse(null,
+            LocalDate.of(2026, 10, 20), true, summaries));
+        var mvc = MockMvcBuilders.standaloneSetup(new ChatGptReflectionActionController(reflections,
+            currentUser, mock(GptActionNotificationService.class), mock(WeeklyReflectionService.class)))
+            .setMessageConverters(new MappingJackson2HttpMessageConverter(new ObjectMapper()
+                .registerModule(new JavaTimeModule())
+                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)))
+            .build();
+
+        for (String target : java.util.List.of("", "?target=DAILY")) {
+            mvc.perform(get("/api/chatgpt-actions/reflections/overview" + target))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reflections.length()").value(13))
+                .andExpect(jsonPath("$.reflections[0].title").value("Daily 0"))
+                .andExpect(jsonPath("$.page").doesNotExist())
+                .andExpect(jsonPath("$.totalElements").doesNotExist());
+        }
+        verify(reflections, times(2)).getOverview(owner);
+        verify(reflections, never()).getPagedOverview(any(), anyInt());
+    }
 
     @Test
     void successfulReflectionSaveNotifiesWithoutIncludingReflectionContent() throws Exception {

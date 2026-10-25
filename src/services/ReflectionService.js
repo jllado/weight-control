@@ -1,8 +1,8 @@
 import {get} from './api';
 
 export default {
-    async getOverview() {
-        return get('/reflections');
+    async getOverview(page = 0) {
+        return get(`/reflections?page=${page}`);
     },
     async get(date) {
         return get(`/reflections/${date}`);

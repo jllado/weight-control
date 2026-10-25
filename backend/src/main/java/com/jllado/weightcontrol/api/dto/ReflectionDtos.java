@@ -31,6 +31,18 @@ public final class ReflectionDtos {
     ) {
     }
 
+    public record PagedReflectionOverviewResponse(
+        LocalDate firstTrackedDate,
+        LocalDate lastCompletedDate,
+        boolean actionConfigured,
+        List<ReflectionSummaryResponse> reflections,
+        int page,
+        int size,
+        long totalElements,
+        int totalPages
+    ) {
+    }
+
     public record SaveReflectionRequest(
         @NotBlank @Size(max = 80) String title,
         @NotBlank @Size(max = 200) String summary,
