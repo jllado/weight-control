@@ -42,7 +42,7 @@ class DishNutritionTest {
             }
             var coach = new CoachMealDishRequest("Rice", 100, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE,
                 BigDecimal.ONE, DishUnit.SERVING, new DishReference(BigDecimal.ONE, 100, null, null, null, java.math.BigDecimal.ZERO, java.math.BigDecimal.ONE, java.math.BigDecimal.TEN), false, null, java.math.BigDecimal.ZERO, java.math.BigDecimal.ONE, java.math.BigDecimal.TEN, "Test composition", false);
-            assertFalse(validator.validate(coach).isEmpty());
+            assertThrows(BadRequestException.class, () -> CoachFoodNutrition.requireComplete(java.util.List.of(coach.meal())));
         }
     }
 
