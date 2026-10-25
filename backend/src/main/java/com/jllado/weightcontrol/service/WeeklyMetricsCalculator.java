@@ -34,6 +34,8 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.EnumSet;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -230,7 +232,7 @@ public class WeeklyMetricsCalculator {
         List<WorkoutSegment> cardioSegments = trainingLines.stream()
             .filter(line -> line.getExercise().getTrackingMode() == ExerciseTrackingMode.CARDIO)
             .flatMap(line -> line.getSegments().stream()).filter(segment -> !segment.isSkipped()).toList();
-        List<SessionType> sessionTypes = workouts.stream().map(this::performedSessionType).toList();
+        List<Set<SessionType>> sessionTypes = workouts.stream().map(this::performedSessionTypes).toList();
         return new WorkoutSummary(
             workouts.size(),
             totalDurationSeconds,
@@ -241,25 +243,26 @@ public class WeeklyMetricsCalculator {
             distances.size(),
             calories.size(),
             strengthSets.size(),
-            (int) sessionTypes.stream().filter(type -> type == SessionType.STRENGTH).count(),
-            (int) sessionTypes.stream().filter(type -> type == SessionType.CARDIO).count(),
-            (int) sessionTypes.stream().filter(type -> type == SessionType.STRETCHING).count(),
+            (int) sessionTypes.stream().filter(types -> types.contains(SessionType.STRENGTH)).count(),
+            (int) sessionTypes.stream().filter(types -> types.contains(SessionType.CARDIO)).count(),
+            (int) sessionTypes.stream().filter(types -> types.contains(SessionType.STRETCHING)).count(),
             cardioSegments.stream().map(WorkoutSegment::getDurationSeconds).filter(java.util.Objects::nonNull).mapToInt(Integer::intValue).sum(),
             cardioSegments.stream().allMatch(segment -> segment.getDurationSeconds() != null)
         );
     }
 
-    private enum SessionType { STRENGTH, CARDIO, STRETCHING, OTHER }
+    private enum SessionType { STRENGTH, CARDIO, STRETCHING }
 
-    private SessionType performedSessionType(Workout workout) {
+    private Set<SessionType> performedSessionTypes(Workout workout) {
+        Set<SessionType> types = EnumSet.noneOf(SessionType.class);
         List<WorkoutLine> performed = workout.getLines().stream()
             .filter(line -> line.getSegments().stream().anyMatch(segment -> !segment.isSkipped())).toList();
         if (performed.stream().anyMatch(line -> line.getExercise().getExerciseType() == ExerciseType.TRAINING
-            && (line.getExercise().getTrackingMode() == ExerciseTrackingMode.REPS || line.getExercise().getTrackingMode() == ExerciseTrackingMode.SECONDS))) return SessionType.STRENGTH;
+            && (line.getExercise().getTrackingMode() == ExerciseTrackingMode.REPS || line.getExercise().getTrackingMode() == ExerciseTrackingMode.SECONDS))) types.add(SessionType.STRENGTH);
         if (performed.stream().anyMatch(line -> line.getExercise().getExerciseType() == ExerciseType.TRAINING
-            && line.getExercise().getTrackingMode() == ExerciseTrackingMode.CARDIO)) return SessionType.CARDIO;
-        if (performed.stream().anyMatch(line -> line.getExercise().getExerciseType() == ExerciseType.STRETCHING)) return SessionType.STRETCHING;
-        return SessionType.OTHER;
+            && line.getExercise().getTrackingMode() == ExerciseTrackingMode.CARDIO)) types.add(SessionType.CARDIO);
+        if (performed.stream().anyMatch(line -> line.getExercise().getExerciseType() == ExerciseType.STRETCHING)) types.add(SessionType.STRETCHING);
+        return types;
     }
 
     private DecisionMetrics summarizeDecisions(List<DecisionOutcome> decisions) {

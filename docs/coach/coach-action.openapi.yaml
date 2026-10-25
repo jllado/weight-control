@@ -4352,16 +4352,16 @@ components:
           type: integer
         strengthSessionCount:
           type: [integer, "null"]
-          description: Recorded sessions with performed TRAINING REPS/SECONDS; strength takes precedence over cardio and stretching. Null in legacy snapshots displays "Not available".
+          description: Recorded sessions with non-skipped TRAINING REPS/SECONDS. Schema v7 counts each applicable type independently, once per session; categories overlap. Older snapshots retain exclusive counts. Null displays "Not available".
         cardioSessionCount:
           type: [integer, "null"]
-          description: Recorded sessions with performed TRAINING CARDIO and no strength; precedes stretching. Same-date sessions count separately; null displays "Not available".
+          description: Recorded sessions with non-skipped TRAINING CARDIO, including mixed strength/cardio sessions in schema v7. Count once per session; same-date sessions remain separate. Older snapshots retain exclusive counts; null displays "Not available".
         stretchingSessionCount:
           type: [integer, "null"]
-          description: Recorded sessions with performed STRETCHING and no strength/cardio. Warm-up-only, sauna-only and skipped-only sessions are excluded. Null displays "Not available".
+          description: Recorded sessions with non-skipped STRETCHING, including mixed sessions and breath-counted holds in schema v7. Warm-up-only, sauna-only and skipped-only sessions are excluded. Older snapshots retain exclusive counts; null displays "Not available".
         activeCardioSeconds:
           type: [integer, "null"]
-          description: Sum of actual non-skipped CARDIO durationSeconds, including strength-classified sessions. Divide once by 60 for minutes; excludes plans, strength, breaths, rest and phase clocks. Null displays "Not available"; new empty periods are zero recorded activity.
+          description: Sum of actual non-skipped CARDIO durationSeconds, including mixed strength/cardio sessions. Divide once by 60 for minutes; excludes plans, strength, breaths, rest and phase clocks. Null displays "Not available"; new empty periods are zero recorded activity.
         cardioDurationComplete:
           type: [boolean, "null"]
           description: False when any performed CARDIO segment lacks duration; show partial coverage beside cardio time and its comparisons. Legacy null displays "Not available".

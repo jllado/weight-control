@@ -3,6 +3,8 @@ package com.jllado.weightcontrol.service;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -70,8 +72,42 @@ class WeeklySummaryBackfillRunnerTest {
         verify(service, never()).outcomeWarnings(any(), any());
     }
 
+    @Test
+    void repairActionUsesOnlyTheExplicitFridayAndNeverBackfillsOtherWeeks() {
+        User owner = owner();
+        WeeklySummaryService service = mock(WeeklySummaryService.class);
+        SavedWeeklySummaryRepository summaries = mock(SavedWeeklySummaryRepository.class);
+        UserRepository users = mock(UserRepository.class);
+        WeeklySessionCountRepairService repair = mock(WeeklySessionCountRepairService.class);
+        LocalDate friday = LocalDate.of(2026, 10, 23);
+        when(users.findByEmail("owner@example.com")).thenReturn(Optional.of(owner));
+        when(repair.repair(owner, friday, false)).thenReturn(new WeeklySessionCountRepairService.RepairResult(true, List.of()));
+        var runner = new WeeklySummaryBackfillRunner(service, summaries, users, properties(), repair, "dry-run");
+
+        runner.run(new DefaultApplicationArguments("--app.weekly-summary.backfill.action=repair-session-counts",
+            "--app.weekly-summary.backfill.friday-date=2026-10-23"));
+
+        verify(repair).repair(owner, friday, false);
+        verifyNoInteractions(service, summaries);
+    }
+
+    @Test
+    void repairActionRejectsAnOmittedDateWithoutFallingBackToBackfill() {
+        WeeklySummaryService service = mock(WeeklySummaryService.class);
+        SavedWeeklySummaryRepository summaries = mock(SavedWeeklySummaryRepository.class);
+        UserRepository users = mock(UserRepository.class);
+        WeeklySessionCountRepairService repair = mock(WeeklySessionCountRepairService.class);
+        when(users.findByEmail("owner@example.com")).thenReturn(Optional.of(owner()));
+        var runner = new WeeklySummaryBackfillRunner(service, summaries, users, properties(), repair, "apply");
+
+        assertThrows(IllegalArgumentException.class, () -> runner.run(new DefaultApplicationArguments(
+            "--app.weekly-summary.backfill.action=repair-session-counts")));
+
+        verifyNoInteractions(service, summaries, repair);
+    }
+
     private WeeklySummaryBackfillRunner runner(WeeklySummaryService service, SavedWeeklySummaryRepository summaries, UserRepository users, String mode) {
-        return new WeeklySummaryBackfillRunner(service, summaries, users, properties(), mode);
+        return new WeeklySummaryBackfillRunner(service, summaries, users, properties(), mock(WeeklySessionCountRepairService.class), mode);
     }
 
     private WeeklySummarySnapshot snapshot(LocalDate friday) {
