@@ -12327,6 +12327,12 @@ test('guided workout records exercise time, distinguishes skipped work from unlo
     expect(skippedReviewTime).toMatch(/Exercise time 00:00:0[45]/);
     const skippedExerciseSeconds = Number(skippedReviewTime.slice(-2));
 
+    await guided.getByRole('button', {name: 'Edit workout', exact: true}).click();
+    const reviewEditor = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await reviewEditor.getByRole('button', {name: 'Apply', exact: true}).click();
+    await expect(reviewEditor).toBeHidden();
+    await expect(skippedLine).toContainText('Skipped · no time recorded');
+
     const saving = page.waitForResponse(response => response.url().endsWith('/api/workouts') && response.request().method() === 'POST');
     await guided.getByRole('button', {name: 'Save workout', exact: true}).click();
     const savedResponse = await saving;
@@ -14592,6 +14598,243 @@ test('final rest can resume without a current exercise timer', async ({page}) =>
     await expect(guided.getByRole('heading', {name: /Review workout/i})).toBeVisible();
 });
 
+test('guided review edits cardio and removes an exercise before saving without changing recorded timing', async ({page}, testInfo) => {
+    const state = await estimatedWorkoutPlan(page, exercises => [
+        estimatedLine(exercises[0], [{repetitions: 10, weight: 20}]),
+        estimatedLine(exercises[4], [{durationSeconds: 93, speedKph: 8}])
+    ]);
+    await page.route(url => url.pathname.startsWith('/workouts'), route => route.request().resourceType() === 'document' ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')}) : route.fallback());
+    const writes = [];
+    page.on('request', request => { if (request.url().endsWith('/api/workouts') && request.method() === 'POST') writes.push(request.postDataJSON()); });
+    const guided = await startEstimatedPlan(page);
+    await page.clock.fastForward(12000);
+    await completeGuidedSetWithoutRest(page, guided);
+    await page.clock.fastForward(93000);
+    await completeGuidedSetWithoutRest(page, guided);
+    const draft = () => page.evaluate(() => JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')));
+    const completed = await draft();
+    const editButton = guided.locator('header').getByRole('button', {name: 'Edit workout', exact: true});
+    await expect(editButton).toBeVisible();
+    await guided.getByRole('button', {name: 'Review', exact: true}).click();
+    await editButton.focus();
+    await editButton.press('Enter');
+    const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await editor.getByRole('button', {name: 'Expand Strength, 1 exercise', exact: true}).click();
+    await editor.getByRole('button', {name: 'Delete exercise 1', exact: true}).click();
+    await page.keyboard.press('Escape');
+    await expect(editor).toBeHidden();
+    await expect(editButton).toBeFocused();
+    expect((await draft()).workout.lines).toEqual(completed.workout.lines);
+    await editButton.click();
+    await editor.getByRole('button', {name: 'Expand Strength, 1 exercise', exact: true}).click();
+    await editor.getByRole('button', {name: 'Delete exercise 1', exact: true}).click();
+    await editor.getByRole('button', {name: /Expand Cardio/}).click();
+    await editor.getByRole('button', {name: /Expand Exercise 1:/}).click();
+    await expect(editor.getByLabel('Seconds', {exact: true})).toContainText('33');
+    await editor.getByLabel('Calories', {exact: true}).fill('210');
+    await editor.getByLabel('Average heart rate (bpm)', {exact: true}).fill('144');
+    await editor.getByLabel('Distance (km)', {exact: true}).fill('1.5');
+    for (const width of [376, 393, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expect.poll(() => editor.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        await editor.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-review-editor-${width}.png`)});
+    }
+    await page.clock.fastForward(60000);
+    await editor.getByRole('button', {name: 'Apply', exact: true}).click();
+    const review = guided.getByRole('region', {name: 'Review workout'});
+    await expect(review).toBeVisible();
+    await expect(editButton).toBeFocused();
+    await expect(review).not.toContainText(state.exercises[0].name);
+    for (const text of ['1 min 33 sec', '1.5 km', '210 kcal', '144 bpm']) await expect(review).toContainText(text);
+    const edited = await draft();
+    expect(edited.recordingKey).toBe(completed.recordingKey);
+    expect(edited.workout.endTime).toBe(completed.workout.endTime);
+    expect(edited.workout.startTime).toBe(completed.workout.startTime);
+    expect(edited.workout.plannedTargets).toEqual(completed.workout.plannedTargets);
+    expect(edited.timer).toEqual(completed.timer);
+    expect(edited.workout.lines[0].exerciseDurationMilliseconds).toBe(completed.workout.lines[1].exerciseDurationMilliseconds);
+    expect(writes).toHaveLength(0);
+    for (const width of [376, 393, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expect.poll(() => guided.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        const actions = await Promise.all(['Edit workout', 'Minimize', 'Close'].map(name => guided.locator('header').getByRole('button', {name, exact: true}).boundingBox()));
+        expect(Math.max(...actions.map(box => box.y)) - Math.min(...actions.map(box => box.y))).toBeLessThan(2);
+        await guided.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-review-edit-${width}.png`)});
+    }
+    await page.reload();
+    await page.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
+    await expect(review).toContainText('210 kcal');
+    await expect(review).toContainText('144 bpm');
+    await expect(review).not.toContainText(state.exercises[0].name);
+    await guided.getByRole('button', {name: 'Save workout', exact: true}).click();
+    await expect(guided).toBeHidden();
+    expect(writes).toHaveLength(1);
+    expect(writes[0].endTime).toBe(completed.workout.endTime);
+    expect(writes[0].lines).toHaveLength(1);
+    expect(writes[0].lines[0]).toMatchObject({calories: 210, averageHeartRate: 144, exerciseDurationSeconds: Math.floor(completed.workout.lines[1].exerciseDurationMilliseconds / 1000), segments: [{durationSeconds: 93, distanceKm: 1.5}]});
+    await page.reload();
+    await page.getByRole('tab', {name: 'Diary', exact: true}).click();
+    await expect(page.locator('.diary-desktop')).toContainText('01:33 · 1.5 km · 8 km/h');
+    await expect(page.locator('.diary-desktop')).not.toContainText(state.exercises[0].name);
+    const recorded = await page.evaluate(() => fetch('/api/workouts').then(response => response.json()));
+    expect(recorded[0].lines).toHaveLength(1);
+    expect(recorded[0].lines[0]).toMatchObject({calories: 210, averageHeartRate: 144, intervals: [{durationSeconds: 93, distanceKm: 1.5}]});
+    await page.locator('.diary-desktop').getByRole('button', {name: 'Edit workout', exact: true}).click();
+    await editor.getByRole('button', {name: /Expand Cardio/}).click();
+    await editor.getByRole('button', {name: /Expand Exercise 1:/}).click();
+    await expect(editor.getByLabel('Calories', {exact: true})).toHaveValue('210');
+    await expect(editor.getByLabel('Average heart rate (bpm)', {exact: true})).toHaveValue('144');
+    await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
+});
+
+test('guided review Escape closes only the active overlay before cancelling buffered edits', async ({page}) => {
+    const state = await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[4], [{durationSeconds: 93, speedKph: 8}])]);
+    state.exercises[4].imageUrl = '/api/workout-exercises/9/image?v=review-escape';
+    await page.route('**/api/workout-exercises/9/image*', route => route.fulfill({path: path.resolve(__dirname, '../../backend/src/main/resources/exercise-images/walking.jpg')}));
+    const guided = await startEstimatedPlan(page);
+    await completeGuidedSetWithoutRest(page, guided);
+    await guided.getByRole('button', {name: 'Review', exact: true}).click();
+    const editButton = guided.getByRole('button', {name: 'Edit workout', exact: true});
+    await editButton.click();
+    const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await editor.getByRole('button', {name: /Expand Cardio/}).click();
+    await editor.getByRole('button', {name: /Expand Exercise 1:/}).click();
+    await editor.getByLabel('Calories', {exact: true}).fill('210');
+    await editor.getByRole('button', {name: `View picture of ${state.exercises[4].name}`}).click();
+    const picture = page.getByRole('dialog', {name: state.exercises[4].name, exact: true});
+    await expect(picture).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(picture).toBeHidden();
+    await expect(editor).toBeVisible();
+    await expect(editor.getByLabel('Calories', {exact: true})).toHaveValue('210');
+    await editor.getByRole('combobox', {name: 'Exercise', exact: true}).click();
+    await expect(page.getByRole('listbox')).toBeVisible();
+    await editor.getByRole('combobox', {name: 'Seconds', exact: true}).click();
+    await expect(page.getByRole('listbox')).toHaveCount(2);
+    await expect(page.getByRole('option', {name: '33', exact: true})).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('listbox')).toHaveCount(1);
+    await expect(editor).toBeVisible();
+    await editor.getByRole('combobox', {name: 'Exercise', exact: true}).focus();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('listbox')).toHaveCount(0);
+    await expect(editor).toBeVisible();
+    await expect(editor.getByLabel('Calories', {exact: true})).toHaveValue('210');
+    for (const label of ['Exercise', 'Seconds']) {
+        await editor.getByRole('combobox', {name: label, exact: true}).click();
+        await expect(page.getByRole('listbox')).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(page.getByRole('listbox')).toHaveCount(0);
+        await expect(editor).toBeVisible();
+        await expect(editor.getByLabel('Calories', {exact: true})).toHaveValue('210');
+    }
+    await page.keyboard.press('Escape');
+    await expect(editor).toBeHidden();
+    await expect(editButton).toBeFocused();
+    await expect(guided.getByRole('region', {name: 'Review workout'})).not.toContainText('210 kcal');
+});
+
+test('guided review keeps new reordered sets in review and returns to a surviving last set', async ({page}) => {
+    await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[0], [{repetitions: 10, weight: 20}, {repetitions: 8, weight: 20}])]);
+    const guided = await startEstimatedPlan(page);
+    await page.clock.fastForward(5000);
+    await completeGuidedSetWithoutRest(page, guided);
+    await page.clock.fastForward(7000);
+    await completeGuidedSetWithoutRest(page, guided);
+    await guided.getByRole('button', {name: 'Review', exact: true}).click();
+    const draft = () => page.evaluate(() => JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')));
+    const completed = await draft();
+    await guided.getByRole('button', {name: 'Edit workout', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await editor.getByRole('button', {name: 'Expand Strength, 1 exercise', exact: true}).click();
+    await editor.getByRole('button', {name: /Expand Exercise 1:/}).click();
+    await editor.getByRole('button', {name: 'Delete set 2', exact: true}).click();
+    await editor.getByRole('button', {name: 'Add set', exact: true}).click();
+    await editor.getByLabel('Repetitions', {exact: true}).last().fill('6');
+    await editor.getByRole('button', {name: 'Move set 2 up', exact: true}).click();
+    await editor.getByRole('button', {name: 'Apply', exact: true}).click();
+    const review = guided.getByRole('region', {name: 'Review workout'});
+    await expect(review).toBeVisible();
+    await expect(review.locator('ol li')).toHaveText(['6 reps · 20 kg', '10 reps · 20 kg']);
+    const edited = await draft();
+    expect(edited.timer).toEqual(completed.timer);
+    expect(edited.workout.endTime).toBe(completed.workout.endTime);
+    expect(edited.workout.lines[0].exerciseElapsedBySegment).toEqual([0, completed.workout.lines[0].exerciseElapsedBySegment[0]]);
+    await guided.getByRole('button', {name: 'Back to last set', exact: true}).click();
+    await expect(guided.locator('.guided-card')).toContainText('10 reps · 20 kg');
+    await expect(guided.locator('.guided-card')).toContainText('Set 2 of 2');
+    await completeGuidedSetWithoutRest(page, guided);
+    await expect(guided.locator('.guided-card')).toHaveCount(0);
+});
+
+test('guided review excludes unlogged exercises and preserves skipped sets through editing', async ({page}) => {
+    const state = await estimatedWorkoutPlan(page, exercises => [
+        estimatedLine(exercises[0], [{repetitions: 10, weight: 20}]),
+        estimatedLine(exercises[3], [{durationSeconds: 30, weight: 5}]),
+        estimatedLine(exercises[4], [{durationSeconds: 93, speedKph: 8}])
+    ]);
+    const guided = await startEstimatedPlan(page);
+    await guided.getByRole('button', {name: 'Remove', exact: true}).click();
+    await guided.getByRole('button', {name: 'Skip', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
+    await guided.getByRole('button', {name: 'Review', exact: true}).click();
+    await guided.getByRole('button', {name: 'Edit workout', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await expect(editor.locator('.workout-line-card')).toHaveCount(2);
+    await editor.getByRole('button', {name: 'Apply', exact: true}).click();
+    await expect(editor).toBeHidden();
+    const review = guided.getByRole('region', {name: 'Review workout'});
+    await expect(review).not.toContainText(state.exercises[0].name);
+    await expect(review).toContainText('Skipped · no time recorded');
+    const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await guided.getByRole('button', {name: 'Save workout', exact: true}).click();
+    const payload = (await saving).postDataJSON();
+    expect(payload.lines.map(line => line.exerciseId)).toEqual([state.exercises[3].id, state.exercises[4].id]);
+    expect(payload.lines[0].segments[0].skipped).toBe(true);
+});
+
+test('guided review rejects deleting every exercise unless a valid sauna session remains', async ({page}) => {
+    await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[0], [{repetitions: 10, weight: 20}])]);
+    const guided = await startEstimatedPlan(page);
+    await completeGuidedSetWithoutRest(page, guided);
+    await guided.getByRole('button', {name: 'Review', exact: true}).click();
+    await guided.getByRole('button', {name: 'Edit workout', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await editor.getByRole('button', {name: 'Expand Strength, 1 exercise', exact: true}).click();
+    await editor.getByRole('button', {name: 'Delete exercise 1', exact: true}).click();
+    await editor.getByRole('button', {name: 'Apply', exact: true}).click();
+    await expect(editor).toContainText('Add at least one exercise');
+    await editor.locator('label[for="workout-sauna-session"]').click();
+    await editor.getByLabel(/Round 1 \(min\)/).fill('10');
+    await editor.getByRole('button', {name: 'Apply', exact: true}).click();
+    await expect(editor).toBeHidden();
+    await expect(guided.getByRole('region', {name: 'Review workout'})).toBeVisible();
+    await expect(guided.getByRole('button', {name: 'Back to last set', exact: true})).toHaveCount(0);
+    await guided.getByRole('button', {name: 'Edit workout', exact: true}).click();
+    await expect(editor.getByLabel(/Round 1 \(min\)/)).toHaveValue('10');
+    await editor.getByRole('button', {name: 'Close', exact: true}).click();
+    await expect(editor).toBeHidden();
+    await expect(guided.getByRole('button', {name: 'Edit workout', exact: true})).toBeFocused();
+});
+
+test('guided early review stays in review after deleting its current exercise and can return to a valid set', async ({page}) => {
+    const state = await estimatedWorkoutPlan(page, exercises => [
+        estimatedLine(exercises[0], [{repetitions: 10, weight: 20}]),
+        estimatedLine(exercises[4], [{durationSeconds: 93, speedKph: 8}])
+    ]);
+    const guided = await startEstimatedPlan(page);
+    await guided.getByRole('button', {name: 'Review', exact: true}).click();
+    await guided.getByRole('button', {name: 'Edit workout', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await editor.getByRole('button', {name: 'Expand Strength, 1 exercise', exact: true}).click();
+    await editor.getByRole('button', {name: 'Delete exercise 1', exact: true}).click();
+    await editor.getByRole('button', {name: 'Apply', exact: true}).click();
+    await expect(guided.getByRole('region', {name: 'Review workout'})).toBeVisible();
+    await guided.getByRole('button', {name: 'Back to last set', exact: true}).click();
+    await expect(guided.locator('.guided-card')).toContainText(state.exercises[4].name);
+    await expect(guided.locator('.guided-card')).toContainText('Set 1 of 1');
+});
+
 test('guided workout edit preserves pending work identity and planned targets when deleting its current exercise', async ({page}) => {
     const state = await estimatedWorkoutPlan(page, exercises => [
         estimatedLine(exercises[1], [{durationSeconds: 20}, {durationSeconds: 25}], {exerciseType: 'WARM_UP'}),
@@ -15048,9 +15291,9 @@ test('guided page validates Edit buffers returns focus and blocks dismissal whil
     await expect(guided.locator('.guided-card')).toContainText('0 min 37 sec · 7.5 kg');
     await expect(guided.locator('.guided-card')).toContainText('Planned duration 00:00:30');
     await completeGuidedSetWithoutRest(page, guided);
-    await expect(guided.getByRole('button', {name: 'Edit workout', exact: true})).toHaveCount(0);
+    await expect(guided.getByRole('button', {name: 'Edit workout', exact: true})).toBeVisible();
     await guided.getByRole('button', {name: 'Review', exact: true}).click();
-    await expect(guided.getByRole('button', {name: 'Edit workout', exact: true})).toHaveCount(0);
+    await expect(guided.getByRole('button', {name: 'Edit workout', exact: true})).toBeVisible();
     let releaseSave;
     const pendingSave = new Promise(resolve => { releaseSave = resolve; });
     await page.route('**/api/workouts', async route => { if (route.request().method() !== 'POST') return route.fallback(); await pendingSave; return route.fulfill({status: 500, json: {message: 'Guided save failed'} }); });
@@ -15058,6 +15301,7 @@ test('guided page validates Edit buffers returns focus and blocks dismissal whil
     await expect(guided.getByRole('button', {name: 'Close', exact: true})).toBeDisabled();
     await expect(guided.getByRole('button', {name: 'Minimize', exact: true})).toBeDisabled();
     await expect(guided.getByRole('button', {name: 'Save workout', exact: true})).toBeDisabled();
+    await expect(guided.getByRole('button', {name: 'Edit workout', exact: true})).toBeDisabled();
     await page.goBack();
     await expect(guided).toBeVisible();
     releaseSave();
