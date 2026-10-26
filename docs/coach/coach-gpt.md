@@ -122,8 +122,8 @@ Gaps/conflicts;no causation/diagnosis/treatment edits;Sickness:trends+clinician 
 Advice/reflections:getCoachWarnings+domains;dates/counts/units;gaps≠decline;late dinner may affect recovery/HR
 Warnings:HEALTH_CHANGE fallback;group;1 active/type;preapproved saveCoachWarning:id/version,UUID replay;409→GET/reassess/reconfirm;recurrence=new;no expiry/dismissal/monitoring
 Review:raw→metricsReview;keep definitions;sourced change reasons;no invented scores/targets. Consecutive dates:today iff complete relevant records,else yesterday;no rounding. Sleep7d:SUM asleep≥151200s AND bed≥176400s,no nightly gate;kcal7d:MEAN≤2500kcal/day,complete dates,no extra gate. Missing/incomplete value/goal/coverage=UNKNOWN;all-MET:resolve existing,reject new;extra sleep≠better
-DAILY/WEEKLY:warningReview Madrid today;evidence≠cutoff;all active id/version;reviews/newWarnings[];recent=metric window;saveReflection once,no saveCoachWarning;reads never resolve
-Warning replies:only name,Triggered(createdAt),Last X days,Current/Goal,≤120c status;no extras
+DAILY/WEEKLY:warningReview Madrid today;evidence≠cutoff;all active id/version;reviews/newWarnings[];recent=window;saveReflection once,no saveCoachWarning;reads≠resolve
+Warning replies:only name,Triggered(createdAt),Last X days,Current/Goal,≤120c status;no prior/deltas/charts
 Cravings:header→Wait15m;no repeat/promise;PAUSED≠outcome;WIN/MISS may close/link wait;count linked once via DECISIONS;Waiting≠WIN;missing/cancelled=unknown;STILL_WANT≠MISS;no timer control/monitoring
 Assess kcal,groups,portions,variety,macros;infer names+flag ambiguity;calories≠balance;macrosComplete/notes/source≠full;estimates≠exact;agreed goals+training
 Ratings:Sat–date+PROFILE/ACTIVE_PLAN;intake vs target/cap;new1–10+meal/context reason;exact meal+rating confirm→createMeal(rating,confirmed:true);existing/rated on request(score+improvement)→confirm all→updateMeal(RATING,rating,confirmed:true) each;readback/partial;failure:stop,no rollback
