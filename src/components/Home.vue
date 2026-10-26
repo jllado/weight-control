@@ -1012,7 +1012,7 @@
                   <span>{{ format_nutrition_value(get_meal_calories_total(daily_status.date)) }} kcal</span>
                 </div>
                 <span v-if="get_meal_macro_summary(daily_status.date)" class="meal-total-macros">{{ get_meal_macro_summary(daily_status.date) }}</span>
-                <NutrientSummary :summary="nutrient_summary(get_meals_for(daily_status.date))" daily />
+                <NutrientSummary :summary="nutrient_summary(get_meals_for(daily_status.date))" :date="daily_status.date" daily />
               </section>
               <div class="p-grid">
                 <div class="p-col-5">Previous Week Calories: </div>

@@ -13640,6 +13640,55 @@ test('daily totals and sparse nutrient trends separate complete Omega-3 from par
     await expect(fiberChart).toHaveAccessibleDescription(/2026-10-24: ≥3\.6 g partial lower bound \(1\/2 foods; includes estimates\)/);
 });
 
+test('daily nutrient values match trend colors while preserving partial totals', async ({page}, testInfo) => {
+    const dish = {name: 'Recorded food', quantity: 1, unit: 'SERVING', calories: 500,
+        proteinGrams: 20, carbohydrateGrams: 60, fatGrams: 20, vitaminDMicrograms: 2.2,
+        magnesiumMilligrams: 377.2, omega3Milligrams: 571.13, fiberGrams: 24.5,
+        nutrientSource: 'Composition estimate', nutrientsEstimated: true, fiberSource: 'Composition estimate', fiberEstimated: true};
+    await mockAuthenticatedDashboard(page, '2026-10-25', {dashboardResponse: {
+        ...dashboard, anchorDate: '2026-10-25', dailyStatus: dashboardDailyStatus('2026-10-25'),
+        lastCompletedDashboardDate: '2026-10-25'
+    }, initialMeals: [{id: 1, date: '2026-10-25', mealType: 'LUNCH', mealSequence: 1,
+        calories: 500, proteinGrams: 20, carbohydrateGrams: 60, fatGrams: 20, dishes: [dish, {...dish, name: 'Unrecorded omega', calories: 0,
+            vitaminDMicrograms: 0, magnesiumMilligrams: 0, omega3Milligrams: null, fiberGrams: 0}]}]});
+    let failTargets = false;
+    await page.route('**/api/nutrition/targets?*', route => route.fulfill(failTargets
+        ? {status: 503, json: {message: 'Targets unavailable'}}
+        : {json: {targets: {vitaminD: {value: 15}, magnesium: {value: 350}, fiber: {value: 25},
+            omega3: {value: null}, epaDha: {value: 250}, ala: {value: 1600}},
+        overrides: {macros: {proteinGrams: null, fatPercentage: null}}}}));
+    await openSpaRoute(page, '/');
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
+    const daily = page.getByRole('region', {name: 'Daily nutrients'});
+    const vitamin = daily.getByRole('button', {name: /^Vitamin D details:/});
+    const magnesium = daily.getByRole('button', {name: /^Magnesium details:/});
+    const omega = daily.getByRole('button', {name: /^Omega-3 details:/});
+    const fiber = daily.getByRole('button', {name: /^Fiber details:/});
+    await expect(vitamin).toHaveClass(/target-missed/);
+    await expect(magnesium).toHaveClass(/target-met/);
+    await expect(omega).toHaveClass(/target-missed/);
+    await expect(omega).toHaveText('≥ 571.13 mg');
+    await expect(fiber).toHaveClass(/target-missed/);
+    await omega.click();
+    await expect(page.getByRole('dialog', {name: 'Omega-3 details'})).toContainText('minimum is not yet established');
+    await page.keyboard.press('Escape');
+    await expect(omega).toBeFocused();
+    const meal = page.getByRole('region', {name: 'Meal nutrients'});
+    await expect(meal.locator('.target-met, .target-missed')).toHaveCount(0);
+    for (const width of [376, 390, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        await expect(magnesium).toHaveCSS('color', 'rgb(47, 133, 90)');
+        await expect(omega).toHaveCSS('color', 'rgb(192, 86, 33)');
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await daily.screenshot({path: testInfo.outputPath(`daily-nutrient-colors-${width}.png`)});
+    }
+    failTargets = true;
+    await page.reload();
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
+    await expect(omega).toHaveText('≥ 571.13 mg');
+    await expect(daily.locator('.target-met, .target-missed')).toHaveCount(0);
+});
+
 test('total omega-3 trend uses a one-sided combined minimum and an independent signed delta', async ({page}, testInfo) => {
     await mockAuthenticatedDashboard(page, '2026-08-12', {dashboardResponse: {...dashboard, anchorDate: '2026-08-12',
         dailyStatus: dashboardDailyStatus('2026-08-12'), lastCompletedDashboardDate: '2026-08-12'}});

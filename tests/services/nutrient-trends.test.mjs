@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import dayjs from 'dayjs';
-import {macroTargetStatus, meanMacroTargetLabel, averageNutrientLabel, nutrientChangeLabel, nutrientMinimumStatus, omega3TrendStatus,
+import {macroTargetStatus, meanMacroTargetLabel, averageNutrientLabel, nutrientChangeLabel, nutrientMinimumStatus, omega3TrendStatus, dailyNutrientStatus,
     coveredNutrientDays, partialNutrientDays, nutrientChartData, nutrientChartDescription} from '../../src/model/NutrientTrends.js';
 import {dailyNutrientFields, trendNutrientFields} from '../../src/model/Dish.js';
 
@@ -120,4 +120,29 @@ test('partial fiber chart evidence names meals without foods even at full listed
     const chart = nutrientChartData([row], '2026-10-24', '2026-10-24', fiber);
     assert.match(chart.datasets[1].pointLabels[0], /2\/2 foods; 1 meal\(s\) without foods/);
     assert.match(nutrientChartDescription([row], '2026-10-24', '2026-10-24', fiber), /2\/2 foods; 1 meal\(s\) without foods/);
+});
+
+
+test('daily colors compare recorded totals without treating missing foods as zero', () => {
+    const targets = {fiber: {value: 25}, omega3: {value: null}, epaDha: {value: 250}, ala: {value: 1600}};
+    const total = (value, covered = 1, mealsWithoutFoods = 0) => ({fiberGrams: value, totalFoods: 1,
+        mealsWithoutFoods, fiberCoverage: {foodsWithValues: covered}});
+    assert.equal(dailyNutrientStatus(total(24.99), fiber, targets).className, 'target-missed');
+    for (const value of [25, 25.01]) assert.equal(dailyNutrientStatus(total(value), fiber, targets).className, 'target-met');
+    for (const summary of [total(24.5, 0), total(24.5, 1, 1)]) {
+        const status = dailyNutrientStatus(summary, fiber, targets);
+        assert.equal(status.className, 'target-missed');
+        assert.match(status.label, /minimum is not yet established/);
+    }
+    assert.equal(dailyNutrientStatus(total(25, 0), fiber, targets).className, 'target-met');
+    assert.equal(dailyNutrientStatus(total(null, 0), fiber, targets), null);
+    assert.equal(dailyNutrientStatus(total(0), fiber, targets).className, 'target-missed');
+    assert.equal(dailyNutrientStatus(total(25), fiber, null), null);
+    assert.equal(dailyNutrientStatus(total(25), fiber, {}), null);
+    const omega = nutrientDay('2026-10-25', 'omega3Milligrams', 571.13, 1, 2).nutrients;
+    assert.match(dailyNutrientStatus(omega, omega3, targets).label, /minimum is not yet established/);
+    omega.omega3Milligrams = 1850;
+    assert.equal(dailyNutrientStatus(omega, omega3, targets).className, '');
+    assert.equal(dailyNutrientStatus(omega, omega3, {...targets, omega3: {value: 1850}}).className, 'target-met');
+    assert.equal(dailyNutrientStatus(omega, omega3, {...targets, ala: {value: null}}).className, '');
 });
