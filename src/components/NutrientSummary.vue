@@ -1,25 +1,41 @@
 <template>
   <section class="nutrient-summary" :class="{compact, daily}" :aria-label="daily ? 'Daily nutrients' : compact ? 'Meal nutrients' : 'Food nutrients'">
     <dl><div v-for="field in fields" :key="field.key"><dt>{{ field.label }}</dt><dd>
-      <button type="button" class="nutrient-value" :aria-label="`${field.label} details: ${valueLabel(field)}`" aria-haspopup="dialog" @click="openDetails(field, $event)">{{ valueLabel(field) }}</button>
+      <button type="button" class="nutrient-value" :class="targetStatus(field)?.className" :aria-label="`${field.label} details: ${valueLabel(field)}${targetStatus(field) ? '; ' + targetStatus(field).label : ''}`" aria-haspopup="dialog" @click="openDetails(field, $event)">{{ valueLabel(field) }}</button>
     </dd></div></dl>
     <Dialog v-if="selectedField" :header="`${selectedField.label} details`" :visible="true" modal appendTo="body" :style="{width: 'min(24rem, 95vw)'}" @update:visible="closeDetails">
       <p v-if="definition(selectedField)">{{ definition(selectedField) }}</p>
       <p>{{ summary[selectedField.key] == null ? 'No value recorded.' : `${partial(selectedField) ? 'Partial total' : 'Total'}: ${format(summary[selectedField.key])} ${selectedField.unit}` }}</p>
       <p>{{ summary[selectedField.coverageKey].foodsWithValues }} of {{ summary.totalFoods }} foods have a value.</p>
+      <p v-if="targetStatus(selectedField)">{{ targetStatus(selectedField).label }}</p>
       <p v-if="summary[selectedField.coverageKey].estimatedFoods">Includes estimates.</p>
       <p v-if="summary.mealsWithoutFoods">{{ summary.mealsWithoutFoods }} meal(s) have no foods recorded.</p>
     </Dialog>
   </section>
 </template>
 <script>
+import dayjs from 'dayjs';
+import nutritionService from '../services/NutritionService';
+import {dailyNutrientStatus} from '../model/NutrientTrends';
 import {nutrientFields, dailyNutrientFields, formatNutritionValue} from '../model/Dish';
 export default {
-  props: {summary: {type: Object, required: true}, compact: {type: Boolean, default: false}, daily: {type: Boolean, default: false}},
-  data() { return {selectedField: null, detailTrigger: null}; },
-  computed: {fields() { return this.daily ? dailyNutrientFields : nutrientFields; }},
+  props: {date: {type: [String, Date], default: null}, summary: {type: Object, required: true}, compact: {type: Boolean, default: false}, daily: {type: Boolean, default: false}},
+  data() { return {selectedField: null, detailTrigger: null, targets: null, requestId: 0}; },
+  computed: {
+    fields() { return this.daily ? dailyNutrientFields : nutrientFields; },
+    dateKey() { return this.daily ? dayjs(this.date).format('YYYY-MM-DD') : null; }
+  },
+  watch: {dateKey: {immediate: true, handler() { this.loadTargets(); }}},
   methods: {
     format: formatNutritionValue,
+    targetStatus(field) { return this.daily ? dailyNutrientStatus(this.summary, field, this.targets) : null; },
+    async loadTargets() {
+      const requestId = ++this.requestId;
+      this.targets = null;
+      if (!this.daily) return;
+      const response = await nutritionService.get_targets(this.dateKey).catch(() => null);
+      if (requestId === this.requestId) this.targets = response?.targets ?? null;
+    },
     openDetails(field, event) {
       this.detailTrigger = event.currentTarget;
       this.selectedField = field;
@@ -48,6 +64,8 @@ dl > div { min-width: 5.5rem; }
 dt { font-size: .85rem; }
 dd { margin: .25rem 0 0; }
 .nutrient-value { color: inherit; font: inherit; padding: 0; border: 0; background: none; cursor: pointer; text-decoration: underline dotted; text-underline-offset: .2em; }
+.nutrient-value.target-met { color: #2f855a; }
+.nutrient-value.target-missed { color: #c05621; }
 .nutrient-value:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 3px; }
 .compact { margin-top: .25rem; font-size: .85rem; }
 .compact dl { margin: .25rem 0; gap: .25rem .75rem; }

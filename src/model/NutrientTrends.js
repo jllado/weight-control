@@ -73,6 +73,24 @@ export function omega3TrendStatus(rows, field, targets) {
         label: `Stored total omega-3 is ${below ? 'below' : 'at or above'} the combined EPA+DHA and ALA minima (${roundedCentsLabel(combined, 1n)} mg/day); this does not establish either subtype goal`};
 }
 
+export function dailyNutrientStatus(summary, field, targets) {
+    if (summary[field.key] == null || !targets) return null;
+    const rows = [{nutrients: summary}];
+    let status;
+    if (field.key === 'omega3Milligrams') status = omega3TrendStatus(rows, field, targets);
+    else {
+        const key = {vitaminDMicrograms: 'vitaminD', magnesiumMilligrams: 'magnesium', fiberGrams: 'fiber'}[field.key];
+        const target = targets[key]?.value;
+        if (target == null) return null;
+        status = nutrientMinimumStatus(rows, field, target);
+    }
+    const partial = summary.mealsWithoutFoods > 0 || summary[field.coverageKey].foodsWithValues < summary.totalFoods;
+    if (partial && status.className === 'target-missed') {
+        return {...status, label: 'Partial recorded total; the minimum is not yet established.'};
+    }
+    return status;
+}
+
 export function macroTargetStatus(rows, field, fatPercentage) {
     if (rows.some(row => row.macroTargets?.[field.targetKey]?.value == null)) return {label: 'Current target unavailable', className: ''};
     if (field.targetKey !== 'protein' && fatPercentage == null) return {label: 'Current target unavailable', className: ''};
