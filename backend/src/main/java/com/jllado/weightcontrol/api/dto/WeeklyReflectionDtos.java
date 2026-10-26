@@ -2,6 +2,8 @@ package com.jllado.weightcontrol.api.dto;
 
 import com.jllado.weightcontrol.domain.SavedWeeklySummary;
 import com.jllado.weightcontrol.domain.WeeklyReflection;
+import com.jllado.weightcontrol.domain.WarningReviewSnapshot;
+import com.jllado.weightcontrol.api.dto.ReflectionDtos.WarningReviewEnvelope;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -56,7 +58,8 @@ public final class WeeklyReflectionDtos {
         @NotNull @Valid WeeklyReflectionSection nutrition,
         @NotNull @Valid WeeklyReflectionSection trainingRecovery,
         @NotNull @Valid WeeklyReflectionSection goalProgress,
-        @NotNull @Size(min = 1, max = 5) List<@NotBlank @Size(max = 120) String> nextWeekActions
+        @NotNull @Size(min = 1, max = 5) List<@NotBlank @Size(max = 120) String> nextWeekActions,
+        @NotNull @Valid WarningReviewEnvelope warningReview
     ) {
         @AssertTrue(message = "Weekly reflection save requires exact user confirmation")
         public boolean isConfirmed() {
@@ -82,7 +85,8 @@ public final class WeeklyReflectionDtos {
         WeeklyReflectionSection nutrition,
         WeeklyReflectionSection trainingRecovery,
         WeeklyReflectionSection goalProgress,
-        List<String> nextWeekActions
+        List<String> nextWeekActions,
+        WarningReviewSnapshot warningReview
     ) {
         public static WeeklyReflectionResponse from(WeeklyReflection reflection) {
             return new WeeklyReflectionResponse(
@@ -97,7 +101,8 @@ public final class WeeklyReflectionDtos {
                 section(reflection.getNutritionSummary(), reflection.getNutritionNextAction()),
                 section(reflection.getTrainingRecoverySummary(), reflection.getTrainingRecoveryNextAction()),
                 section(reflection.getGoalProgressSummary(), reflection.getGoalProgressNextAction()),
-                reflection.getNextWeekActions()
+                reflection.getNextWeekActions(),
+                reflection.getWarningReview()
             );
         }
     }

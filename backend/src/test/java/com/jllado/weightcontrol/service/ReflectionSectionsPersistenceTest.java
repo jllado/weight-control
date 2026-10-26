@@ -42,6 +42,9 @@ class ReflectionSectionsPersistenceTest {
         }
     }
 
+    @Autowired WeeklyReflectionService weeklyReflections;
+    @Autowired com.jllado.weightcontrol.repository.SavedWeeklySummaryRepository weeklySummaries;
+    @Autowired com.jllado.weightcontrol.repository.WeeklyReflectionRepository weeklyRecords;
     @Autowired DashboardReflectionService reflections;
     @Autowired DailyStatusSnapshotService snapshots;
     @Autowired HealthDataContextService context;
@@ -53,13 +56,48 @@ class ReflectionSectionsPersistenceTest {
     @Autowired InAppNotificationRepository notifications;
 
     @Test
+    void weeklyReviewAndWarningResolveCommitTogetherAndRollbackOnLaterFailure() {
+        var today = LocalDate.now(DateTimes.USER_ZONE);
+        var owner = user("weekly-warning-" + UUID.randomUUID() + "@example.com", today.minusDays(1));
+        var summary = new com.jllado.weightcontrol.domain.SavedWeeklySummary();
+        summary.setUser(owner);
+        summary.setFridayDate(today.with(java.time.temporal.TemporalAdjusters.previous(java.time.DayOfWeek.FRIDAY)));
+        summary.setCreatedAt(Instant.now());
+        summary.setSnapshotJson("{}");
+        weeklySummaries.saveAndFlush(summary);
+        var warning = warnings.create(owner, new CreateWarningRequest(UUID.randomUUID(), CoachWarningType.SLEEP_DISRUPTION,
+            new WarningContent("Sleep varies.", "Short nights recorded.", "Record sleep.", today.minusDays(14), today,
+                WarningMetricFixtures.review(today, false))));
+        var section = new com.jllado.weightcontrol.api.dto.WeeklyReflectionDtos.WeeklyReflectionSection("Reviewed records.", "Keep recording.");
+        var review = new WarningReviewEnvelope(today, List.of(new ExistingWarningReview(warning.id(), warning.version(),
+            assessment(today, WarningDirection.RESOLVED))), List.of());
+        var request = new com.jllado.weightcontrol.api.dto.WeeklyReflectionDtos.SaveWeeklyReflectionRequest(true,
+            "Week review", "Recorded evidence.", section, section, section, section, section, section, List.of("Continue"), review);
+        assertThrows(BadRequestException.class, () -> actionNotifications.execute(owner, "Reflection saved", "/weekly-summaries", () -> {
+            weeklyReflections.save(owner, summary.getFridayDate(), request);
+            throw new BadRequestException("Later write rejected");
+        }));
+        assertTrue(weeklyRecords.findByWeeklySummary(summary).isEmpty());
+        assertEquals(0, warnings.overview(owner).active().getFirst().version());
+        assertEquals(1, warnings.revisions(owner, warning.id(), 0).items().size());
+        var result = weeklyReflections.save(owner, summary.getFridayDate(), request);
+        assertTrue(warnings.overview(owner).active().isEmpty());
+        assertEquals(CoachWarningStatus.RESOLVED, result.warningReview().items().getFirst().status());
+        assertEquals(warning.createdAt().truncatedTo(java.time.temporal.ChronoUnit.MICROS), result.warningReview().items().getFirst().createdAt());
+        assertEquals(result.warningReview(), weeklyRecords.findByWeeklySummary(summary).orElseThrow().getWarningReview());
+        assertThrows(org.springframework.web.server.ResponseStatusException.class,
+            () -> weeklyReflections.save(owner, summary.getFridayDate(), request));
+        assertEquals(result.warningReview(), weeklyRecords.findByWeeklySummary(summary).orElseThrow().getWarningReview());
+    }
+
+    @Test
     void laterWriteFailureRollsBackEarlierReviewAndProducesNoNotification() {
         var today = LocalDate.now(DateTimes.USER_ZONE);
         var date = today.minusDays(1);
         var owner = user("atomic-warning-review-" + UUID.randomUUID() + "@example.com", date);
         snapshots.getOrBuild(owner, date);
         var warning = warnings.create(owner, new CreateWarningRequest(UUID.randomUUID(), CoachWarningType.SLEEP_DISRUPTION,
-            new WarningContent("Sleep varies.", "Earlier nights were short.", "Record sleep.", today.minusDays(14), date)));
+            new WarningContent("Sleep varies.", "Earlier nights were short.", "Record sleep.", today.minusDays(14), LocalDate.now(DateTimes.USER_ZONE), com.jllado.weightcontrol.service.WarningMetricFixtures.review(LocalDate.now(DateTimes.USER_ZONE), false))));
         var assessment = assessment(today, WarningDirection.IMPROVING);
         var review = new WarningReviewEnvelope(today,
             List.of(new ExistingWarningReview(warning.id(), warning.version(), assessment)), List.of());
@@ -86,9 +124,9 @@ class ReflectionSectionsPersistenceTest {
         var section = new ReflectionSection("Recorded evidence is mixed.", "Continue recording.");
         var draftedWhenEmpty = new WarningReviewEnvelope(today, List.of(), List.of());
         var warning = warnings.create(owner, new CreateWarningRequest(UUID.randomUUID(), CoachWarningType.SLEEP_DISRUPTION,
-            new WarningContent("Sleep varies.", "Earlier nights were short.", "Record sleep.", today.minusDays(14), date)));
+            new WarningContent("Sleep varies.", "Earlier nights were short.", "Record sleep.", today.minusDays(14), LocalDate.now(DateTimes.USER_ZONE), com.jllado.weightcontrol.service.WarningMetricFixtures.review(LocalDate.now(DateTimes.USER_ZONE), false))));
         var otherWarning = warnings.create(other, new CreateWarningRequest(UUID.randomUUID(), CoachWarningType.RECOVERY_STRAIN,
-            new WarningContent("Recovery varies.", "Earlier recovery was lower.", "Record recovery.", today.minusDays(14), date)));
+            new WarningContent("Recovery varies.", "Earlier recovery was lower.", "Record recovery.", today.minusDays(14), LocalDate.now(DateTimes.USER_ZONE), com.jllado.weightcontrol.service.WarningMetricFixtures.review(LocalDate.now(DateTimes.USER_ZONE), false))));
         var assessment = assessment(today, WarningDirection.IMPROVING);
 
         var changedSet = assertThrows(org.springframework.web.server.ResponseStatusException.class,
@@ -123,7 +161,7 @@ class ReflectionSectionsPersistenceTest {
         var section = new ReflectionSection("Recorded evidence is mixed.", "Continue recording.");
         var initial = assessment(today, WarningDirection.INSUFFICIENT_EVIDENCE);
         initial = new WarningAssessment(initial.direction(), initial.assessment(), initial.evidence(), initial.nextAction(),
-            initial.resolutionCriteria(), initial.criteriaProgress(), initial.recentStart(), initial.recentEnd(), null, null, null, null);
+            initial.resolutionCriteria(), initial.criteriaProgress(), initial.recentStart(), initial.recentEnd(), null, null, null, null, com.jllado.weightcontrol.service.WarningMetricFixtures.review(initial.recentEnd(), initial.direction()));
         var review = new WarningReviewEnvelope(today, List.of(),
             List.of(new NewWarningReview(UUID.randomUUID(), CoachWarningType.RECOVERY_STRAIN, today.minusDays(3), initial)));
         var request = withReview(section, review);
@@ -138,11 +176,11 @@ class ReflectionSectionsPersistenceTest {
     }
 
     @Test
-    void eachDirectionHasItsOwnSavedOutcomeAndEvidenceBasedResolutionStaysInHistory() {
+    void goalStatusOverridesQualitativeDirectionAndResolutionStaysInHistory() {
         var today = LocalDate.now(DateTimes.USER_ZONE);
         var owner = user("warning-directions-" + UUID.randomUUID() + "@example.com", today.minusDays(1));
         var warning = warnings.create(owner, new CreateWarningRequest(UUID.randomUUID(), CoachWarningType.SLEEP_DISRUPTION,
-            new WarningContent("Sleep varies.", "Earlier nights were short.", "Record sleep.", today.minusDays(14), today.minusDays(1))));
+            new WarningContent("Sleep varies.", "Earlier nights were short.", "Record sleep.", today.minusDays(14), LocalDate.now(DateTimes.USER_ZONE), com.jllado.weightcontrol.service.WarningMetricFixtures.review(LocalDate.now(DateTimes.USER_ZONE), false))));
         var section = new ReflectionSection("Historical evidence was reviewed.", "Continue recording.");
         var directions = List.of(WarningDirection.UNCHANGED, WarningDirection.WORSENING,
             WarningDirection.INSUFFICIENT_EVIDENCE, WarningDirection.RESOLVED);
@@ -156,11 +194,11 @@ class ReflectionSectionsPersistenceTest {
                 base.resolutionCriteria(), base.criteriaProgress(), base.recentStart(), base.recentEnd(),
                 direction == WarningDirection.INSUFFICIENT_EVIDENCE ? null : base.priorStart(),
                 direction == WarningDirection.INSUFFICIENT_EVIDENCE ? null : base.priorEnd(), null,
-                direction == WarningDirection.RESOLVED ? "Recent recorded nights support resolution against the stated criteria." : null);
+                direction == WarningDirection.RESOLVED ? "Recent recorded nights support resolution against the stated criteria." : null, com.jllado.weightcontrol.service.WarningMetricFixtures.review(base.recentEnd(), direction));
             reflections.save(owner, selectedDate, withReview(section, new WarningReviewEnvelope(today,
                 List.of(new ExistingWarningReview(current.id(), current.version(), assessment)), List.of())));
             var item = ReflectionResponse.from(reflections.find(owner, selectedDate).orElseThrow()).warningReview().items().getFirst();
-            assertEquals(direction, item.progress().direction());
+            assertEquals(direction == WarningDirection.WORSENING ? WarningDirection.UNCHANGED : direction, item.progress().direction());
             assertEquals(direction == WarningDirection.RESOLVED ? CoachWarningStatus.RESOLVED : CoachWarningStatus.ACTIVE, item.status());
             assertEquals(today, item.progress().reviewedDate());
         }
@@ -179,7 +217,7 @@ class ReflectionSectionsPersistenceTest {
         snapshots.getOrBuild(owner, firstDate);
         snapshots.getOrBuild(owner, replacementDate);
         var warning = warnings.create(owner, new CreateWarningRequest(UUID.randomUUID(), CoachWarningType.SLEEP_DISRUPTION,
-            new WarningContent("Sleep varies.", "Earlier nights were short.", "Record sleep.", today.minusDays(14), firstDate)));
+            new WarningContent("Sleep varies.", "Earlier nights were short.", "Record sleep.", today.minusDays(14), LocalDate.now(DateTimes.USER_ZONE), com.jllado.weightcontrol.service.WarningMetricFixtures.review(LocalDate.now(DateTimes.USER_ZONE), false))));
         var section = new ReflectionSection("Historical evidence was reviewed.", "Continue recording.");
         var original = assessment(today, WarningDirection.IMPROVING);
         reflections.save(owner, firstDate, withReview(section, new WarningReviewEnvelope(today,
@@ -187,7 +225,7 @@ class ReflectionSectionsPersistenceTest {
         var originalSnapshot = ReflectionResponse.from(reflections.find(owner, firstDate).orElseThrow()).warningReview();
         var changed = new WarningAssessment(WarningDirection.UNCHANGED, original.assessment(), original.evidence(), original.nextAction(),
             "With sufficient recent records, both sleep minimums are met without recurring disruption.",
-            original.criteriaProgress(), original.recentStart(), original.recentEnd(), original.priorStart(), original.priorEnd(), null, null);
+            original.criteriaProgress(), original.recentStart(), original.recentEnd(), original.priorStart(), original.priorEnd(), null, null, changedGoals(original.metricsReview(), null));
         var current = warnings.overview(owner).active().getFirst();
         assertThrows(BadRequestException.class, () -> reflections.save(owner, replacementDate, withReview(section,
             new WarningReviewEnvelope(today, List.of(new ExistingWarningReview(warning.id(), current.version(), changed)), List.of()))));
@@ -196,7 +234,7 @@ class ReflectionSectionsPersistenceTest {
 
         var explained = new WarningAssessment(changed.direction(), changed.assessment(), changed.evidence(), changed.nextAction(),
             changed.resolutionCriteria(), changed.criteriaProgress(), changed.recentStart(), changed.recentEnd(),
-            changed.priorStart(), changed.priorEnd(), "The previous wording omitted evidence coverage.", null);
+            changed.priorStart(), changed.priorEnd(), "The previous wording omitted evidence coverage.", null, changedGoals(original.metricsReview(), "The recorded personal goal changed."));
         reflections.save(owner, replacementDate, withReview(section, new WarningReviewEnvelope(today,
             List.of(new ExistingWarningReview(warning.id(), current.version(), explained)), List.of())));
         var firstReplacement = ReflectionResponse.from(reflections.find(owner, replacementDate).orElseThrow()).warningReview();
@@ -222,7 +260,7 @@ class ReflectionSectionsPersistenceTest {
         var section = new ReflectionSection("Recorded evidence is mixed.", "Continue recording.");
         var initial = assessment(today, WarningDirection.INSUFFICIENT_EVIDENCE);
         initial = new WarningAssessment(initial.direction(), initial.assessment(), initial.evidence(), initial.nextAction(),
-            initial.resolutionCriteria(), initial.criteriaProgress(), initial.recentStart(), initial.recentEnd(), null, null, null, null);
+            initial.resolutionCriteria(), initial.criteriaProgress(), initial.recentStart(), initial.recentEnd(), null, null, null, null, com.jllado.weightcontrol.service.WarningMetricFixtures.review(initial.recentEnd(), initial.direction()));
         var requestKey = UUID.randomUUID();
         var create = new WarningReviewEnvelope(today, List.of(),
             List.of(new NewWarningReview(requestKey, CoachWarningType.RECOVERY_STRAIN, today.minusDays(3), initial)));
@@ -239,12 +277,12 @@ class ReflectionSectionsPersistenceTest {
         assertEquals(oldSnapshot, ReflectionResponse.from(reflections.find(owner, firstDate).orElseThrow()).warningReview());
         assertFalse(ReflectionResponse.from(reflections.find(owner, nextDate).orElseThrow()).warningReview().items().getFirst().progress().initialReview());
         var latest = warnings.overview(owner).active().getFirst();
-        assertEquals(WarningDirection.IMPROVING, latest.progress().direction());
+        assertEquals(WarningDirection.UNCHANGED, latest.progress().direction());
 
         warnings.update(owner, warning.id(), new UpdateWarningRequest(latest.version(),
-            new WarningContent("Clarified explanation.", "Supplementary evidence.", "Continue observing.", today.minusDays(3), today)));
+            new WarningContent("Clarified explanation.", "Supplementary evidence.", "Continue observing.", today.minusDays(3), today, com.jllado.weightcontrol.service.WarningMetricFixtures.review(today, false))));
         assertEquals(today, warnings.overview(owner).active().getFirst().progress().reviewedDate());
-        assertEquals(WarningDirection.IMPROVING, warnings.overview(owner).active().getFirst().progress().direction());
+        assertEquals(WarningDirection.UNCHANGED, warnings.overview(owner).active().getFirst().progress().direction());
         assertEquals(oldSnapshot, ReflectionResponse.from(reflections.find(owner, firstDate).orElseThrow()).warningReview());
     }
 
@@ -255,11 +293,11 @@ class ReflectionSectionsPersistenceTest {
         var owner = user("reviewed-reflection-" + UUID.randomUUID() + "@example.com", selectedDate);
         snapshots.getOrBuild(owner, selectedDate);
         var warning = warnings.create(owner, new CreateWarningRequest(UUID.randomUUID(), CoachWarningType.SLEEP_DISRUPTION,
-            new WarningContent("Sleep has varied.", "Earlier recorded nights were short.", "Keep recording sleep.", reviewedDate.minusDays(14), selectedDate)));
+            new WarningContent("Sleep has varied.", "Earlier recorded nights were short.", "Keep recording sleep.", reviewedDate.minusDays(14), LocalDate.now(DateTimes.USER_ZONE), com.jllado.weightcontrol.service.WarningMetricFixtures.review(LocalDate.now(DateTimes.USER_ZONE), false))));
         var assessment = new WarningAssessment(WarningDirection.IMPROVING, "More recent nights meet both personal minimums.",
             "Recent recorded nights improved against the earlier period; one short night remains.", "Keep a consistent sleep window.",
             "With sufficient recent evidence, sleep is consistently at least 7h in bed and 6h asleep without recurring disruption.", "Recent evidence moves toward the criteria; one short night needs context.",
-            reviewedDate.minusDays(6), reviewedDate, reviewedDate.minusDays(13), reviewedDate.minusDays(7), null, null);
+            reviewedDate.minusDays(6), reviewedDate, reviewedDate.minusDays(13), reviewedDate.minusDays(7), null, null, com.jllado.weightcontrol.service.WarningMetricFixtures.review(reviewedDate, WarningDirection.IMPROVING));
         var review = new WarningReviewEnvelope(reviewedDate, List.of(new ExistingWarningReview(warning.id(), warning.version(), assessment)), List.of());
         var section = new ReflectionSection("Recorded evidence is mixed.", "Continue recording.");
         var base = request(section, section);
@@ -273,7 +311,7 @@ class ReflectionSectionsPersistenceTest {
         assertEquals(1, saved.items().size());
         assertEquals(warning.id(), saved.items().getFirst().id());
         assertEquals(CoachWarningStatus.ACTIVE, saved.items().getFirst().status());
-        assertEquals(WarningDirection.IMPROVING, saved.items().getFirst().progress().direction());
+        assertEquals(WarningDirection.UNCHANGED, saved.items().getFirst().progress().direction());
         assertEquals(1, warnings.overview(owner).active().getFirst().version());
         assertEquals(2, warnings.revisions(owner, warning.id(), 0).items().size());
     }
@@ -389,6 +427,15 @@ class ReflectionSectionsPersistenceTest {
         assertEquals("Other account", otherPage.reflections().getFirst().title());
     }
 
+
+    private com.jllado.weightcontrol.domain.WarningMetricReview changedGoals(com.jllado.weightcontrol.domain.WarningMetricReview review, String reason) {
+        var old = review.metrics().getFirst();
+        var changed = new com.jllado.weightcontrol.domain.WarningMetric(old.key(), old.label(), old.source(), old.aggregation(),
+            old.unit(), old.value(), new java.math.BigDecimal("155000"), old.maximum(), old.coveredDays(), old.goalBasis());
+        return new com.jllado.weightcontrol.domain.WarningMetricReview(review.windowDays(), review.windowEnd(), review.todayComplete(),
+            review.shortStatus(), List.of(changed, review.metrics().get(1)), reason);
+    }
+
     private DashboardReflection reflection(User user, LocalDate date, String title) {
         var reflection = new DashboardReflection();
         reflection.setUser(user);
@@ -427,6 +474,6 @@ class ReflectionSectionsPersistenceTest {
     private WarningAssessment assessment(LocalDate today, WarningDirection direction) {
         return new WarningAssessment(direction, "Recent records improved.", "Recent records compared with the earlier period.",
             "Keep recording the relevant signal.", "Sustained records meet the agreed personal minimums.",
-            "Evidence moves toward the agreed criteria.", today.minusDays(6), today, today.minusDays(13), today.minusDays(7), null, null);
+            "Evidence moves toward the agreed criteria.", today.minusDays(6), today, today.minusDays(13), today.minusDays(7), null, null, com.jllado.weightcontrol.service.WarningMetricFixtures.review(today, direction));
     }
 }

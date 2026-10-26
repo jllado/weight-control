@@ -34,17 +34,19 @@ public class DailyWarningReviewService {
     private final CoachWarningRepository repository;
     private final CoachWarningService warnings;
     private final Clock clock;
+    private final WarningMetricEvaluator metricEvaluator;
 
     @Autowired
-    public DailyWarningReviewService(EntityManager entityManager, CoachWarningRepository repository, CoachWarningService warnings) {
-        this(entityManager, repository, warnings, Clock.systemUTC());
+    public DailyWarningReviewService(EntityManager entityManager, CoachWarningRepository repository, CoachWarningService warnings, WarningMetricEvaluator metricEvaluator) {
+        this(entityManager, repository, warnings, Clock.systemUTC(), metricEvaluator);
     }
 
-    DailyWarningReviewService(EntityManager entityManager, CoachWarningRepository repository, CoachWarningService warnings, Clock clock) {
+    DailyWarningReviewService(EntityManager entityManager, CoachWarningRepository repository, CoachWarningService warnings, Clock clock, WarningMetricEvaluator metricEvaluator) {
         this.entityManager = entityManager;
         this.repository = repository;
         this.warnings = warnings;
         this.clock = clock;
+        this.metricEvaluator = metricEvaluator;
     }
 
     public WarningReviewSnapshot review(User user, WarningReviewEnvelope request) {
@@ -64,12 +66,8 @@ public class DailyWarningReviewService {
             CoachWarning warning = active.get(entry.id());
             if (warning == null) throw conflict("Warning set changed; reload current warnings and reassess");
             if (warning.getVersion() != entry.version()) throw conflict("Warning changed; reload current warnings and reassess");
-            validateAssessment(entry.assessment(), request.reviewedDate());
             WarningProgress previous = current.progress();
-            if (previous != null && !previous.resolutionCriteria().equals(entry.assessment().resolutionCriteria())
-                && (entry.assessment().criteriaChangeReason() == null || entry.assessment().criteriaChangeReason().isBlank())) {
-                throw new BadRequestException("Explain changes to warning resolution criteria");
-            }
+            validateAssessment(entry.assessment(), request.reviewedDate(), previous);
         }
         if (!reviewed.equals(active.keySet())) throw conflict("Active warnings changed or a review is missing; reload and reassess every current warning");
 
@@ -82,23 +80,23 @@ public class DailyWarningReviewService {
             }
             boolean sameTypeRemainsActive = active.values().stream().anyMatch(warning -> warning.getType() == entry.type()
                 && request.reviews().stream().noneMatch(review -> review.id().equals(warning.getId())
-                    && review.assessment().direction() == WarningDirection.RESOLVED));
+                    && metricEvaluator.evaluate(review.assessment().metricsReview(), request.reviewedDate(), null) == WarningGoalStatus.MET));
             if (sameTypeRemainsActive) throw conflict("This warning type is already active; reassess the current warning");
-            if (entry.assessment().direction() == WarningDirection.RESOLVED) throw new BadRequestException("A newly detected warning cannot already be resolved");
+            if (metricEvaluator.evaluate(entry.assessment().metricsReview(), request.reviewedDate(), null) == WarningGoalStatus.MET) throw new BadRequestException("A newly detected warning cannot already be resolved");
             if (entry.onsetDate() != null && entry.onsetDate().isAfter(request.reviewedDate())) throw new BadRequestException("Warning onset must not follow its review date");
-            validateAssessment(entry.assessment(), request.reviewedDate());
+            validateAssessment(entry.assessment(), request.reviewedDate(), null);
         }
 
         List<WarningReviewItem> items = new ArrayList<>();
         for (ExistingWarningReview entry : request.reviews()) {
             CoachWarning warning = active.get(entry.id());
             WarningProgress progress = progress(entry.assessment(), request.reviewedDate(), entry.version() + 1, false);
-            WarningContent content = new WarningContent(progress.assessment(), progress.evidence(), progress.nextAction(), warning.getOnsetDate(), request.reviewedDate());
+            WarningContent content = new WarningContent(progress.assessment(), progress.evidence(), progress.nextAction(), warning.getOnsetDate(), request.reviewedDate(), progress.metricsReview());
             items.add(item(warnings.reviewDaily(user, entry.id(), entry.version(), content, progress)));
         }
         for (NewWarningReview entry : request.newWarnings()) {
             WarningProgress progress = progress(entry.assessment(), request.reviewedDate(), 0, true);
-            WarningContent content = new WarningContent(progress.assessment(), progress.evidence(), progress.nextAction(), entry.onsetDate(), request.reviewedDate());
+            WarningContent content = new WarningContent(progress.assessment(), progress.evidence(), progress.nextAction(), entry.onsetDate(), request.reviewedDate(), progress.metricsReview());
             WarningResponse created = warnings.create(user, new CreateWarningRequest(entry.requestKey(), entry.type(), content), progress);
             items.add(item(created));
         }
@@ -106,34 +104,27 @@ public class DailyWarningReviewService {
         return new WarningReviewSnapshot(request.reviewedDate(), List.copyOf(items));
     }
 
-    private void validateAssessment(WarningAssessment assessment, LocalDate reviewedDate) {
-        if (assessment.recentStart().isAfter(assessment.recentEnd()) || assessment.recentEnd().isAfter(reviewedDate)) {
-            throw new BadRequestException("Recent warning evidence dates must end by the review date");
-        }
-        if ((assessment.priorStart() == null) != (assessment.priorEnd() == null)) throw new BadRequestException("Provide both prior evidence dates or neither");
-        if (assessment.priorStart() != null && (assessment.priorStart().isAfter(assessment.priorEnd()) || !assessment.priorEnd().isBefore(assessment.recentStart()))) {
-            throw new BadRequestException("Prior warning evidence must precede the recent period");
-        }
-        if (assessment.priorStart() == null && assessment.direction() != WarningDirection.INSUFFICIENT_EVIDENCE) {
-            throw new BadRequestException("A direction needs a dated earlier comparison; otherwise report insufficient evidence");
-        }
-        if (assessment.direction() == WarningDirection.RESOLVED && (assessment.resolutionRationale() == null || assessment.resolutionRationale().isBlank())) {
-            throw new BadRequestException("Resolving a warning requires an evidence-based rationale");
-        }
-        if (assessment.direction() != WarningDirection.RESOLVED && assessment.resolutionRationale() != null) {
-            throw new BadRequestException("Only a resolved warning may have a resolution rationale");
-        }
+    private void validateAssessment(WarningAssessment assessment, LocalDate reviewedDate, WarningProgress previous) {
+        metricEvaluator.evaluate(assessment.metricsReview(), reviewedDate, previous == null ? null : previous.metricsReview());
+        var metrics = assessment.metricsReview();
+        if (!assessment.recentEnd().equals(metrics.windowEnd())
+            || !assessment.recentStart().equals(metrics.windowEnd().minusDays(metrics.windowDays() - 1)))
+            throw new BadRequestException("Warning evidence dates must match the rolling metric window");
     }
 
     private WarningProgress progress(WarningAssessment assessment, LocalDate reviewedDate, long version, boolean initialReview) {
-        return new WarningProgress(assessment.direction(), assessment.assessment(), assessment.evidence(), assessment.nextAction(),
+        var metrics = assessment.metricsReview();
+        var status = metricEvaluator.evaluate(metrics, reviewedDate, null);
+        var direction = status == WarningGoalStatus.MET ? WarningDirection.RESOLVED
+            : status == WarningGoalStatus.UNKNOWN ? WarningDirection.INSUFFICIENT_EVIDENCE : WarningDirection.UNCHANGED;
+        return new WarningProgress(direction, assessment.assessment(), assessment.evidence(), assessment.nextAction(),
             assessment.resolutionCriteria(), assessment.criteriaProgress(), assessment.recentStart(), assessment.recentEnd(),
-            assessment.priorStart(), assessment.priorEnd(), assessment.criteriaChangeReason(), assessment.resolutionRationale(),
-            reviewedDate, version, initialReview);
+            null, null, assessment.criteriaChangeReason(), status == WarningGoalStatus.MET ? metrics.shortStatus() : null,
+            reviewedDate, version, initialReview, metrics, status, java.time.Instant.now());
     }
 
     private WarningReviewItem item(WarningResponse response) {
-        return new WarningReviewItem(response.id(), response.type(), response.status(), response.version(), response.progress());
+        return new WarningReviewItem(response.id(), response.type(), response.status(), response.version(), response.progress(), response.createdAt());
     }
 
     private ResponseStatusException conflict(String message) { return new ResponseStatusException(HttpStatus.CONFLICT, message); }

@@ -20,7 +20,7 @@ class WeeklySummaryPresentationMapperTest {
                 com.jllado.weightcontrol.domain.PersonalRecordUnit.SECONDS, date)), List.of());
         var section = new WeeklyReflectionSection("Finding", "Walk daily");
         var reflection = new WeeklyReflectionResponse(date, Instant.EPOCH, "ChatGPT", "Review", "Summary",
-            section, section, section, section, section, section, List.of(" WALK DAILY "));
+            section, section, section, section, section, section, List.of(" WALK DAILY "), null);
         var view = WeeklySummaryPresentationMapper.create(snapshot, reflection, "weekly:42");
         assertEquals(5, view.highlights().size());
         assertEquals("1 new", view.highlights().getLast().value());

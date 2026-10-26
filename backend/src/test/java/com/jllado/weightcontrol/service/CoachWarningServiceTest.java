@@ -29,11 +29,11 @@ class CoachWarningServiceTest {
     @Autowired CoachWarningService service;
     @Autowired UserRepository users;
     private User user;
-    private final LocalDate date = LocalDate.of(2026, 9, 8);
+    private final LocalDate date = LocalDate.now(com.jllado.weightcontrol.util.DateTimes.USER_ZONE);
 
     @BeforeEach void setup() { user = newUser(); }
     private User newUser() { User value = new User(); value.setEmail(UUID.randomUUID() + "@example.com"); return users.save(value); }
-    private WarningContent content(String explanation) { return new WarningContent(explanation, "Sep 1–7: sleeping HR 70 bpm vs 65 bpm in preceding days; seven recorded nights.", "Prioritize consistent sleep.", date.minusDays(7), date); }
+    private WarningContent content(String explanation) { return new WarningContent(explanation, "Sep 1–7: sleeping HR 70 bpm vs 65 bpm in preceding days; seven recorded nights.", "Prioritize consistent sleep.", date.minusDays(7), date, com.jllado.weightcontrol.service.WarningMetricFixtures.review(date, false)); }
     private CreateWarningRequest request(CoachWarningType type) { return new CreateWarningRequest(UUID.randomUUID(), type, content("Possible recovery strain; cause uncertain.")); }
 
     @Test void preservesRevisionsResolvesIndependentlyAndAllowsRecurrence() {
@@ -42,7 +42,7 @@ class CoachWarningServiceTest {
         var updated = service.update(user, first.id(), new UpdateWarningRequest(first.version(), content("Persistent pattern, with mixed mood evidence.")));
         assertEquals(1, updated.version());
         assertThrows(ResponseStatusException.class, () -> service.update(user, first.id(), new UpdateWarningRequest(first.version(), content("Stale"))));
-        service.resolve(user, first.id(), new ResolveWarningRequest(updated.version(), date.plusDays(3), "Three newer recorded nights returned toward baseline."));
+        service.resolve(user, first.id(), new ResolveWarningRequest(updated.version(), date, "Three newer recorded nights returned toward baseline.", com.jllado.weightcontrol.service.WarningMetricFixtures.review(date, true)));
         assertEquals(second.id(), service.overview(user).active().getFirst().id());
         assertTrue(service.overview(user).hasHistory());
         assertEquals(CoachWarningStatus.RESOLVED, service.history(user, 0).items().getFirst().status());
@@ -64,7 +64,7 @@ class CoachWarningServiceTest {
         assertTrue(service.overview(other).active().isEmpty());
         assertThrows(NotFoundException.class, () -> service.revisions(other, warning.id(), 0));
         assertThrows(NotFoundException.class, () -> service.update(other, warning.id(), new UpdateWarningRequest(0L, content("Foreign"))));
-        assertThrows(NotFoundException.class, () -> service.resolve(other, warning.id(), new ResolveWarningRequest(0L, date, "Foreign")));
+        assertThrows(NotFoundException.class, () -> service.resolve(other, warning.id(), new ResolveWarningRequest(0L, date, "Foreign", com.jllado.weightcontrol.service.WarningMetricFixtures.review(date, true))));
     }
 
     @Test void concurrentCreatesLeaveOneActiveWarningAndOneRevision() throws Exception {
@@ -80,12 +80,12 @@ class CoachWarningServiceTest {
     @Test void paginatesHistoryAndDoesNotResurrectResolvedCreateRetries() {
         var original = request(CoachWarningType.HEALTH_CHANGE);
         var warning = service.create(user, original);
-        service.resolve(user, warning.id(), new ResolveWarningRequest(0L, date, "New evidence reviewed."));
+        service.resolve(user, warning.id(), new ResolveWarningRequest(0L, date, "New evidence reviewed.", com.jllado.weightcontrol.service.WarningMetricFixtures.review(date, true)));
         assertEquals(CoachWarningStatus.RESOLVED, service.create(user, original).status());
         assertTrue(service.overview(user).active().isEmpty());
         for (int index = 0; index < 10; index++) {
             var next = service.create(user, request(CoachWarningType.HEALTH_CHANGE));
-            service.resolve(user, next.id(), new ResolveWarningRequest(0L, date, "Recovery recorded."));
+            service.resolve(user, next.id(), new ResolveWarningRequest(0L, date, "Recovery recorded.", com.jllado.weightcontrol.service.WarningMetricFixtures.review(date, true)));
         }
         var firstPage = service.history(user, 0);
         var secondPage = service.history(user, 1);
@@ -100,17 +100,47 @@ class CoachWarningServiceTest {
         var created = service.write(user, new WarningWriteRequest(null, request(CoachWarningType.TRAINING_STRAIN), null, null));
         assertEquals(created.id(), service.read(user, WarningView.ACTIVE, null, 0).items().getFirst().id());
         var updated = service.write(user, new WarningWriteRequest(created.id(), null, new UpdateWarningRequest(0L, content("Reviewed")), null));
-        service.write(user, new WarningWriteRequest(created.id(), null, null, new ResolveWarningRequest(updated.version(), date, "Recovery supported by new records.")));
+        service.write(user, new WarningWriteRequest(created.id(), null, null, new ResolveWarningRequest(updated.version(), date, "Recovery supported by new records.", com.jllado.weightcontrol.service.WarningMetricFixtures.review(date, true))));
         assertTrue(service.read(user, WarningView.ACTIVE, null, 0).items().isEmpty());
         assertTrue(service.read(user, WarningView.HISTORY, null, 0).hasHistory());
         assertEquals(3, service.read(user, WarningView.REVISIONS, created.id(), 0).items().size());
         assertThrows(BadRequestException.class, () -> service.read(user, WarningView.REVISIONS, null, 0));
     }
 
+    @Test void automaticResolutionRequiresCompleteGoalsAndRejectsAlreadyMetCreation() {
+        var met = new WarningContent("Goals met", "Complete recent raw records", "Continue recording", date.minusDays(7), date,
+            WarningMetricFixtures.review(date, true));
+        assertThrows(BadRequestException.class, () -> service.create(user,
+            new CreateWarningRequest(UUID.randomUUID(), CoachWarningType.SLEEP_DISRUPTION, met)));
+        var warning = service.create(user, request(CoachWarningType.SLEEP_DISRUPTION));
+        var unknown = WarningMetricFixtures.review(date, WarningDirection.INSUFFICIENT_EVIDENCE);
+        assertThrows(BadRequestException.class, () -> service.resolve(user, warning.id(), new ResolveWarningRequest(0L, date, "Resolve", unknown)));
+        assertEquals(0, service.current(user, warning.id()).version());
+        var resolved = service.update(user, warning.id(), new UpdateWarningRequest(0L, met));
+        assertEquals(CoachWarningStatus.RESOLVED, resolved.status());
+        assertEquals(WarningGoalStatus.MET, resolved.progress().goalStatus());
+        assertEquals(warning.createdAt().truncatedTo(java.time.temporal.ChronoUnit.MICROS), resolved.createdAt());
+        assertNotNull(resolved.progress().reviewedAt());
+        assertTrue(service.overview(user).active().isEmpty());
+    }
+
+    @Test void standaloneReviewsRejectStaleAndFutureEvidenceWithoutMutating() {
+        var warning = service.create(user, request(CoachWarningType.SLEEP_DISRUPTION));
+        for (var invalid : java.util.List.of(date.minusDays(1), date.plusDays(1))) {
+            var content = new WarningContent("Old or future", "Recorded evidence", "Continue", null, invalid,
+                WarningMetricFixtures.review(invalid, true));
+            assertThrows(BadRequestException.class, () -> service.update(user, warning.id(), new UpdateWarningRequest(0L, content)));
+            assertThrows(BadRequestException.class, () -> service.resolve(user, warning.id(),
+                new ResolveWarningRequest(0L, invalid, "Resolve", content.metricsReview())));
+        }
+        assertEquals(0, service.current(user, warning.id()).version());
+        assertEquals(CoachWarningStatus.ACTIVE, service.current(user, warning.id()).status());
+    }
+
     @Test void rejectsInvalidChronologyAndPages() {
         var warning = service.create(user, request(CoachWarningType.MOOD_DECLINE));
-        assertThrows(ResponseStatusException.class, () -> service.resolve(user, warning.id(), new ResolveWarningRequest(0L, date.minusDays(1), "Older evidence")));
-        assertThrows(BadRequestException.class, () -> service.update(user, warning.id(), new UpdateWarningRequest(0L, new WarningContent("X", "Y", "Z", date.plusDays(1), date))));
+        assertThrows(BadRequestException.class, () -> service.resolve(user, warning.id(), new ResolveWarningRequest(0L, date.minusDays(1), "Older evidence", com.jllado.weightcontrol.service.WarningMetricFixtures.review(date.minusDays(1), true))));
+        assertThrows(BadRequestException.class, () -> service.update(user, warning.id(), new UpdateWarningRequest(0L, new WarningContent("X", "Y", "Z", date.plusDays(1), date, com.jllado.weightcontrol.service.WarningMetricFixtures.review(date, false)))));
         assertThrows(BadRequestException.class, () -> service.history(user, -1));
         assertEquals(0, service.overview(user).active().getFirst().version());
     }

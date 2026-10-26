@@ -1,4 +1,5 @@
 const {test, expect} = require('@playwright/test');
+const {sleepWarning, nutritionWarning} = require('../fixtures/warning-metrics.cjs');
 
 const fridayDate = '2026-08-14';
 const weeklySnapshot = {
@@ -311,7 +312,9 @@ test('weekly archive opens standalone summaries, copies selected evidence window
         expect(prompt).toContain(`Friday–Sunday window ${summary.fridayDate} to ${shiftDate(summary.fridayDate, 2)}`);
         expect(prompt).toMatch(/Saturday–Friday average.*period dates and reading count/);
         expect(prompt).toMatch(/outcomes as readings with their measured dates/);
-        expect(prompt).toContain('ask me to confirm the exact content before saving it');
+        expect(prompt).toContain('review every current Coach warning using today');
+        expect(prompt).toContain('rolling window, current metric and goal');
+        expect(prompt).toContain('confirm the exact reflection and warningReview before saving them together');
         expect(prompt).toContain('Make no writes before my confirmation.');
         await coachPage.close();
         return prompt;
@@ -500,4 +503,59 @@ test('new weekly nutrition renders captured coverage and targets without fetchin
     await expect(table.getByText('Not available · 0 complete days · Current target ≥1600 mg')).toHaveCount(3);
     await expect(page.locator('canvas')).toHaveCount(0);
     expect(liveTargetReads).toBe(0);
+});
+
+
+test('weekly reflection shows immutable rolling warning snapshots and preserves legacy and empty reviews', async ({page}, testInfo) => {
+    const section = {summary: 'Recorded progress.', nextAction: 'Keep recording.'};
+    const summary = {...savedSummary, reflection: {
+        fridayDate, generatedAt: '2026-10-26T09:15:00Z', title: 'Weekly reflection with warning goals', summary: 'Saved weekly review.',
+        bodyComposition: section, bloodPressure: section, routines: section, nutrition: section, trainingRecovery: section, goalProgress: section,
+        nextWeekActions: ['Keep recording.'], warningReview: {reviewedDate: '2026-10-26', items: [sleepWarning(), nutritionWarning()]}
+    }};
+    const writes = [];
+    await page.route('**/api/**', route => {
+        const request = route.request();
+        if (request.method() !== 'GET') writes.push(request.method());
+        const path = new URL(request.url()).pathname;
+        const responses = {
+            '/api/auth/me': {email: 'owner@example.com', displayName: 'Owner', authenticated: true},
+            '/api/urge-pauses': {pause: null, serverNow: '2026-10-26T09:15:00Z'},
+            '/api/profile': {},
+            '/api/weekly-summary': {latestEligibleFriday: fridayDate, actionConfigured: true, items: [{periodStart: summary.periodStart, fridayDate, createdAt: summary.createdAt, reflectionSaved: true}], page: 0, size: 10, totalElements: 1, totalPages: 1},
+            '/api/weekly-summary/preview': {periodStart: summary.periodStart, fridayDate, canCreate: false, alreadySaved: true, snapshot: summary.snapshot},
+            [`/api/weekly-summary/${fridayDate}`]: summary
+        };
+        return route.fulfill({json: responses[path] || []});
+    });
+    await page.addInitScript(friday => window.history.replaceState({}, '', `/weekly-summaries/${friday}`), fridayDate);
+    await page.goto('/');
+    const review = page.getByRole('region', {name: 'Warning progress'});
+    await expect(review.getByRole('article')).toHaveCount(2);
+    await expect(review).toContainText(/Triggered 26 Sept? 2026/);
+    await expect(review).toContainText('Triggered 1 Oct 2026');
+    await expect(review.getByRole('row', {name: /Asleep/})).toContainText('42h');
+    await expect(review.getByRole('row', {name: /In bed/})).toContainText('56h 59m');
+    await expect(review.getByRole('row', {name: /Calories/})).toContainText('2,882.71');
+    await expect(review.getByRole('article').first()).toContainText('Goals met');
+    await expect(review.getByRole('article').last()).toContainText('Goals not met');
+    await expect(review.locator('details')).toHaveCount(0);
+    for (const width of [376, 390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await review.scrollIntoViewIfNeeded();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+        await page.screenshot({path: testInfo.outputPath(`weekly-warning-progress-${width}.png`), animations: 'disabled'});
+    }
+    // Reopen the saved route through the static test server's SPA entry document.
+    await page.goto('/');
+    await expect(review.getByRole('row', {name: /Asleep/})).toContainText('42h');
+    await expect(review.getByRole('row', {name: /Calories/})).toContainText('2,882.71');
+    summary.reflection.warningReview = null;
+    await page.getByRole('button', {name: 'Refresh reflection'}).click();
+    await expect(review).toContainText('Not recorded');
+    summary.reflection.warningReview = {reviewedDate: '2026-10-26', items: []};
+    await page.getByRole('button', {name: 'Refresh reflection'}).click();
+    await expect(review).toContainText('No active warnings to review');
+    await expect(review.getByRole('article')).toHaveCount(0);
+    expect(writes).toEqual([]);
 });

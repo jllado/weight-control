@@ -27,9 +27,9 @@ class DailyWarningReviewServiceTest {
         var entityManager = mock(EntityManager.class);
         var warnings = mock(CoachWarningService.class);
         var first = new DailyWarningReviewService(entityManager, repository, warnings,
-            Clock.fixed(Instant.parse("2026-10-24T22:30:00Z"), ZoneOffset.UTC));
+            Clock.fixed(Instant.parse("2026-10-24T22:30:00Z"), ZoneOffset.UTC), com.jllado.weightcontrol.service.WarningMetricFixtures.evaluator());
         var second = new DailyWarningReviewService(entityManager, repository, warnings,
-            Clock.fixed(Instant.parse("2026-10-25T23:30:00Z"), ZoneOffset.UTC));
+            Clock.fixed(Instant.parse("2026-10-25T23:30:00Z"), ZoneOffset.UTC), com.jllado.weightcontrol.service.WarningMetricFixtures.evaluator());
 
         assertEquals(LocalDate.of(2026, 10, 25), first.review(user,
             new WarningReviewEnvelope(LocalDate.of(2026, 10, 25), List.of(), List.of())).reviewedDate());

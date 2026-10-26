@@ -161,6 +161,7 @@
           <p v-if="detail.reflection" class="reflection-summary">{{ detail.reflection.summary }}</p>
           <p v-else-if="archive.actionConfigured" class="empty-note">Ask the Coach to review this saved snapshot. The reflection is stored separately from daily reflections.</p>
           <p v-else class="empty-note">Weekly reflection Actions are not configured yet. This saved snapshot remains available for review.</p>
+          <WarningReview v-if="detail.reflection" :review="detail.reflection.warningReview" />
           <details v-if="detail.reflection" class="reflection-details">
             <summary class="detail-section-summary"><strong>Reflection details</strong></summary>
             <div class="reflection-sections">
@@ -255,10 +256,11 @@ import {buildWeeklyReflectionPrompt} from '@/model/Reflection';
 import {openCoach} from '@/services/CoachService';
 import {nextTick} from 'vue';
 import Paginator from 'primevue/paginator';
+import WarningReview from './WarningReview.vue';
 
 export default {
   name: 'WeeklySummaries',
-  components: {Paginator},
+  components: {Paginator, WarningReview},
   data() {
     return {
       archive: null,

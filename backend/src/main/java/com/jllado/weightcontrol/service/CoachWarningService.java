@@ -22,12 +22,14 @@ public class CoachWarningService {
     private final CoachWarningRevisionRepository revisions;
     private final EntityManager entityManager;
     private final ObjectMapper mapper;
+    private final WarningMetricEvaluator metricEvaluator;
 
-    public CoachWarningService(CoachWarningRepository warnings, CoachWarningRevisionRepository revisions, EntityManager entityManager, ObjectMapper mapper) {
+    public CoachWarningService(CoachWarningRepository warnings, CoachWarningRevisionRepository revisions, EntityManager entityManager, ObjectMapper mapper, WarningMetricEvaluator metricEvaluator) {
         this.warnings = warnings;
         this.revisions = revisions;
         this.entityManager = entityManager;
         this.mapper = mapper;
+        this.metricEvaluator = metricEvaluator;
     }
 
     @Transactional(readOnly = true)
@@ -66,7 +68,7 @@ public class CoachWarningService {
     }
 
     public WarningResponse create(User user, CreateWarningRequest request) {
-        return create(user, request, null);
+        return create(user, request, progress(request.content(), null, 0, true));
     }
 
     public WarningResponse create(User user, CreateWarningRequest request, WarningProgress progress) {
@@ -77,6 +79,7 @@ public class CoachWarningService {
             if (!existing.get().getCreatePayload().equals(payload)) throw conflict("Request key already used for different warning values");
             return current(existing.get());
         }
+        if (progress.goalStatus() == WarningGoalStatus.MET) throw new BadRequestException("A new warning must have an unmet or unknown goal");
         if (warnings.existsByUserAndTypeAndStatus(user, request.type(), CoachWarningStatus.ACTIVE)) throw conflict("This warning type is already active; retrieve and update it");
         CoachWarning warning = new CoachWarning();
         warning.setUser(user);
@@ -92,8 +95,9 @@ public class CoachWarningService {
     public WarningResponse update(User user, Long id, UpdateWarningRequest request) {
         lock(user);
         CoachWarning warning = editable(user, id, request.version());
-        WarningProgress progress = current(warning).progress();
+        WarningProgress progress = progress(request.content(), current(warning).progress(), warning.getVersion() + 1, false);
         apply(warning, request.content());
+        applyOutcome(warning, progress);
         warning.setVersion(warning.getVersion() + 1);
         return save(warning, progress);
     }
@@ -101,12 +105,14 @@ public class CoachWarningService {
     public WarningResponse resolve(User user, Long id, ResolveWarningRequest request) {
         lock(user);
         CoachWarning warning = editable(user, id, request.version());
-        WarningProgress progress = current(warning).progress();
-        validateReview(warning, request.reviewedDate());
-        warning.setReviewedDate(request.reviewedDate());
-        warning.setStatus(CoachWarningStatus.RESOLVED);
+        var old = current(warning);
+        var content = new WarningContent(request.metricsReview().shortStatus(), old.content().evidence(), old.content().action(),
+            warning.getOnsetDate(), request.reviewedDate(), request.metricsReview());
+        var progress = progress(content, old.progress(), warning.getVersion() + 1, false);
+        if (progress.goalStatus() != WarningGoalStatus.MET) throw new BadRequestException("Only complete, met warning goals may resolve a warning");
+        apply(warning, content);
+        applyOutcome(warning, progress);
         warning.setResolutionRationale(request.rationale());
-        warning.setResolvedAt(Instant.now());
         warning.setVersion(warning.getVersion() + 1);
         return save(warning, progress);
     }
@@ -115,13 +121,28 @@ public class CoachWarningService {
         lock(user);
         CoachWarning warning = editable(user, id, version);
         apply(warning, content);
-        if (progress.direction() == WarningDirection.RESOLVED) {
-            warning.setStatus(CoachWarningStatus.RESOLVED);
-            warning.setResolutionRationale(progress.resolutionRationale());
-            warning.setResolvedAt(Instant.now());
-        }
+        applyOutcome(warning, progress);
         warning.setVersion(warning.getVersion() + 1);
         return save(warning, progress);
+    }
+
+    private void applyOutcome(CoachWarning warning, WarningProgress progress) {
+        if (progress.goalStatus() == WarningGoalStatus.MET) {
+            warning.setStatus(CoachWarningStatus.RESOLVED);
+            warning.setResolutionRationale(progress.metricsReview().shortStatus());
+            warning.setResolvedAt(Instant.now());
+        }
+    }
+
+    private WarningProgress progress(WarningContent content, WarningProgress previous, long version, boolean initial) {
+        var metrics = content.metricsReview();
+        var status = metricEvaluator.evaluate(metrics, content.reviewedDate(), previous == null ? null : previous.metricsReview());
+        var direction = status == WarningGoalStatus.MET ? WarningDirection.RESOLVED
+            : status == WarningGoalStatus.UNKNOWN ? WarningDirection.INSUFFICIENT_EVIDENCE : WarningDirection.UNCHANGED;
+        return new WarningProgress(direction, metrics.shortStatus(), content.evidence(), content.action(),
+            "Meet all recorded metric goals", status.toString(), metrics.windowEnd().minusDays(metrics.windowDays() - 1),
+            metrics.windowEnd(), null, null, metrics.definitionChangeReason(),
+            status == WarningGoalStatus.MET ? metrics.shortStatus() : null, content.reviewedDate(), version, initial, metrics, status, java.time.Instant.now());
     }
 
     @Transactional(readOnly = true)
@@ -154,6 +175,8 @@ public class CoachWarningService {
     }
 
     private void validateReview(CoachWarning warning, LocalDate date) {
+        if (!date.equals(LocalDate.now(com.jllado.weightcontrol.util.DateTimes.USER_ZONE)))
+            throw new BadRequestException("Warning review date must be today's date in Europe/Madrid");
         if (warning.getReviewedDate() != null && date.isBefore(warning.getReviewedDate())) throw conflict("Review date must not move backwards");
     }
 

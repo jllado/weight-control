@@ -40,12 +40,12 @@ class WeeklyReflectionServiceTest {
         when(summaries.findByUserAndFridayDateForUpdate(user, summary.getFridayDate())).thenReturn(Optional.of(summary));
         when(reflections.findByWeeklySummary(summary)).thenReturn(Optional.of(existing));
         when(reflections.save(existing)).thenReturn(existing);
-        var service = new WeeklyReflectionService(summaries, reflections, mock(WeeklySummaryService.class), properties());
+        var service = new WeeklyReflectionService(summaries, reflections, mock(WeeklySummaryService.class), properties(), mock(jakarta.persistence.EntityManager.class), jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator(), mock(DailyWarningReviewService.class));
         WeeklyReflectionSection section = new WeeklyReflectionSection("Supported evidence and an unknown gap.", "Review the next saved week.");
         SaveWeeklyReflectionRequest request = new SaveWeeklyReflectionRequest(
             true, "Week review", "A concise weekly review.", section, section, section, section, section, section,
             List.of("Continue the agreed routine")
-        );
+        , new com.jllado.weightcontrol.api.dto.ReflectionDtos.WarningReviewEnvelope(java.time.LocalDate.now(com.jllado.weightcontrol.util.DateTimes.USER_ZONE), java.util.List.of(), java.util.List.of()));
 
         var response = service.save(user, summary.getFridayDate(), request);
 
@@ -66,7 +66,7 @@ class WeeklyReflectionServiceTest {
         var summaryService = mock(WeeklySummaryService.class);
         LocalDate today = LocalDate.parse(todayValue);
         when(summaryService.latestCompletedWeekEnd(today)).thenCallRealMethod();
-        var service = new WeeklyReflectionService(summaries, mock(WeeklyReflectionRepository.class), summaryService, properties());
+        var service = new WeeklyReflectionService(summaries, mock(WeeklyReflectionRepository.class), summaryService, properties(), mock(jakarta.persistence.EntityManager.class), jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator(), mock(DailyWarningReviewService.class));
 
         try (var dates = mockStatic(LocalDate.class, CALLS_REAL_METHODS)) {
             dates.when(() -> LocalDate.now(DateTimes.USER_ZONE)).thenReturn(today);

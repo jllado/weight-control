@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.api.dto;
 import com.jllado.weightcontrol.domain.DashboardReflection;
 import com.jllado.weightcontrol.domain.CoachWarningType;
 import com.jllado.weightcontrol.domain.WarningDirection;
+import com.jllado.weightcontrol.domain.WarningMetricReview;
 import com.jllado.weightcontrol.domain.WarningReviewSnapshot;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
@@ -99,7 +100,8 @@ public final class ReflectionDtos {
         LocalDate priorStart,
         LocalDate priorEnd,
         @Size(max = 500) String criteriaChangeReason,
-        @Size(max = 2000) String resolutionRationale
+        @Size(max = 2000) String resolutionRationale,
+        @NotNull @Valid WarningMetricReview metricsReview
     ) {}
 
     public record ReflectionSection(

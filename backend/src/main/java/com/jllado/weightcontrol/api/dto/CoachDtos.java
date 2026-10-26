@@ -25,6 +25,7 @@ import com.jllado.weightcontrol.domain.PersonalRecordEventKind;
 import com.jllado.weightcontrol.domain.PersonalRecordMetric;
 import com.jllado.weightcontrol.domain.PersonalRecordUnit;
 import com.jllado.weightcontrol.domain.WarningProgress;
+import com.jllado.weightcontrol.domain.WarningMetricReview;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -256,7 +257,8 @@ public final class CoachDtos {
         @NotBlank @Size(max = 4000) String evidence,
         @NotBlank @Size(max = 500) String action,
         LocalDate onsetDate,
-        @NotNull LocalDate reviewedDate
+        @NotNull LocalDate reviewedDate,
+        @NotNull @Valid WarningMetricReview metricsReview
     ) {}
 
     public record CreateWarningRequest(
@@ -273,7 +275,8 @@ public final class CoachDtos {
     public record ResolveWarningRequest(
         @NotNull @PositiveOrZero Long version,
         @NotNull LocalDate reviewedDate,
-        @NotBlank @Size(max = 2000) String rationale
+        @NotBlank @Size(max = 2000) String rationale,
+        @NotNull @Valid WarningMetricReview metricsReview
     ) {}
 
     public enum WarningView { ACTIVE, HISTORY, REVISIONS }
@@ -305,7 +308,7 @@ public final class CoachDtos {
 
         public static WarningResponse from(CoachWarning warning, WarningProgress progress) {
             return new WarningResponse(warning.getId(), warning.getType(), warning.getStatus(),
-                new WarningContent(warning.getExplanation(), warning.getEvidence(), warning.getAction(), warning.getOnsetDate(), warning.getReviewedDate()),
+                new WarningContent(warning.getExplanation(), warning.getEvidence(), warning.getAction(), warning.getOnsetDate(), warning.getReviewedDate(), progress == null ? null : progress.metricsReview()),
                 warning.getResolutionRationale(), warning.getCreatedAt(), warning.getUpdatedAt(), warning.getResolvedAt(), warning.getVersion(), progress);
         }
     }

@@ -12,7 +12,7 @@ class WeeklyRecommendationMapperTest {
         var reflection = new WeeklyReflectionResponse(LocalDate.of(2026,10,23), Instant.EPOCH, "ChatGPT", "Week", "Summary",
             section("  No phone in bed "), section("Walk daily"), section("NO PHONE IN BED"),
             section("Eat beans"), section("Walk daily"), section("Review goals"),
-            List.of("No phone in bed", "Walk daily"));
+            List.of("No phone in bed", "Walk daily"), null);
         var rows = WeeklyRecommendationMapper.from("weekly:42", reflection);
         assertEquals(List.of("No phone in bed", "Walk daily", "Eat beans", "Review goals"),
             rows.stream().map(WeeklyRecommendationMapper.Recommendation::wording).toList());
@@ -20,7 +20,7 @@ class WeeklyRecommendationMapperTest {
         assertFalse(rows.getFirst().sourceKey().contains("phone"));
         var reordered = new WeeklyReflectionResponse(reflection.fridayDate(), Instant.now(), "ChatGPT", "Week", "Summary",
             reflection.bodyComposition(), reflection.bloodPressure(), reflection.routines(), reflection.nutrition(),
-            reflection.trainingRecovery(), reflection.goalProgress(), List.of("Walk daily", "No phone in bed"));
+            reflection.trainingRecovery(), reflection.goalProgress(), List.of("Walk daily", "No phone in bed"), null);
         assertEquals(rows.getFirst().sourceKey(), WeeklyRecommendationMapper.from("weekly:42", reordered).get(1).sourceKey());
         assertNotEquals(rows.getFirst().sourceKey(), WeeklyRecommendationMapper.key("weekly:42", "Different action"));
     }

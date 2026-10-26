@@ -12,6 +12,9 @@ import com.jllado.weightcontrol.domain.WeeklyReflection;
 import com.jllado.weightcontrol.repository.SavedWeeklySummaryRepository;
 import com.jllado.weightcontrol.repository.WeeklyReflectionRepository;
 import jakarta.transaction.Transactional;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
+import jakarta.validation.Validator;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -26,17 +29,23 @@ public class WeeklyReflectionService {
     private final WeeklyReflectionRepository reflectionRepository;
     private final WeeklySummaryService summaryService;
     private final AppProperties properties;
+    private final EntityManager entityManager;
+    private final Validator validator;
+    private final DailyWarningReviewService warningReviewService;
 
     public WeeklyReflectionService(
         SavedWeeklySummaryRepository summaryRepository,
         WeeklyReflectionRepository reflectionRepository,
         WeeklySummaryService summaryService,
-        AppProperties properties
+        AppProperties properties, EntityManager entityManager, Validator validator, DailyWarningReviewService warningReviewService
     ) {
         this.summaryRepository = summaryRepository;
         this.reflectionRepository = reflectionRepository;
         this.summaryService = summaryService;
         this.properties = properties;
+        this.entityManager = entityManager;
+        this.validator = validator;
+        this.warningReviewService = warningReviewService;
     }
 
     public WeeklyReflectionOverviewResponse getOverview(User user) {
@@ -63,6 +72,11 @@ public class WeeklyReflectionService {
     }
 
     public WeeklyReflectionResponse save(User user, LocalDate fridayDate, SaveWeeklyReflectionRequest request) {
+        var violations = validator.validate(request);
+        if (!violations.isEmpty()) throw new BadRequestException(violations.stream()
+            .map(violation -> violation.getPropertyPath() + " " + violation.getMessage())
+            .sorted().collect(java.util.stream.Collectors.joining("; ")));
+        entityManager.find(User.class, user.getId(), LockModeType.PESSIMISTIC_WRITE);
         SavedWeeklySummary summary = summaryRepository.findByUserAndFridayDateForUpdate(user, fridayDate)
             .orElseThrow(() -> new BadRequestException("A saved weekly summary is required before saving its reflection"));
         WeeklyReflection reflection = reflectionRepository.findByWeeklySummary(summary).orElseGet(() -> {
@@ -70,6 +84,7 @@ public class WeeklyReflectionService {
             created.setWeeklySummary(summary);
             return created;
         });
+        reflection.setWarningReview(warningReviewService.review(user, request.warningReview()));
         reflection.setGeneratedAt(Instant.now());
         reflection.setModel("ChatGPT");
         reflection.setTitle(request.title());
