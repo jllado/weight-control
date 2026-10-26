@@ -3,7 +3,7 @@
     <WorkoutSourcePicker idPrefix="workout-start" @overlay-change="starterSourceOverlays[$event.kind] = $event.visible" :modelValue="selectedWorkoutSource" :previousOptions="previousSourceOptions" :plannedOptions="plannedSourceOptions" :previousLoading="previousLoading" :plannedLoading="planLoading" :previousError="previousError" :plannedError="planError" @update:modelValue="chooseWorkoutSource" @retry="retryWorkoutSource" />
     <template #footer><div class="action-group"><Button label="Continue" icon="pi pi-arrow-right" @click="continueStarter" /><Button label="Cancel" class="p-button-secondary" @click="starterVisible = false" /></div></template>
   </Dialog>
-  <Dialog id="workout-form" appendTo="body" :header="planning ? 'Planned workout' : 'Workout'" v-model:visible="display_modal" :closeOnEscape="false" :closable="false" :modal="true" :style="{width: 'min(960px, 96vw)'}">
+  <Dialog id="workout-form" appendTo="body" :header="planning ? 'Planned workout' : 'Workout'" v-model:visible="display_modal" :closeOnEscape="guided_edit && !saving && !stretchingPicker && !editorOverlayOpen && !editorPictureOpen" :closable="guided_edit && !saving" @update:visible="!$event && guided_edit && close_modal()" :modal="true" :style="{width: 'min(960px, 96vw)'}">
     <SaveFields :saving="saving">
     <br>
     <div class="p-fluid">
@@ -121,30 +121,30 @@
           <div class="p-grid">
             <div class="p-col-12 p-md-6">
               <label :for="`exercise-${line.localId}`" class="p-d-block p-mb-2">Exercise</label>
-              <Dropdown :inputId="`exercise-${line.localId}`" :inputProps="validationAttrs(line.errorField === 'exercise' && line.error, `line-error-${line.localId}`)" aria-label="Exercise" v-model="line.exerciseId" :options="availableExercises(line)" optionLabel="name" optionValue="id" placeholder="Select exercise" class="workout-exercise-picker" :panelStyle="{maxWidth: 'calc(100vw - 2rem)'}" @change="onExerciseChanged(line)">
+              <Dropdown :inputId="`exercise-${line.localId}`" @before-show="editorOverlays[`exercise-${line.localId}`] = true" @hide="editorOverlays[`exercise-${line.localId}`] = false" :inputProps="validationAttrs(line.errorField === 'exercise' && line.error, `line-error-${line.localId}`)" aria-label="Exercise" v-model="line.exerciseId" :options="availableExercises(line)" optionLabel="name" optionValue="id" placeholder="Select exercise" class="workout-exercise-picker" :panelStyle="{maxWidth: 'calc(100vw - 2rem)'}" @change="onExerciseChanged(line)">
                 <template #option="{option}"><span class="workout-exercise-option"><img v-if="option.imageUrl" :src="option.imageUrl" alt="" loading="lazy" /><span>{{ option.name }}</span></span></template>
               </Dropdown>
               <span v-if="line.error" :id="`line-error-${line.localId}`" tabindex="-1" class="error" data-workout-error :data-error-target="line.errorField === 'exercise' ? `exercise-${line.localId}` : `line-error-${line.localId}`">{{ line.error }}</span>
             </div>
             <div class="p-col-12 p-md-6">
               <label :for="`mode-${line.localId}`" class="p-d-block p-mb-2">Mode</label>
-              <Dropdown v-if="line.exerciseType === ExerciseType.STRETCHING" :inputId="`mode-${line.localId}`" v-model="line.stretchingUnit" aria-label="Mode" :options="stretchingUnitOptions" optionLabel="label" optionValue="value" @change="changeStretchingUnit(line)" />
+              <Dropdown v-if="line.exerciseType === ExerciseType.STRETCHING" :inputId="`mode-${line.localId}`" @before-show="editorOverlays[`mode-${line.localId}`] = true" @hide="editorOverlays[`mode-${line.localId}`] = false" v-model="line.stretchingUnit" aria-label="Mode" :options="stretchingUnitOptions" optionLabel="label" optionValue="value" @change="changeStretchingUnit(line)" />
               <InputText v-else :id="`mode-${line.localId}`" :value="line.trackingMode ? trackingModeLabel(line.trackingMode) : ''" readonly />
             </div>
             <div class="p-col-12" v-if="line.exerciseDescription">
-              <ExercisePicture :src="exercises.find(exercise => exercise.id === line.exerciseId)?.imageUrl" :name="line.exerciseName" :description="line.exerciseDescription" />
+              <ExercisePicture @visibility-change="editorPictureOpen = $event" :src="exercises.find(exercise => exercise.id === line.exerciseId)?.imageUrl" :name="line.exerciseName" :description="line.exerciseDescription" />
               <small>{{ line.exerciseDescription }}</small>
             </div>
             <div class="p-col-12 p-md-4" v-if="!planning && line.trackingMode === ExerciseTrackingMode.CARDIO">
-              <label class="p-d-block p-mb-2">Calories</label>
-              <InputNumber v-model="line.calories" :min="0" />
+              <label :for="`calories-${line.localId}`" class="p-d-block p-mb-2">Calories</label>
+              <InputNumber :inputId="`calories-${line.localId}`" v-model="line.calories" :min="0" />
               <div v-if="metricRecords(line, 'WORKOUT_CALORIES').length" class="field-record-context">
                 <span v-for="record in metricRecords(line, 'WORKOUT_CALORIES')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
               </div>
             </div>
             <div class="p-col-12 p-md-4" v-if="!planning && line.trackingMode === ExerciseTrackingMode.CARDIO">
-              <label class="p-d-block p-mb-2">Average Heart Rate (bpm)</label>
-              <InputNumber v-model="line.averageHeartRate" :min="0" :maxFractionDigits="0" />
+              <label :for="`heart-rate-${line.localId}`" class="p-d-block p-mb-2">Average heart rate (bpm)</label>
+              <InputNumber :inputId="`heart-rate-${line.localId}`" v-model="line.averageHeartRate" :min="0" :maxFractionDigits="0" />
               <div v-if="metricRecords(line, 'WORKOUT_AVERAGE_HEART_RATE').length" class="field-record-context">
                 <span v-for="record in metricRecords(line, 'WORKOUT_AVERAGE_HEART_RATE')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
               </div>
@@ -193,9 +193,9 @@
                     <span v-for="record in metricRecords(line, 'CARDIO_DURATION')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
                   </div>
                 </div>
-                <div class="p-col-12 p-md-4" v-if="line.trackingMode === ExerciseTrackingMode.SECONDS && line.stretchingUnit !== 'BREATHS'">
+                <div class="p-col-12 p-md-4" v-if="(line.trackingMode === ExerciseTrackingMode.SECONDS || !planning && line.trackingMode === ExerciseTrackingMode.CARDIO) && line.stretchingUnit !== 'BREATHS'">
                   <label :for="`seconds-${segment.localId}`" class="p-d-block p-mb-2">Seconds</label>
-                  <Dropdown :inputId="`seconds-${segment.localId}`" aria-label="Seconds" :inputProps="validationAttrs(segment.error, `segment-error-${segment.localId}`)" v-model="segment.durationRemainder" :options="secondsOptions(segment)" optionLabel="label" optionValue="value" />
+                  <Dropdown :inputId="`seconds-${segment.localId}`" @before-show="editorOverlays[`seconds-${segment.localId}`] = true" @hide="editorOverlays[`seconds-${segment.localId}`] = false" aria-label="Seconds" :inputProps="validationAttrs(segment.error, `segment-error-${segment.localId}`)" v-model="segment.durationRemainder" :options="secondsOptions(segment)" optionLabel="label" optionValue="value" />
                   <div v-if="segmentMetricRecords(line, segment, 'WORKOUT_DURATION').length" class="field-record-context">
                     <span v-for="record in segmentMetricRecords(line, segment, 'WORKOUT_DURATION')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
                   </div>
@@ -320,6 +320,7 @@ export default {
     planning: Boolean,
     resume_timer: Boolean,
     guided_edit: Boolean,
+    guided_review: Boolean,
   },
   data() {
     const locale = {
@@ -371,6 +372,8 @@ export default {
       showEditorAfterStarter: false,
       starterTrigger: null,
       starterSourceOverlays: {previous: false, planned: false},
+      editorOverlays: {},
+      editorPictureOpen: false,
       selectedWorkoutSource: null,
       formGeneration: 0,
       preloadsGeneration: 0,
@@ -506,6 +509,9 @@ export default {
       return workouts;
     },
     starterSourceOverlayOpen() { return Object.values(this.starterSourceOverlays).some(Boolean); },
+    editorOverlayOpen() {
+      return this.workout_form.lines.some(line => this.editorOverlays[`exercise-${line.localId}`] || this.editorOverlays[`mode-${line.localId}`] || line.segments.some(segment => this.editorOverlays[`seconds-${segment.localId}`]));
+    },
     newManualWorkout() { return !this.planning && !this.workout && !this.resume_timer; },
     previousSourceOptions() { return this.preload_options.map(option => ({...option, workout: this.preload_workouts.find(workout => workout.id === option.id)})); },
     plannedSourceOptions() {
@@ -1131,7 +1137,7 @@ export default {
       for (const line of this.workout_form.lines) {
         if (line.supersetGroupId) {
           const members = this.workout_form.lines.filter(member => member.supersetGroupId === line.supersetGroupId);
-          if ((this.guided_edit || this.workout_form.plannedTargets == null) && (members.length < 2 || members.some(member => member.segments.length !== members[0].segments.length))) {
+          if ((this.guided_edit && !this.guided_review || this.workout_form.plannedTargets == null) && (members.length < 2 || members.some(member => member.segments.length !== members[0].segments.length))) {
             line.error = 'Superset exercises need the same number of sets or intervals';
             line.errorField = null;
           }

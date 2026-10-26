@@ -3,7 +3,7 @@
     <header class="guided-page-header">
       <div><h1>Guided workout</h1></div>
       <div class="guided-header-actions">
-        <CompactAction v-if="session.visible && !session.lockError && session.guidedWorkoutState.draft && !session.reviewing && session.currentStep" ref="workoutEditButton" icon="pi pi-pencil" aria-label="Edit workout" tooltip="Edit workout" @click="session.openWorkoutEdit" />
+        <CompactAction v-if="session.visible && !session.lockError && session.guidedWorkoutState.draft" ref="workoutEditButton" icon="pi pi-pencil" aria-label="Edit workout" tooltip="Edit workout" :disabled="session.saving || session.guidedWorkoutState.editor !== session.editor" @click="session.openWorkoutEdit" />
         <CompactAction v-if="session.guidedWorkoutState.draft && !session.lockError" icon="pi pi-window-minimize" aria-label="Minimize" aria-describedby="guided-minimize-description" :tooltip="actionHelp.minimize" :disabled="session.saving || session.guidedWorkoutState.editor !== session.editor" @click="session.minimize" />
         <CompactAction icon="pi pi-times" aria-label="Close" aria-describedby="guided-close-description" :tooltip="actionHelp.close" :disabled="session.saving" @click="session.close" />
       </div>
@@ -57,7 +57,7 @@
         <p v-if="session.guidedWorkoutState.draft.workout.saunaSession">Session duration: {{ session.savedDurationMinutes + session.saunaDuration }} min, including {{ session.saunaDuration }} min in sauna.</p>
         <article v-for="line in session.reviewLines" :key="line.exerciseId" class="guided-review-line">
           <ExercisePicture :src="line.imageUrl" :name="line.exerciseName" :description="line.exerciseDescription" />
-          <div><strong>{{ line.exerciseName }}</strong><p v-if="line.exerciseDurationMilliseconds > 0">Exercise time {{ session.formatElapsed(line.exerciseDurationMilliseconds) }}</p></div>
+          <div><strong>{{ line.exerciseName }}</strong><p v-if="line.exerciseDurationMilliseconds > 0">Exercise time {{ session.formatElapsed(line.exerciseDurationMilliseconds) }}</p><p v-if="line.trackingMode === 'CARDIO' && (line.calories != null || line.averageHeartRate != null)">{{ [line.calories != null ? `${line.calories} kcal` : null, line.averageHeartRate != null ? `${line.averageHeartRate} bpm` : null].filter(value => value != null).join(' · ') }}</p></div>
           <ol><li v-for="(segment, index) in line.segments" :key="index">{{ session.describeSegment(segment) }}</li></ol>
         </article>
       </section>
@@ -122,7 +122,7 @@
     </section>
     <template #footer><div class="action-group"><Button v-if="session.restActive" label="Continue" icon="pi pi-arrow-right" @click="session.continueRest" :disabled="session.restTimer.paused || (session.currentStep && session.guidedTimer && !session.guidedTimer.runningPhase)" /><Button v-else label="Continue without rest" class="p-button-outlined" icon="pi pi-arrow-right" @click="session.continueRest" /><Button :label="session.restActive ? 'Close' : 'Decide later'" class="p-button-secondary" @click="session.closeRest" /></div></template>
   </Dialog>
-  <WorkoutEditor v-if="session.editWorkoutDialog" :show="true" :guided_edit="true" :fixed_date="true" :workout="session.editorWorkout" @onApply="session.applyWorkoutEdit" @onClose="closeWorkoutEdit" />
+  <WorkoutEditor v-if="session.editWorkoutDialog" :show="true" :guided_edit="true" :guided_review="session.reviewing || !session.currentStep" :fixed_date="true" :workout="session.editorWorkout" @onApply="session.applyWorkoutEdit" @onClose="closeWorkoutEdit" />
 </template>
 <script>
 import GuidedExerciseSummary from './GuidedExerciseSummary.vue';

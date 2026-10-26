@@ -17,8 +17,9 @@
 export default {
   name: 'ExercisePicture',
   props: {src: String, name: String, description: String},
+  emits: ['visibility-change'],
   data() { return {visible: false, failed: false}; },
-  watch: {src() { this.failed = false; }}
+  watch: {src() { this.failed = false; }, visible(value) { this.$emit('visibility-change', value); }}
 };
 </script>
 
