@@ -469,13 +469,13 @@ DAILY and WEEKLY `saveReflection` both require today's Madrid `warningReview` wi
 
 The app warning surface shows only the warning name, original Madrid creation date labeled Triggered, Last X days, Current/Goal rows and green/orange/neutral status with the short sentence. Retain exact window and assessment time accessibly; omit prior period, delta, Details, History and explanatory footer. Keep dialog focus, refresh and mobile/desktop layout behavior.
 
-Delivery remains pending: validate backend transactions/evaluation, schema and 8,000-character instructions with 30 Actions, then responsive UI and independent QA. Deploy the application before publishing the matching private GPT and independently reading back both configuration hashes. Fresh read-only scenarios and supported versioned reassessment of existing warnings are separate acceptance evidence; source changes do not establish release or publication.
+Delivery completed on October 26, 2026: the full application gate, independent candidate QA, production tree/readiness verification, private Coach version 156 configuration readback and supported current-warning reassessment passed. See [release evidence](coach-gpt.md#rolling-warning-metric-acceptance--october-26-2026); instruction-only refinements followed deployment without rebuilding unchanged app artifacts.
 
-- [ ] Validate raw rolling metrics, inclusive bounds, missing coverage, stable definitions and standalone create/update/resolve paths.
-- [ ] Validate atomic DAILY/WEEKLY snapshots, owner/version/set conflicts, retry, rollback and legacy reads.
-- [ ] Validate 30 Actions, instruction budget and compact warning UI at mobile/desktop widths; obtain independent QA.
-- [ ] Deploy and independently verify the application, then publish and read back private GPT schema/instructions.
-- [ ] Reassess existing warnings through supported latest-version writes from current raw records and verify outcomes.
+- [x] Validate raw rolling metrics, inclusive bounds, missing coverage, stable definitions and standalone create/update/resolve paths.
+- [x] Validate atomic DAILY/WEEKLY snapshots, owner/version/set conflicts, retry, rollback and legacy reads.
+- [x] Validate 30 Actions, instruction budget and compact warning UI at mobile/desktop widths; obtain independent QA.
+- [x] Deploy and independently verify the application, then publish and read back private GPT schema/instructions.
+- [x] Reassess existing warnings through supported latest-version writes from current raw records and verify outcomes.
 
 ## Shared Coach Action connection repair
 
