@@ -193,9 +193,10 @@ export function applyGuidedWorkoutEdit(draft, form, now = Date.now()) {
     const oldSteps = guidedWorkoutSteps(draft.workout);
     const oldExecutionKeys = oldSteps.map(step => draft.workout.lines[step.lineIndex].segments[step.segmentIndex].guidedSegmentKey);
     const oldCurrent = oldSteps[draft.currentStep] || null;
+    const reviewEdit = draft.reviewing || !oldCurrent;
     const oldCurrentKey = oldCurrent && draft.workout.lines[oldCurrent.lineIndex].segments[oldCurrent.segmentIndex].guidedSegmentKey;
     const elapsedTimer = draft.exerciseTimer;
-    if (elapsedTimer.lineIndex != null && elapsedTimer.segmentIndex != null) {
+    if (!reviewEdit && elapsedTimer.lineIndex != null && elapsedTimer.segmentIndex != null) {
         const line = draft.workout.lines[elapsedTimer.lineIndex];
         const elapsed = elapsedTimer.pendingMilliseconds + (elapsedTimer.startedAt == null ? 0 : Math.max(0, now - elapsedTimer.startedAt));
         line.exerciseElapsedBySegment[elapsedTimer.segmentIndex] = elapsed;
@@ -253,20 +254,23 @@ export function applyGuidedWorkoutEdit(draft, form, now = Date.now()) {
     let chosenKey = oldCurrentKey && steps.some(step => segmentKeyAt(step) === oldCurrentKey) ? oldCurrentKey : null;
     if (!chosenKey) chosenKey = oldExecutionKeys.find(key => oldKeys.has(key) && !completed.has(key) && steps.some(step => segmentKeyAt(step) === key)) || null;
     if (!chosenKey) chosenKey = steps.map(segmentKeyAt).find(key => !oldKeys.has(key) && !completed.has(key)) || null;
-    const currentIndex = chosenKey ? steps.findIndex(step => segmentKeyAt(step) === chosenKey) : steps.length;
+    const currentIndex = chosenKey && !(reviewEdit && !oldCurrent) ? steps.findIndex(step => segmentKeyAt(step) === chosenKey) : steps.length;
     nextDraft.currentStep = currentIndex;
-    nextDraft.reviewing = !chosenKey;
-    nextDraft.workout.endTime = chosenKey || nextDraft.workout.saunaSession ? null : new Date(now).toISOString();
+    nextDraft.reviewing = reviewEdit || !chosenKey;
+    if (reviewEdit && !oldCurrent) nextDraft.completedSegmentKeys = steps.map(segmentKeyAt);
+    if (!reviewEdit) nextDraft.workout.endTime = chosenKey || nextDraft.workout.saunaSession ? null : new Date(now).toISOString();
     const current = steps[currentIndex];
     const currentPhase = current && guidedPhaseKey(nextDraft.workout.lines[current.lineIndex]);
     nextDraft.exerciseTimer = {
         lineIndex: current?.lineIndex ?? null,
         segmentIndex: current?.segmentIndex ?? null,
         pendingMilliseconds: current ? nextDraft.workout.lines[current.lineIndex].exerciseElapsedBySegment[current.segmentIndex] || 0 : 0,
-        startedAt: current && draft.timer?.runningPhase && !draft.restTimer ? now : null
+        startedAt: !reviewEdit && current && draft.timer?.runningPhase && !draft.restTimer ? now : null
     };
-    if (draft.timer?.runningPhase && !current) pausePhaseTimer(draft.timer, now);
-    else if (draft.timer?.runningPhase && draft.timer.runningPhase !== currentPhase) switchPhaseTimer(draft.timer, currentPhase, now);
+    if (!reviewEdit) {
+        if (draft.timer?.runningPhase && !current) pausePhaseTimer(draft.timer, now);
+        else if (draft.timer?.runningPhase && draft.timer.runningPhase !== currentPhase) switchPhaseTimer(draft.timer, currentPhase, now);
+    }
     Object.assign(draft, nextDraft);
     persist();
 }

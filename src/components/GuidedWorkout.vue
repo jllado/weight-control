@@ -90,7 +90,7 @@ export default {
       return {...draft.workout, id: null, workoutDate: draft.workout.workoutDate || new Date(), durationMinutes,
         warmUpMinutes: phaseMinutes?.warmUpMinutes ?? null, trainingMinutes: phaseMinutes?.trainingMinutes ?? null,
         cardioMinutes: phaseMinutes?.cardioMinutes ?? null, stretchingMinutes: phaseMinutes?.stretchingMinutes ?? null,
-        lines: draft.workout.lines.map(line => ({...line, exerciseDurationSeconds: Math.floor(line.exerciseDurationMilliseconds / 1000),
+        lines: this.reviewLines.map(line => ({...line, exerciseDurationSeconds: Math.floor(line.exerciseDurationMilliseconds / 1000),
           sets: line.trackingMode === 'CARDIO' ? [] : line.segments.map(segment => ({...segment})),
           intervals: line.trackingMode === 'CARDIO' ? line.segments.map(segment => ({...segment})) : []}))};
     },
@@ -383,7 +383,7 @@ export default {
     },
     backToLastSet() {
       this.guidedWorkoutState.draft.reviewing = false;
-      this.guidedWorkoutState.draft.currentStep -= 1;
+      this.guidedWorkoutState.draft.currentStep = Math.max(0, this.guidedWorkoutState.draft.currentStep - 1);
       const previousStep = this.steps[this.guidedWorkoutState.draft.currentStep];
       const previousSegment = this.guidedWorkoutState.draft.workout.lines[previousStep.lineIndex].segments[previousStep.segmentIndex];
       this.guidedWorkoutState.draft.completedSegmentKeys = this.guidedWorkoutState.draft.completedSegmentKeys.filter(key => key !== previousSegment.guidedSegmentKey);
