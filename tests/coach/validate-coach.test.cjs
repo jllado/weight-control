@@ -98,7 +98,8 @@ test('repository reflection import preserves daily and weekly save contracts', (
     assert.ok(daily.required.includes('warningReview'));
     assert.equal(daily.properties.warningReview.$ref, '#/components/schemas/WarningReviewEnvelope');
     assert.equal(body.properties.warningReview.$ref, daily.properties.warningReview.$ref);
-    assert.equal(weekly.properties.warningReview, undefined);
+    assert.ok(weekly.required.includes('warningReview'));
+    assert.equal(weekly.properties.warningReview.$ref, daily.properties.warningReview.$ref);
     assert.ok(weekly.required.includes('confirmed'));
     assert.deepEqual(weekly.properties.confirmed.enum, [true]);
     assert.equal(section.type, 'object');
@@ -111,7 +112,7 @@ test('repository reflection import preserves daily and weekly save contracts', (
     assert.deepEqual(legacy.type, ['object', 'null']);
 });
 
-test('daily warning review schema requires a dated complete set and preserves nullable legacy snapshots', () => {
+test('daily and weekly warning review schema requires a dated complete set and preserves nullable legacy snapshots', () => {
     const value = yaml.load(fs.readFileSync(path.resolve(__dirname, '../../docs/coach/coach-action.openapi.yaml'), 'utf8'));
     const schemas = value.components.schemas;
     assert.deepEqual(schemas.WarningReviewEnvelope.required, ['reviewedDate', 'reviews', 'newWarnings']);
@@ -125,7 +126,35 @@ test('daily warning review schema requires a dated complete set and preserves nu
     assert.equal(schemas.Reflection.properties.warningReview.$ref, '#/components/schemas/WarningReviewSnapshot');
     assert.equal(schemas.WarningReviewSnapshot.properties.items.items.$ref, '#/components/schemas/WarningReviewItem');
     assert.equal(schemas.WarningResponse.properties.progress.$ref, '#/components/schemas/WarningProgress');
-    assert.match(schemas.WarningAssessment.properties.resolutionCriteria.description, /25,200.*21,600.*sufficient recent evidence/);
+    assert.equal(schemas.WeeklyReflection.properties.warningReview.$ref, '#/components/schemas/WarningReviewSnapshot');
+    assert.deepEqual(schemas.WarningReviewSnapshot.type, ['object', 'null']);
+    assert.equal(schemas.WarningReviewItem.properties.createdAt.format, 'date-time');
+    for (const name of ['WarningContent', 'ResolveWarningRequest', 'WarningAssessment']) {
+        assert.ok(schemas[name].required.includes('metricsReview'));
+        assert.equal(schemas[name].properties.metricsReview.$ref, '#/components/schemas/WarningMetricReview');
+    }
+    assert.ok(!schemas.WarningReadContent.required.includes('metricsReview'));
+    assert.equal(schemas.WarningResponse.properties.content.$ref, '#/components/schemas/WarningReadContent');
+    assert.deepEqual(schemas.WarningProgress.properties.goalStatus.enum, ['MET', 'NOT_MET', 'UNKNOWN', null]);
+    const review = schemas.WarningMetricReview;
+    assert.deepEqual(review.required, ['windowDays', 'windowEnd', 'todayComplete', 'shortStatus', 'metrics']);
+    assert.equal(review.additionalProperties, false);
+    assert.equal(review.properties.windowDays.minimum, 1);
+    assert.equal(review.properties.windowDays.maximum, 90);
+    assert.equal(review.properties.shortStatus.maxLength, 120);
+    assert.equal(review.properties.metrics.minItems, 1);
+    assert.equal(review.properties.metrics.maxItems, 12);
+    assert.equal(review.properties.metrics.items.$ref, '#/components/schemas/WarningMetric');
+    const metric = schemas.WarningMetric;
+    assert.deepEqual(metric.properties.aggregation.enum, ['SUM', 'MEAN', 'COUNT', 'LATEST']);
+    for (const field of ['value', 'minimum', 'maximum']) {
+        assert.equal(metric.properties[field].type, 'number');
+        assert.equal(metric.properties[field].nullable, true);
+    }
+    for (const [field, maximum] of Object.entries({key: 80, label: 60, source: 120, unit: 24, goalBasis: 500})) {
+        assert.ok(metric.required.includes(field));
+        assert.equal(metric.properties[field].maxLength, maximum);
+    }
 });
 
 

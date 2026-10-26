@@ -1,6 +1,7 @@
 const {test, expect} = require('@playwright/test');
 const path = require('node:path');
 const vm = require('node:vm');
+const {sleepWarning, nutritionWarning} = require('../fixtures/warning-metrics.cjs');
 
 const coachUrl = process.env.VITE_CHATGPT_COACH_URL || 'https://chatgpt.test/g/weight-control-coach';
 const coachOriginPattern = `${new URL(coachUrl).origin}/**`;
@@ -6445,46 +6446,43 @@ function reflectionArchiveFixture(count) {
     }));
 }
 
-test('daily reflection shows dated warning progress and distinguishes legacy from a completed empty review', async ({page}, testInfo) => {
-    const reviewedDate = '2026-08-14';
-    const progress = {
-        direction: 'IMPROVING', assessment: 'Recorded sleep is improving, though one night was short.',
-        evidence: 'Five of seven recent nights met both personal minimums; the earlier period had two of seven.',
-        nextAction: 'Keep recording sleep and maintain a consistent bedtime.',
-        resolutionCriteria: 'With sufficient recent evidence, sleep is consistently at least 7h in bed and 6h asleep, without recurring disruption.',
-        criteriaProgress: 'Five of seven recent nights met both minimums, versus two of seven earlier.',
-        recentStart: '2026-08-08', recentEnd: '2026-08-14', priorStart: '2026-08-01', priorEnd: '2026-08-07',
-        reviewedDate, sourceVersion: 1, initialReview: false, criteriaChangeReason: null, resolutionRationale: null
-    };
-    const reviewed = {
-        ...reflectionArchiveFixture(1)[0],
-        warningReview: {reviewedDate, items: [{id: 7, type: 'SLEEP_DISRUPTION', status: 'ACTIVE', version: 1, progress}]}
-    };
+test('daily reflection keeps rolling warning snapshots and distinguishes legacy from an empty review', async ({page}, testInfo) => {
+    const warning = sleepWarning();
+    const reviewedDate = '2026-10-26';
+    const reviewed = {...reflectionArchiveFixture(1)[0], warningReview: {reviewedDate, items: [warning]}};
     const legacy = {...reviewed, reflectionDate: '2026-08-12', title: 'Legacy reflection', warningReview: null};
     const empty = {...reviewed, reflectionDate: '2026-08-11', title: 'No warnings', warningReview: {reviewedDate, items: []}};
-    await mockAuthenticatedReflections(page, reviewed, true, [reviewed, legacy, empty]);
+    const oldProgress = {...reviewed, reflectionDate: '2026-08-10', title: 'Legacy progress', warningReview: {reviewedDate, items: [{id: 9, type: 'MOOD_DECLINE', status: 'ACTIVE', progress: {direction: 'IMPROVING', assessment: 'Old narrative'}}]}};
+    await mockAuthenticatedReflections(page, reviewed, true, [reviewed, legacy, empty, oldProgress]);
+    const writes = [];
+    page.on('request', request => { if (request.url().includes('/api/') && request.method() !== 'GET') writes.push(request.method()); });
     await openSpaRoute(page, '/reflections?date=2026-08-13');
-    await expect(page.locator('.reflection-result')).toBeVisible();
     const section = page.getByRole('region', {name: 'Warning progress'});
-    await expect(section).toContainText('Current warning review · 14 Aug 2026');
-    await expect(section).toContainText('Disrupted sleep');
-    await expect(section).toContainText('Improving');
-    await expect(section).toContainText('Active');
-    await expect(section).toContainText('Toward resolution');
-    await expect(section).toContainText(progress.criteriaProgress);
-    const details = section.getByText('Evidence and criteria changes', {exact: true});
-    await details.focus();
-    await details.press('Enter');
-    await expect(section).toContainText(progress.evidence);
+    await expect(section).toContainText(/Triggered 26 Sept? 2026/);
+    await expect(section).toContainText('Last 7 days');
+    await expect(section).toContainText('Goals met');
+    await expect(section.getByRole('row', {name: /Asleep/})).toContainText('42h');
+    await expect(section.getByRole('row', {name: /In bed/})).toContainText('56h 59m');
+    await expect(section).toContainText(warning.progress.metricsReview.shortStatus);
+    await expect(section.locator('details')).toHaveCount(0);
     for (const width of [376, 390, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 900});
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
         await page.screenshot({path: testInfo.outputPath(`reflection-warning-progress-${width}.png`), animations: 'disabled'});
     }
+    // Reopen the saved route through the static test server's SPA entry document.
+    await page.goto('/');
+    await expect(section).toContainText(/Triggered 26 Sept? 2026/);
+    await expect(section.getByRole('row', {name: /In bed/})).toContainText('56h 59m');
     await page.locator('.history-item').filter({hasText: 'Legacy reflection'}).click();
     await expect(section).toContainText('Not recorded');
     await page.locator('.history-item').filter({hasText: 'No warnings'}).click();
-    await expect(section).toContainText('No active warnings to review on 14 Aug 2026');
+    await expect(section).toContainText('No active warnings to review');
+    await page.locator('.history-item').filter({hasText: 'Legacy progress'}).click();
+    await expect(section).toContainText('Unknown');
+    await expect(section.getByRole('table')).toHaveCount(0);
+    await expect(section).not.toContainText('Old narrative');
+    expect(writes).toEqual([]);
 });
 
 test('reflection archive pages ten saved days, preserves detail and refreshes the current page', async ({page}, testInfo) => {
@@ -6712,7 +6710,7 @@ test('reflection creation shows the ChatGPT icon and opens the Coach with a date
     const coachPage = await coachPagePromise;
     await expect(coachPage).toHaveURL(coachUrl);
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
-        .toBe('Draft the daily reflection for 2026-08-13 from evidence through that date. Separately review every current Coach warning using today\'s evidence, show each direction and resolution criteria, then ask me to confirm the exact reflection and warningReview before saving them together.');
+        .toBe('Draft the daily reflection for 2026-08-13 from evidence through that date. Separately review every current Coach warning using today\'s evidence, show each rolling window, current metric and goal, then ask me to confirm the exact reflection and warningReview before saving them together.');
     await coachPage.close();
 });
 
@@ -6738,7 +6736,7 @@ test('dashboard reflection copies its dated prompt and opens the private Coach',
     const coachPage = await coachPagePromise;
 
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
-        .toBe('Draft the daily reflection for 2026-08-12 from evidence through that date. Separately review every current Coach warning using today\'s evidence, show each direction and resolution criteria, then ask me to confirm the exact reflection and warningReview before saving them together.');
+        .toBe('Draft the daily reflection for 2026-08-12 from evidence through that date. Separately review every current Coach warning using today\'s evidence, show each rolling window, current metric and goal, then ask me to confirm the exact reflection and warningReview before saving them together.');
     await expect(coachPage).toHaveURL('https://chatgpt.test/g/weight-control-coach');
     await expect(page).toHaveURL('/');
     await coachPage.close();
@@ -7823,81 +7821,88 @@ const warningFixture = (id, type = 'RECOVERY_STRAIN') => ({
     createdAt: '2026-09-08T10:00:00Z', updatedAt: '2026-09-08T10:00:00Z', resolutionRationale: null
 });
 
-test('warning dialog leads with distinct dated progress and retains disclosure, history and focus', async ({page}, testInfo) => {
+test('warning dialog shows rolling goals with original Madrid dates, unknown coverage and keyboard focus', async ({page}, testInfo) => {
     await mockAuthenticatedDashboard(page);
-    const progress = {
-        direction: 'IMPROVING', assessment: 'Five recent nights met both minimums; one short night remains.',
-        evidence: 'The recent seven nights improved against the prior seven; coverage is complete.',
-        nextAction: 'Continue recording bed and sleep duration.',
-        resolutionCriteria: 'With sufficient recent records, sleep is consistently at least 7h in bed and 6h asleep, with no recurring disruption.',
-        criteriaProgress: 'Five of seven met both minimums, compared with two of seven earlier.',
-        recentStart: '2026-08-08', recentEnd: '2026-08-14', priorStart: '2026-08-01', priorEnd: '2026-08-07',
-        reviewedDate: '2026-08-14', sourceVersion: 1, initialReview: false
-    };
-    const improving = {...warningFixture(1, 'SLEEP_DISRUPTION'), version: 2, progress,
-        content: {...warningFixture(1, 'SLEEP_DISRUPTION').content, reviewedDate: '2026-08-16',
-            explanation: 'A later standalone review found another short night.',
-            action: 'Review the next three recorded nights.'}};
-    const initial = {...warningFixture(2, 'NUTRITION_IMBALANCE'), version: 1, progress: {...progress, sourceVersion: 0,
-        direction: 'INSUFFICIENT_EVIDENCE', initialReview: true, priorStart: null, priorEnd: null,
-        assessment: 'Meal coverage is too sparse to assess nutrition balance yet.',
-        evidence: 'Only three recent days have portion details, so the comparison is incomplete.',
-        nextAction: 'Record portions and meal components on the next completed days.',
-        resolutionCriteria: 'With sufficient complete recent meal records, variety and nutrient balance support the agreed plan.',
-        criteriaProgress: 'Current meal coverage cannot establish the pattern.'}};
-    const resolved = {...warningFixture(3, 'RECOVERY_STRAIN'), status: 'RESOLVED', progress: {...progress, direction: 'RESOLVED', resolutionRationale: 'Recent evidence supports resolution.'}};
-    const standaloneResolved = {...warningFixture(4, 'MOOD_DECLINE'), status: 'RESOLVED', version: 2,
-        resolutionRationale: 'A later standalone review supports resolution.', progress: {...progress, direction: 'IMPROVING', sourceVersion: 1}};
-    await page.route('**/api/coach-warnings', route => route.fulfill({json: {active: [improving, initial], hasHistory: true}}));
-    await page.route('**/api/coach-warnings/history?*', route => route.fulfill({json: {items: [resolved, standaloneResolved], page: 0, hasMore: false}}));
-    await page.route('**/api/coach-warnings/*/revisions?*', route => route.fulfill({json: {items: [improving], page: 0, hasMore: false}}));
+    const nutrition = nutritionWarning();
+    const sleep = sleepWarning();
+    sleep.status = 'ACTIVE';
+    sleep.progress.goalStatus = 'NOT_MET';
+    sleep.progress.metricsReview.metrics[0].value = 151199;
+    sleep.progress.metricsReview.shortStatus = 'Asleep time is below your minimum; in-bed time meets its goal.';
+    const unknown = {...warningFixture(3), progress: {...nutrition.progress, goalStatus: 'UNKNOWN', metricsReview: {...nutrition.progress.metricsReview,
+        shortStatus: 'Incomplete records leave this goal unknown.', metrics: [{...nutrition.progress.metricsReview.metrics[0], value: 2000, coveredDays: 6}]}}};
+    const warnings = [sleep, nutrition, unknown, warningFixture(4, 'MOOD_DECLINE')];
+    const warningRequests = [];
+    await page.route('**/api/coach-warnings**', route => {
+        warningRequests.push({path: new URL(route.request().url()).pathname, method: route.request().method()});
+        return route.fulfill({json: {active: warnings, hasHistory: true}});
+    });
     await page.setViewportSize({width: 390, height: 900});
     await openSpaRoute(page, '/');
-    const indicator = page.getByRole('button', {name: 'Current Coach warnings: 2 warnings'});
+    const indicator = page.getByRole('button', {name: 'Current Coach warnings: 4 warnings'});
     await indicator.focus();
     await indicator.press('Enter');
     const dialog = page.getByRole('dialog', {name: 'Current Coach warnings', exact: true});
-    await expect(dialog.locator('.warning-progress-card')).toHaveCount(2);
-    await expect(dialog.locator('.warning-direction').first()).toHaveText('Improving');
-    await expect(dialog.locator('.warning-direction').last()).toContainText('Initial review · Insufficient evidence');
-    await expect(dialog.locator('.warning-progress-card').last()).toContainText('Last DAILY assessment 14 Aug 2026');
-    await expect(dialog.locator('.warning-progress-card').first()).toContainText('Last DAILY assessment 14 Aug 2026');
-    await expect(dialog.locator('.warning-detail').first()).toContainText('Current update 16 Aug 2026');
-    await expect(dialog.locator('.warning-detail').first()).toContainText(improving.content.explanation);
-    await expect(dialog.locator('.warning-detail').first()).toContainText(`Current next step: ${improving.content.action}`);
-    await expect(dialog.locator('.warning-detail').first().getByText(improving.content.evidence)).toBeHidden();
-    await expect(dialog.locator('.warning-direction').first()).not.toHaveCSS('background-color', await dialog.locator('.warning-direction').last().evaluate(element => getComputedStyle(element).backgroundColor));
-    for (const width of [390, 960]) {
+    const sleepCard = dialog.getByRole('article', {name: 'Disrupted sleep warning progress'});
+    const nutritionCard = dialog.getByRole('article', {name: 'Nutrition imbalance warning progress'});
+    const unknownCard = dialog.getByRole('article', {name: 'Recovery strain warning progress'});
+    const legacyCard = dialog.getByRole('article', {name: 'Lower mood warning progress'});
+    await expect(sleepCard).toContainText(/Triggered 26 Sept? 2026/);
+    await expect(sleepCard).toContainText('Last 7 days');
+    await expect(sleepCard).toContainText('Goals not met');
+    await expect(sleepCard.getByRole('row', {name: /Asleep/})).toContainText('41h 59m 59s');
+    await expect(sleepCard.getByRole('cell', {name: /Current Asleep.*Goal not met/})).toHaveCSS('color', 'rgb(192, 86, 33)');
+    await expect(sleepCard.getByRole('cell', {name: /Current In bed.*Goal met/})).toHaveCSS('color', 'rgb(47, 133, 90)');
+    await expect(sleepCard.getByLabel(/19 Oct 2026.*25 Oct 2026.*Assessed 26 Oct 2026/)).toBeVisible();
+    await expect(nutritionCard).toContainText('Triggered 1 Oct 2026');
+    await expect(nutritionCard.getByRole('row', {name: /Calories/})).toContainText('2,882.71');
+    await expect(nutritionCard.getByRole('row', {name: /Calories/})).toContainText('≤2,500');
+    await expect(unknownCard).toContainText('Unknown');
+    await expect(unknownCard.getByRole('cell', {name: /Current Calories.*Unknown.*6 of 7 days/})).toHaveCSS('color', 'rgb(108, 117, 125)');
+    await expect(legacyCard).toContainText('Unknown');
+    await expect(legacyCard.getByRole('table')).toHaveCount(0);
+    await expect(dialog.locator('details')).toHaveCount(0);
+    await expect(dialog.getByRole('button', {name: /history/i})).toHaveCount(0);
+    await expect(dialog).not.toContainText('Coach reviews warnings');
+    for (const width of [376, 390, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 900});
-        await expect.poll(async () => {
-            const bounds = await dialog.boundingBox();
-            return bounds !== null && bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= width && bounds.y < 900;
-        }).toBe(true);
         await expect(dialog).not.toHaveClass(/p-dialog-enter-active/);
-        await expect(dialog).toHaveCSS('opacity', '1');
+        expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
         await page.screenshot({path: testInfo.outputPath(`warning-progress-dialog-${width}.png`), animations: 'disabled'});
-        await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     }
-    const details = dialog.locator('.warning-progress-card').first().getByText('Evidence and criteria changes');
-    await details.focus();
-    await details.press('Enter');
-    await expect(dialog.locator('.warning-progress-card').first()).toContainText(progress.evidence);
-    await page.setViewportSize({width: 390, height: 900});
-    await page.screenshot({path: testInfo.outputPath('warning-progress-evidence-open-390.png'), animations: 'disabled'});
-    await dialog.getByRole('button', {name: 'Resolved history'}).click();
-    await expect(dialog.locator('.warning-progress-card')).toHaveCount(4);
-    await expect(dialog.locator('.warning-detail').last()).toContainText('Last DAILY assessment 14 Aug 2026');
-    await expect(dialog.locator('.warning-detail').last()).toContainText(standaloneResolved.resolutionRationale);
-    await dialog.locator('.warning-detail').last().scrollIntoViewIfNeeded();
-    await expect(dialog.locator('.warning-detail').last()).toBeVisible();
-    const revisionOpener = dialog.locator('.warning-detail').first().getByRole('button', {name: 'Review history'});
-    await revisionOpener.click();
-    const revisions = page.getByRole('dialog', {name: 'Disrupted sleep · Reviews'});
-    await expect(revisions).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(revisionOpener).toBeFocused();
     await dialog.getByRole('button', {name: 'Close', exact: true}).last().click();
     await expect(indicator).toBeFocused();
+    expect(warningRequests.every(request => request.method === 'GET' && request.path === '/api/coach-warnings')).toBe(true);
+});
+
+test('warning metric goals use inclusive boundaries and preserve unknown values', async ({page}) => {
+    await mockAuthenticatedDashboard(page);
+    const warning = nutritionWarning();
+    await page.route('**/api/coach-warnings', route => route.fulfill({json: {active: [warning], hasHistory: false}}));
+    await openSpaRoute(page, '/');
+    await page.getByRole('button', {name: /^Current Coach warnings:/}).click();
+    const card = page.getByRole('article', {name: 'Nutrition imbalance warning progress'});
+    const metric = warning.progress.metricsReview.metrics[0];
+    for (const [value, minimum, maximum, coveredDays, status, expectedGoal] of [
+        [2500, null, 2500, 7, 'MET', '≤2,500'],
+        [2500.01, null, 2500, 7, 'NOT_MET', '≤2,500'],
+        [2000, 2000, 2500, 7, 'MET', '2,000–2,500'],
+        [1999.99, 2000, 2500, 7, 'NOT_MET', '2,000–2,500'],
+        [null, null, 2500, 7, 'UNKNOWN', '≤2,500'],
+        [0, 0, null, 7, 'MET', '≥0'],
+        [0, 0, null, 6, 'UNKNOWN', '≥0'],
+        [2000, null, null, 7, 'UNKNOWN', 'Not recorded']
+    ]) {
+        Object.assign(metric, {value, minimum, maximum, coveredDays});
+        warning.progress.goalStatus = status;
+        await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+        const valueCell = card.getByRole('cell', {name: /^Current Calories:/});
+        await expect(card.getByRole('cell', {name: expectedGoal, exact: true})).toBeVisible();
+        await expect(valueCell).toHaveCSS('color', {MET: 'rgb(47, 133, 90)', NOT_MET: 'rgb(192, 86, 33)', UNKNOWN: 'rgb(108, 117, 125)'}[status]);
+        if (value === null) await expect(valueCell).toHaveText('Not recorded');
+        if (value === 0) await expect(valueCell).toHaveText('0');
+    }
 });
 
 test('Sleep Coach warning stays current beside favorable historical trends and shares its dialog', async ({page}) => {
@@ -7908,7 +7913,6 @@ test('Sleep Coach warning stays current beside favorable historical trends and s
         overviewRequests++;
         return route.fulfill({json: {active: warnings, hasHistory: true}});
     });
-    await page.route('**/api/coach-warnings/2/revisions?*', route => route.fulfill({json: {items: [warningFixture(2, 'SLEEP_DISRUPTION')], page: 0, hasMore: false}}));
     await openSpaRoute(page, '/');
     const tabs = page.locator('.home-panels-tabs');
     await expect(page.getByRole('button', {name: 'Current Coach warnings: 2 warnings', exact: true})).toBeVisible();
@@ -7934,14 +7938,8 @@ test('Sleep Coach warning stays current beside favorable historical trends and s
     }
     await view.press('Enter');
     await expect(dialog.getByRole('heading', {name: 'Disrupted sleep', exact: true})).toBeVisible();
-    await expect(dialog).toContainText(warnings[1].content.explanation);
-    await expect(dialog).toContainText(warnings[1].content.evidence);
-    await expect(dialog).toContainText(warnings[1].content.action);
-    await expect(dialog).toContainText('Coach reviews warnings in daily reflections and coaching sessions.');
-    await dialog.locator('.warning-detail').filter({hasText: 'Disrupted sleep'}).getByRole('button', {name: 'Review history'}).click();
-    const reviews = page.getByRole('dialog', {name: 'Disrupted sleep · Reviews', exact: true});
-    await expect(reviews).toContainText('2026-09-08 · Active');
-    await reviews.getByRole('button', {name: 'Close', exact: true}).last().click();
+    await expect(dialog.getByRole('article', {name: 'Disrupted sleep warning progress'})).toContainText('Unknown');
+    await expect(dialog.getByRole('button', {name: /history/i})).toHaveCount(0);
     await dialog.getByRole('button', {name: 'Close', exact: true}).last().click();
     expect(overviewRequests).toBe(1);
     warnings = [warnings[0]];
@@ -7958,7 +7956,7 @@ test('Sleep Coach warning stays current beside favorable historical trends and s
     warnings = [];
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     await expect(row).toHaveCount(0);
-    await expect(page.getByRole('button', {name: 'Coach history', exact: true})).toBeVisible();
+    await expect(page.getByRole('button', {name: 'Coach history', exact: true})).toHaveCount(0);
 });
 
 async function installWakeLockMock(page, {supported = true, holdRequest = false} = {}) {
@@ -8144,8 +8142,6 @@ for (const width of [320, 376, 390, 575, 640, 960, 1280]) {
         let warnings = [warningFixture(1), warningFixture(2, 'PAIN_INCREASE')];
         let fail = false;
         await page.route('**/api/coach-warnings', route => fail ? route.fulfill({status: 503}) : route.fulfill({json: {active: warnings, hasHistory: true}}));
-        await page.route('**/api/coach-warnings/history?*', route => route.fulfill({json: {items: [{...warningFixture(3, 'SLEEP_DISRUPTION'), status: 'RESOLVED', resolutionRationale: 'Newer nights returned toward baseline.'}], page: 0, hasMore: false}}));
-        await page.route('**/api/coach-warnings/*/revisions?*', route => route.fulfill({json: {items: [warningFixture(1)], page: 0, hasMore: false}}));
         await page.goto('/');
         const indicator = page.getByRole('button', {name: 'Current Coach warnings: 2 warnings', exact: true});
         await expect(indicator).toBeVisible();
@@ -8196,8 +8192,7 @@ for (const width of [320, 376, 390, 575, 640, 960, 1280]) {
         await expect(dialog.getByRole('heading', {name: 'Recovery strain'})).toBeVisible();
         await expect(dialog.getByRole('heading', {name: 'Increased pain'})).toBeVisible();
         await expect(dialog.getByRole('button', {name: /Dismiss|Resolve$|Edit/})).toHaveCount(0);
-        await dialog.getByRole('button', {name: 'Resolved history', exact: true}).click();
-        await expect(dialog.getByText('Newer nights returned toward baseline.')).toBeVisible();
+        await expect(dialog.getByRole('button', {name: /history/i})).toHaveCount(0);
         await page.screenshot({path: testInfo.outputPath(`warnings-dialog-${width}.png`)});
         await dialog.getByRole('button', {name: 'Close', exact: true}).last().click();
         warnings = [warnings[0]];
@@ -8216,24 +8211,7 @@ for (const width of [320, 376, 390, 575, 640, 960, 1280]) {
         fail = false; warnings = [];
         await page.getByRole('button', {name: 'Retry', exact: true}).click();
         await expect(page.locator('.coach-warnings .count-badge')).toHaveCount(0);
-        const history = page.getByRole('button', {name: 'Coach history', exact: true});
-        await expect(history).toHaveClass(/p-button-icon-only/);
-        await page.evaluate(() => window.scrollTo(0, 0));
-        await page.screenshot({path: testInfo.outputPath(`warnings-history-header-${width}.png`), animations: 'disabled'});
-        await history.hover();
-        await expect(tooltip).toHaveText('Coach history');
-        await expect(tooltip).toHaveCSS('opacity', '1');
-        await page.screenshot({path: testInfo.outputPath(`warnings-history-${width}.png`), animations: 'disabled'});
-        await tooltip.hover();
-        await expect(tooltip).toBeVisible();
-        await page.mouse.move(0, 0);
-        await history.focus();
-        await expect(tooltip).toHaveText('Coach history');
-        await history.press('Enter');
-        await expect(dialog.getByText('No active warnings.', {exact: true})).toBeVisible();
-        await dialog.getByRole('button', {name: 'Resolved history', exact: true}).click();
-        await expect(dialog.getByText('Newer nights returned toward baseline.')).toBeVisible();
-        await dialog.getByRole('button', {name: 'Close', exact: true}).last().click();
+        await expect(page.getByRole('button', {name: 'Coach history', exact: true})).toHaveCount(0);
         warnings = [warningFixture(2, 'SLEEP_DISRUPTION')];
         await page.evaluate(() => window.dispatchEvent(new Event('focus')));
         const sleep = page.getByRole('button', {name: 'Current Coach warnings: 1 warning, Disrupted sleep', exact: true});
@@ -8390,24 +8368,26 @@ test('Coach warnings show loading then retry an initial failure', async ({page})
     await expect(page.getByText('Could not refresh Coach warnings.')).toHaveCount(0);
 });
 
-test('Coach warnings hide empty state and show long review history without overflow', async ({page}) => {
+test('Coach warnings hide empty state and keep long metric labels within the dialog', async ({page}) => {
     await mockAuthenticatedDashboard(page);
     let active = [];
-    await page.route('**/api/coach-warnings', route => route.fulfill({json: {active, hasHistory: false}}));
-    await page.route('**/api/coach-warnings/1/revisions?*', route => route.fulfill({json: {items: [{...warningFixture(1), content: {...warningFixture(1).content, evidence: 'Long evidence '.repeat(200)}}], page: 0, hasMore: false}}));
+    await page.route('**/api/coach-warnings', route => route.fulfill({json: {active, hasHistory: true}}));
     await page.goto('/');
     await expect(page.locator('.dashboard-date-header')).toBeVisible();
     await expect(page.getByRole('button', {name: /^Current Coach warnings:/})).toHaveCount(0);
     await expect(page.getByRole('button', {name: 'Coach history', exact: true})).toHaveCount(0);
-    active = [warningFixture(1)];
+    const warning = nutritionWarning();
+    warning.progress.metricsReview.metrics[0].label = 'Daily calorie intake from all complete recorded meal portions';
+    active = [warning];
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-    await page.getByRole('button', {name: 'Current Coach warnings: 1 warning, Recovery strain', exact: true}).click();
-    await page.getByRole('button', {name: 'Review history', exact: true}).click();
-    const dialog = page.getByRole('dialog', {name: 'Recovery strain · Reviews', exact: true});
-    await expect(dialog.getByText(/Long evidence/)).toBeVisible();
-    expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
-    await dialog.getByRole('button', {name: 'Close', exact: true}).last().click();
-    await expect(page.getByRole('dialog', {name: 'Current Coach warnings', exact: true})).toBeVisible();
+    await page.getByRole('button', {name: /^Current Coach warnings:/}).click();
+    const dialog = page.getByRole('dialog', {name: 'Current Coach warnings', exact: true});
+    for (const width of [376, 390, 640, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expect(dialog.getByRole('rowheader')).toContainText('Daily calorie intake');
+        expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        expect(await dialog.getByRole('table').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    }
 });
 
 test('stretching catalog supports CRUD and refreshes the workout picker', async ({page}, testInfo) => {

@@ -80,19 +80,7 @@
             </section>
           </header>
 
-          <section class="reflection-warning-progress" aria-label="Warning progress">
-            <h3>Warning progress</h3>
-            <p v-if="!reflection.warningReview" class="warning-review-empty">Not recorded</p>
-            <template v-else>
-              <p class="warning-review-date">Current warning review · {{ format_date_string(reflection.warningReview.reviewedDate) }}</p>
-              <p v-if="!reflection.warningReview.items.length" class="warning-review-empty">
-                No active warnings to review on {{ format_date_string(reflection.warningReview.reviewedDate) }}
-              </p>
-              <div v-else class="warning-progress-grid">
-                <WarningProgressCard v-for="warning in reflection.warningReview.items" :key="warning.id" :warning="warning" />
-              </div>
-            </template>
-          </section>
+          <WarningReview :review="reflection.warningReview" />
 
           <div v-if="reflection.meals || reflection.workouts" class="domain-grid">
             <ReflectionDomainCard v-if="reflection.meals" title="Meals" :section="reflection.meals" />
@@ -190,14 +178,14 @@ import dayjs from 'dayjs';
 import {nextTick} from 'vue';
 import Paginator from 'primevue/paginator';
 import ReflectionDomainCard from '@/components/ReflectionDomainCard.vue';
-import WarningProgressCard from '@/components/WarningProgressCard.vue';
+import WarningReview from '@/components/WarningReview.vue';
 import reflectionService from '@/services/ReflectionService';
 import {buildReflectionPrompt} from '@/model/Reflection';
 import {buildCoachAdvicePrompt, openCoach} from '@/services/CoachService';
 
 export default {
   name: 'Reflection',
-  components: {ReflectionDomainCard, WarningProgressCard, Paginator},
+  components: {ReflectionDomainCard, WarningReview, Paginator},
   data() {
     return {
       overview: null,
@@ -521,10 +509,6 @@ export default {
   color: #43525c;
   line-height: 1.5;
 }
-.reflection-warning-progress { margin-top: 1rem; }
-.reflection-warning-progress h3 { margin: 0; font-size: 1.1rem; }
-.warning-review-date, .warning-review-empty { margin: 0.45rem 0 0; color: var(--muted); line-height: 1.45; }
-.warning-progress-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-top: 0.75rem; }
 .domain-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -708,7 +692,6 @@ export default {
     flex-direction: column;
   }
   .domain-grid,
-  .warning-progress-grid,
   .insight-grid {
     grid-template-columns: 1fr;
   }

@@ -839,7 +839,7 @@ paths:
     post:
       operationId: saveReflection
       summary: Save a daily reflection or a confirmed weekly reflection
-      description: DAILY (default) requires summary ≤200 characters, findings ≤120 each and one general next action ≤200. WEEKLY has separate limits and confirmed payload. On validation failure, correct named fields and reconfirm changed text.
+      description: DAILY and WEEKLY require current warningReview. DAILY summary ≤200, findings ≤120, next action ≤200; WEEKLY has separate limits and confirmed payload. Validation failure requires correction and fresh confirmation.
       x-openai-isConsequential: true
       parameters:
         - name: date
@@ -3078,14 +3078,15 @@ components:
     WarningAssessment:
       type: object
       additionalProperties: false
-      description: A complete current warning review. A direction other than INSUFFICIENT_EVIDENCE requires a dated earlier comparison; RESOLVED requires resolutionRationale. Use the user's personal goals and evidence, not invented streaks.
-      required: [direction, assessment, evidence, nextAction, resolutionCriteria, criteriaProgress, recentStart, recentEnd]
+      description: Current raw-record metrics determine lifecycle on the server. Audit direction and prose cannot override goals. recentStart/recentEnd must match the rolling metric window; prior dates are optional. Keep source-backed goals stable and explain definition changes.
+      required: [direction, assessment, evidence, nextAction, resolutionCriteria, criteriaProgress, recentStart, recentEnd, metricsReview]
       properties:
+        metricsReview: {$ref: "#/components/schemas/WarningMetricReview"}
         direction: {$ref: "#/components/schemas/WarningDirection"}
         assessment: {type: string, minLength: 1, maxLength: 500, description: Concise answer to whether the warning is improving and why.}
         evidence: {type: string, minLength: 1, maxLength: 2000, description: Dated observations, relevant quantities and uncertainty for this warning.}
         nextAction: {type: string, minLength: 1, maxLength: 500}
-        resolutionCriteria: {type: string, minLength: 1, maxLength: 500, description: "State evidence-based resolution conditions. For sleep, inclusive minimums are ≥25,200 seconds in bed and ≥21,600 seconds asleep, with sufficient recent evidence; one isolated shortfall does not prove sustained disruption. Retain criteria or explain changes."}
+        resolutionCriteria: {type: string, minLength: 1, maxLength: 500, description: "Audit summary of the explicit metric goals. Sleep uses seven-day sums ≥151200 seconds asleep AND ≥176400 seconds in bed, not seven passing nights. Nutrition uses a seven-day mean ≤2500 kcal/day with complete days; no extra qualitative gate."}
         criteriaProgress: {type: string, minLength: 1, maxLength: 500, description: Current progress toward the stated resolution criteria.}
         recentStart: {type: string, format: date}
         recentEnd: {type: string, format: date}
@@ -3113,7 +3114,7 @@ components:
     WarningReviewEnvelope:
       type: object
       additionalProperties: false
-      description: Required for every DAILY save. Use today's Europe/Madrid date, review every currently active warning exactly once, and include explicit empty arrays when none. A newly detected warning needs its own initial progress; an exact retry after creation may conflict and requires read-back before another write.
+      description: Required for every DAILY and WEEKLY save. Use today's Europe/Madrid date, review every currently active warning exactly once, and include explicit empty arrays when none. A newly detected warning needs its own initial progress; an exact retry after creation may conflict and requires read-back before another write.
       required: [reviewedDate, reviews, newWarnings]
       properties:
         reviewedDate: {type: string, format: date}
@@ -3121,7 +3122,7 @@ components:
         newWarnings: {type: array, items: {$ref: "#/components/schemas/NewWarningReview"}}
     WarningProgress:
       type: [object, "null"]
-      description: Latest dated DAILY assessment, retained through later standalone warning edits; null for legacy warnings.
+      description: Latest dated metric review from a reflection or standalone warning write; legacy progress may lack structured metrics. Reads do not resolve warnings.
       required: [direction, assessment, evidence, nextAction, resolutionCriteria, criteriaProgress, recentStart, recentEnd, reviewedDate, sourceVersion, initialReview]
       properties:
         direction: {$ref: "#/components/schemas/WarningDirection"}
@@ -3137,8 +3138,14 @@ components:
         criteriaChangeReason: {type: string, nullable: true}
         resolutionRationale: {type: string, nullable: true}
         reviewedDate: {type: string, format: date}
+        reviewedAt: {type: string, format: date-time, nullable: true, description: Server assessment timestamp; absent or null for legacy reviews.}
         sourceVersion: {type: integer, format: int64, minimum: 0}
         initialReview: {type: boolean}
+        metricsReview:
+          oneOf:
+            - $ref: "#/components/schemas/WarningMetricReview"
+            - type: "null"
+        goalStatus: {type: [string, "null"], enum: [MET, NOT_MET, UNKNOWN, null], description: "Server-derived; missing values, goals or full-window coverage mean UNKNOWN."}
     WarningReviewItem:
       type: object
       required: [id, type, status, version, progress]
@@ -3148,6 +3155,7 @@ components:
         status: {type: string, enum: [ACTIVE, RESOLVED]}
         version: {type: integer, format: int64}
         progress: {$ref: "#/components/schemas/WarningProgress"}
+        createdAt: {type: string, format: date-time, nullable: true, description: Original trigger timestamp; absent or null in legacy snapshots.}
     WarningReviewSnapshot:
       type: [object, "null"]
       description: Null means the historical reflection had no recorded warning review; an empty items array means the dated review found no active warnings.
@@ -4603,8 +4611,9 @@ components:
     SaveWeeklyReflection:
       type: object
       additionalProperties: false
-      required: [confirmed, title, summary, bodyComposition, bloodPressure, routines, nutrition, trainingRecovery, goalProgress, nextWeekActions]
+      required: [confirmed, title, summary, bodyComposition, bloodPressure, routines, nutrition, trainingRecovery, goalProgress, nextWeekActions, warningReview]
       properties:
+        warningReview: {$ref: "#/components/schemas/WarningReviewEnvelope"}
         confirmed:
           type: boolean
           enum: [true]
@@ -4633,6 +4642,7 @@ components:
       type: object
       required: [fridayDate, generatedAt, model, title, summary, bodyComposition, bloodPressure, routines, nutrition, trainingRecovery, goalProgress, nextWeekActions]
       properties:
+        warningReview: {$ref: "#/components/schemas/WarningReviewSnapshot"}
         fridayDate: {type: string, format: date}
         generatedAt: {type: string, format: date-time}
         model: {type: string}
@@ -5234,15 +5244,44 @@ components:
     WarningType:
       type: string
       enum: [RECOVERY_STRAIN, SLEEP_DISRUPTION, MOOD_DECLINE, ROUTINE_DISRUPTION, NUTRITION_IMBALANCE, TRAINING_STRAIN, PAIN_INCREASE, HEALTH_CHANGE]
+    WarningMetricReview:
+      type: object
+      additionalProperties: false
+      description: Review raw records for consecutive calendar days in Europe/Madrid; end today only when all relevant records are complete, otherwise yesterday. Never skip gaps or use rounded averages. Any missing goal/value or incomplete metric coverage is UNKNOWN; all goals met resolves existing warnings and rejects new warnings.
+      required: [windowDays, windowEnd, todayComplete, shortStatus, metrics]
+      properties:
+        windowDays: {type: integer, minimum: 1, maximum: 90}
+        windowEnd: {type: string, format: date}
+        todayComplete: {type: boolean, description: Whether all relevant records for today are complete.}
+        shortStatus: {type: string, minLength: 1, maxLength: 120, description: One concrete Coach sentence explaining the current goal result.}
+        metrics: {type: array, minItems: 1, maxItems: 12, items: {$ref: "#/components/schemas/WarningMetric"}}
+        definitionChangeReason: {type: string, maxLength: 500, nullable: true, description: Required supported reason for changing window or metric identity/source/aggregation/unit/goal/basis; never move a goal merely to resolve.}
+    WarningMetric:
+      type: object
+      additionalProperties: false
+      description: Stable source-backed measure and explicit inclusive goal for any warning type. Never invent scores or clinical targets. Preserve key, source, aggregation, unit and goal basis between reviews unless a documented personal goal or user criterion justifies change.
+      required: [key, label, source, aggregation, unit, coveredDays, goalBasis]
+      properties:
+        key: {type: string, minLength: 1, maxLength: 80}
+        label: {type: string, minLength: 1, maxLength: 60}
+        source: {type: string, minLength: 1, maxLength: 120, description: "Raw field source, e.g. SLEEP.totalSleepDuration, SLEEP.bedtimeStart/bedtimeEnd, NUTRITION.dailyTotals.calories/completed; no account identifiers."}
+        aggregation: {type: string, enum: [SUM, MEAN, COUNT, LATEST]}
+        unit: {type: string, minLength: 1, maxLength: 24}
+        value: {type: number, nullable: true, description: "Exact raw-record aggregate; null when unknown, never substitute zero."}
+        minimum: {type: number, nullable: true, description: Inclusive lower goal bound; null when none.}
+        maximum: {type: number, nullable: true, description: Inclusive upper goal bound; null when none.}
+        coveredDays: {type: integer, minimum: 0, maximum: 90, description: Complete relevant dates within the consecutive window; must equal windowDays for MET or NOT_MET.}
+        goalBasis: {type: string, minLength: 1, maxLength: 500, description: Saved personal goal or explicit user criterion supporting this goal; both bounds absent means UNKNOWN.}
     WarningContent:
       type: object
-      required: [explanation, evidence, action, reviewedDate]
+      required: [explanation, evidence, action, reviewedDate, metricsReview]
       properties:
+        metricsReview: {$ref: "#/components/schemas/WarningMetricReview"}
         explanation: {type: string, minLength: 1, maxLength: 2000}
-        evidence: {type: string, minLength: 1, maxLength: 4000, description: Concise dated observations and baseline comparison with uncertainty.}
+        evidence: {type: string, minLength: 1, maxLength: 4000, description: Concise dated raw observations, exact quantities and uncertainty.}
         action: {type: string, minLength: 1, maxLength: 500}
         onsetDate: {type: string, format: date, nullable: true}
-        reviewedDate: {type: string, format: date}
+        reviewedDate: {type: string, format: date, description: Must be today's Europe/Madrid date; historical review dates are rejected.}
     CreateWarningRequest:
       type: object
       required: [requestKey, type, content]
@@ -5258,11 +5297,25 @@ components:
         content: {$ref: "#/components/schemas/WarningContent"}
     ResolveWarningRequest:
       type: object
-      required: [version, reviewedDate, rationale]
+      required: [version, reviewedDate, rationale, metricsReview]
       properties:
         version: {type: integer, format: int64, minimum: 0}
-        reviewedDate: {type: string, format: date}
+        reviewedDate: {type: string, format: date, description: Must be today's Europe/Madrid date; historical review dates are rejected.}
         rationale: {type: string, minLength: 1, maxLength: 2000}
+        metricsReview: {$ref: "#/components/schemas/WarningMetricReview"}
+    WarningReadContent:
+      type: object
+      required: [explanation, evidence, action, reviewedDate]
+      properties:
+        explanation: {type: string}
+        evidence: {type: string}
+        action: {type: string}
+        onsetDate: {type: string, format: date, nullable: true}
+        reviewedDate: {type: string, format: date}
+        metricsReview:
+          oneOf:
+            - $ref: "#/components/schemas/WarningMetricReview"
+            - type: "null"
     WarningResponse:
       type: object
       required: [id, type, status, content, createdAt, updatedAt, version]
@@ -5270,7 +5323,7 @@ components:
         id: {type: integer, format: int64}
         type: {$ref: "#/components/schemas/WarningType"}
         status: {type: string, enum: [ACTIVE, RESOLVED]}
-        content: {$ref: "#/components/schemas/WarningContent"}
+        content: {$ref: "#/components/schemas/WarningReadContent"}
         resolutionRationale: {type: string, nullable: true}
         createdAt: {type: string, format: date-time}
         updatedAt: {type: string, format: date-time}

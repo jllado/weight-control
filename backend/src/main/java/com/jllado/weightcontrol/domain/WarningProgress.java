@@ -17,5 +17,8 @@ public record WarningProgress(
     String resolutionRationale,
     LocalDate reviewedDate,
     long sourceVersion,
-    boolean initialReview
+    boolean initialReview,
+    WarningMetricReview metricsReview,
+    WarningGoalStatus goalStatus,
+    java.time.Instant reviewedAt
 ) {}

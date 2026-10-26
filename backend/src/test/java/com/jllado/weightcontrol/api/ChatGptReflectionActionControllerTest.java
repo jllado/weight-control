@@ -237,7 +237,7 @@ class ChatGptReflectionActionControllerTest {
         when(weeklyService.save(eq(user), eq(LocalDate.of(2026, 8, 14)), any())).thenReturn(new WeeklyReflectionResponse(
             LocalDate.of(2026, 8, 14), Instant.parse("2026-08-17T07:00:00Z"), "ChatGPT", "Weekly review", "Summary",
             section, section, section, section, section, section, java.util.List.of("Continue")
-        ));
+        , null));
         var notification = new InAppNotification();
         notification.setId(51L);
         notification.setTitle("Weight Control Coach");
@@ -251,7 +251,7 @@ class ChatGptReflectionActionControllerTest {
             .build();
 
         String weeklyPayload = """
-            {"confirmed":true,"title":"Weekly review","summary":"Summary","bodyComposition":{"summary":"Body","nextAction":"Review"},"bloodPressure":{"summary":"BP","nextAction":"Review"},"routines":{"summary":"Routines","nextAction":"Review"},"nutrition":{"summary":"Nutrition","nextAction":"Review"},"trainingRecovery":{"summary":"Training","nextAction":"Review"},"goalProgress":{"summary":"Goals","nextAction":"Review"},"nextWeekActions":["Continue"]}
+            {"confirmed":true,"title":"Weekly review","summary":"Summary","bodyComposition":{"summary":"Body","nextAction":"Review"},"bloodPressure":{"summary":"BP","nextAction":"Review"},"routines":{"summary":"Routines","nextAction":"Review"},"nutrition":{"summary":"Nutrition","nextAction":"Review"},"trainingRecovery":{"summary":"Training","nextAction":"Review"},"goalProgress":{"summary":"Goals","nextAction":"Review"},"nextWeekActions":["Continue"],"warningReview":{"reviewedDate":"2026-08-20","reviews":[],"newWarnings":[]}}
             """;
         mvc.perform(post("/api/chatgpt-actions/reflections/2026-08-14?target=WEEKLY").contentType("application/json").content(weeklyPayload)).andExpect(status().isOk())
             .andExpect(jsonPath("$.fridayDate").value("2026-08-14"))

@@ -78,6 +78,10 @@ public class WeeklyReflection {
     @Column(name = "goal_progress_next_action", nullable = false, length = 200)
     private String goalProgressNextAction;
 
+    @Convert(converter = WarningReviewSnapshotConverter.class)
+    @Column(name = "warning_review_json", columnDefinition = "longtext")
+    private WarningReviewSnapshot warningReview;
+
     @Convert(converter = StringListJsonConverter.class)
     @Column(name = "next_week_actions_json", nullable = false, columnDefinition = "text")
     private List<String> nextWeekActions;
