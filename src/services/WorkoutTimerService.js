@@ -8,6 +8,7 @@ export const workoutPhases = [
 ];
 export const timerState = reactive({draft: null, editor: null, resumeRequest: 0});
 let storageKey;
+let accountGeneration = 0;
 let releaseEditor;
 let editorReleased = Promise.resolve();
 
@@ -17,6 +18,7 @@ function persist() {
 }
 
 export function selectTimerAccount(email) {
+    accountGeneration += 1;
     closeTimerEditor();
     storageKey = email ? `workout-timer-v1:${email}` : null;
     timerState.draft = storageKey ? JSON.parse(localStorage.getItem(storageKey) || 'null') : null;
@@ -29,12 +31,15 @@ window.addEventListener('storage', event => {
 export async function openTimerEditor(editor) {
     if (timerState.editor === editor) return true;
     if (timerState.editor) return false;
+    const key = storageKey;
+    const generation = accountGeneration;
     await editorReleased;
+    if (generation !== accountGeneration) return false;
     return new Promise((resolve, reject) => {
-        editorReleased = navigator.locks.request(`${storageKey}:editor`, {ifAvailable: true}, async lock => {
-            if (!lock) { resolve(false); return; }
+        editorReleased = navigator.locks.request(`${key}:editor`, {ifAvailable: true}, async lock => {
+            if (!lock || generation !== accountGeneration) { resolve(false); return; }
             // Read after acquiring the lock: another tab may have just updated the draft.
-            timerState.draft = JSON.parse(localStorage.getItem(storageKey) || 'null');
+            timerState.draft = JSON.parse(localStorage.getItem(key) || 'null');
             timerState.editor = editor;
             await new Promise(release => { releaseEditor = release; resolve(true); });
         }).catch(reject);
@@ -59,6 +64,13 @@ export function createTimerDraft(form) {
 export function saveTimerForm(form) {
     timerState.draft.form = JSON.parse(JSON.stringify(form));
     persist();
+}
+
+export function createTransferredTimerDraft(form, timer) {
+    const draft = {form: JSON.parse(JSON.stringify(form)), ...(timer || createPhaseTimer({}))};
+    // Publish only after durable storage succeeds; a failed handoff keeps both prior drafts.
+    localStorage.setItem(storageKey, JSON.stringify(draft));
+    timerState.draft = draft;
 }
 
 export function phaseMilliseconds(draft, key, now = Date.now()) {

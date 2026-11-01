@@ -18,6 +18,8 @@
         <label for="guided-keep-screen-on">Keep screen on</label>
         <span v-if="session.keepScreenOn && session.wakeLockMessage" role="status" aria-live="polite">{{ session.wakeLockMessage }}</span>
       </div>
+      <div class="action-group p-mb-3"><Button id="guided-continue-manually" label="Continue manually" icon="pi pi-pencil" class="p-button-outlined" :loading="session.handingOff" :disabled="session.saving || session.handingOff || session.guidedWorkoutState.editor !== session.editor" @click="session.continueManually" /></div>
+      <p v-if="session.transferError" role="alert" class="error">{{ session.transferError }}</p>
       <p v-if="session.guidedWorkoutState.draft.workout.plannedSessionName" class="guided-session-name">{{ session.guidedWorkoutState.draft.workout.plannedSessionName }}</p>
       <section v-if="session.guidedTimer && session.steps.length" class="guided-timer" aria-label="Guided workout timer">
         <div class="guided-timer-summary">

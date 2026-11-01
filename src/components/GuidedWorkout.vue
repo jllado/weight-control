@@ -1,5 +1,6 @@
 <template>
   <slot />
+  <WorkoutEditor v-if="manualTransfer" :show="true" :guided_transfer="manualTransfer" @onTransfer="finishManualTransfer" @onTransferFailed="manualTransferFailed" @onClose="closeManualEditor" @onSave="manualWorkoutSaved" />
   <section v-if="minimized && guidedWorkoutState.draft" class="guided-workout-minimized" aria-label="Minimized guided workout">
     <div>
       <strong>{{ guidedWorkoutState.draft.workout.plannedSessionName || 'Workout' }} · {{ timerStatus }}</strong>
@@ -14,17 +15,19 @@
 </template>
 
 <script>
+import WorkoutEditor from './WorkoutEditor.vue';
 import {userState} from '@/state';
 import workoutService from '@/services/WorkoutService';
-import {guidedWorkoutState, guidedPhaseKey, guidedWorkoutSteps, guidedWorkoutProgressLabel, guidedWorkoutExerciseProgress, selectGuidedWorkoutAccount, openGuidedWorkoutEditor, closeGuidedWorkoutEditor, createGuidedWorkoutDraft, estimateGuidedWorkout, ensureGuidedDraftIdentity, applyGuidedWorkoutEdit, saveGuidedWorkoutDraft, discardGuidedWorkoutDraft, discardSavedGuidedWorkoutDraft} from '@/services/GuidedWorkoutService';
+import {guidedWorkoutState, guidedPhaseKey, guidedWorkoutSteps, guidedWorkoutProgressLabel, guidedWorkoutExerciseProgress, selectGuidedWorkoutAccount, openGuidedWorkoutEditor, closeGuidedWorkoutEditor, createGuidedWorkoutDraft, estimateGuidedWorkout, ensureGuidedDraftIdentity, applyGuidedWorkoutEdit, prepareManualWorkoutTransfer, saveGuidedWorkoutDraft, discardGuidedWorkoutDraft, discardSavedGuidedWorkoutDraft} from '@/services/GuidedWorkoutService';
 import {workoutPhases, phaseMilliseconds, formatElapsed as formatElapsedValue, pausePhaseTimer, switchPhaseTimer, roundedPhaseMinutes} from '@/services/WorkoutTimerService';
 import {createScreenWakeLockController} from '@/services/ScreenWakeLockService';
 import {loadWorkoutRecordContext, metricRecords, loadMetricRecords, segmentMetricRecords, formatRecordValue} from '@/services/WorkoutRecordContext';
 
 export default {
   name: 'GuidedWorkout',
+  components: {WorkoutEditor},
   provide() { return {guidedWorkout: this}; },
-  data() { return {state: userState(), guidedWorkoutState, editor: Symbol('guided-workout'), visible: false, minimized: false, opening: false, openGeneration: 0, editDialog: false, editWorkoutDialog: false, restDialog: false, editSegment: null, editLine: null, editError: '', saving: false, saveError: '', lockError: '', discardPrompt: false, keepScreenOn: false, keepScreenOnStorageKey: null, restDuration: 60, restDurationStorageKey: null, wakeLockStatus: 'off', wakeLockController: null, exerciseRecords: {}, phases: workoutPhases, now: Date.now(), tick: null, cardioFields: [{key: 'speedKph', label: 'Speed (km/h)', metric: 'CARDIO_SPEED'}, {key: 'cadenceRpm', label: 'Cadence (rpm)', metric: 'CARDIO_CADENCE'}, {key: 'distanceKm', label: 'Distance (km)', metric: 'CARDIO_DISTANCE'}, {key: 'inclinePercent', label: 'Incline (%)', metric: 'CARDIO_INCLINE'}, {key: 'resistanceLevel', label: 'Resistance', metric: 'CARDIO_RESISTANCE'}]}; },
+  data() { return {state: userState(), guidedWorkoutState, editor: Symbol('guided-workout'), visible: false, minimized: false, opening: false, openGeneration: 0, editDialog: false, editWorkoutDialog: false, restDialog: false, editSegment: null, editLine: null, editError: '', saving: false, manualTransfer: null, handingOff: false, transferError: '', saveError: '', lockError: '', discardPrompt: false, keepScreenOn: false, keepScreenOnStorageKey: null, restDuration: 60, restDurationStorageKey: null, wakeLockStatus: 'off', wakeLockController: null, exerciseRecords: {}, phases: workoutPhases, now: Date.now(), tick: null, cardioFields: [{key: 'speedKph', label: 'Speed (km/h)', metric: 'CARDIO_SPEED'}, {key: 'cadenceRpm', label: 'Cadence (rpm)', metric: 'CARDIO_CADENCE'}, {key: 'distanceKm', label: 'Distance (km)', metric: 'CARDIO_DISTANCE'}, {key: 'inclinePercent', label: 'Incline (%)', metric: 'CARDIO_INCLINE'}, {key: 'resistanceLevel', label: 'Resistance', metric: 'CARDIO_RESISTANCE'}]}; },
   computed: {
     steps() {
       return this.guidedWorkoutState.draft ? guidedWorkoutSteps(this.guidedWorkoutState.draft.workout) : [];
@@ -125,6 +128,9 @@ export default {
   beforeUnmount() { this.openGeneration += 1; clearInterval(this.tick); this.wakeLockController.dispose(); closeGuidedWorkoutEditor(this.editor); selectGuidedWorkoutAccount(null); },
   methods: {
     selectAccount(email) {
+      this.manualTransfer = null;
+      this.handingOff = false;
+      this.transferError = '';
       this.openGeneration += 1;
       this.opening = false;
       this.editDialog = false;
@@ -191,6 +197,26 @@ export default {
       this.editError = '';
       this.editDialog = true;
     },
+    continueManually() {
+      if (this.saving || this.manualTransfer || guidedWorkoutState.editor !== this.editor) return;
+      this.transferError = '';
+      this.handingOff = true;
+      this.manualTransfer = prepareManualWorkoutTransfer(guidedWorkoutState.draft);
+    },
+    finishManualTransfer() {
+      this.handingOff = false;
+      discardGuidedWorkoutDraft();
+      this.close();
+    },
+    manualTransferFailed(message) { this.transferError = message; },
+    async closeManualEditor() {
+      const failed = this.handingOff;
+      this.handingOff = false;
+      this.manualTransfer = null;
+      await this.$nextTick();
+      document.getElementById(failed ? 'guided-continue-manually' : 'resume-workout')?.focus();
+    },
+    manualWorkoutSaved() { window.dispatchEvent(new Event('timed-workout-saved')); },
     openWorkoutEdit() { this.editWorkoutDialog = true; },
     applyWorkoutEdit(form) {
       this.editWorkoutDialog = false;
@@ -489,6 +515,7 @@ export default {
       finally { this.saving = false; }
     },
     leavePage() {
+      if (this.handingOff) { this.manualTransfer = null; this.handingOff = false; }
       this.openGeneration += 1;
       this.opening = false;
       this.editDialog = false;
@@ -498,7 +525,7 @@ export default {
       this.visible = false;
     },
     minimize() { this.leavePage(); this.$router.push('/workouts'); },
-    close() { this.openGeneration += 1; this.opening = false; if (guidedWorkoutState.editor === this.editor) saveGuidedWorkoutDraft(); closeGuidedWorkoutEditor(this.editor); this.minimized = false; this.visible = false; this.editDialog = false; this.editWorkoutDialog = false; this.restDialog = false; this.$router.push('/workouts'); },
+    close() { if (this.handingOff) { this.manualTransfer = null; this.handingOff = false; } this.openGeneration += 1; this.opening = false; if (guidedWorkoutState.editor === this.editor) saveGuidedWorkoutDraft(); closeGuidedWorkoutEditor(this.editor); this.minimized = false; this.visible = false; this.editDialog = false; this.editWorkoutDialog = false; this.restDialog = false; this.$router.push('/workouts'); },
     async discard() {
       this.discardPrompt = false;
       const generation = ++this.openGeneration;

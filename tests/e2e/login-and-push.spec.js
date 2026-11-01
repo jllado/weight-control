@@ -14667,6 +14667,208 @@ test('final rest can resume without a current exercise timer', async ({page}) =>
     await expect(guided.getByRole('heading', {name: /Review workout/i})).toBeVisible();
 });
 
+for (const destination of ['Home', 'logout']) {
+    test(`guided manual handoff retires pending ownership after ${destination}`, async ({page}) => {
+        const state = await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[0], [{repetitions: 10, weight: 20}])]);
+        const guided = await startEstimatedPlan(page);
+        await page.evaluate(() => {
+            const request = navigator.locks.request.bind(navigator.locks);
+            window.manualAcquisition = {waiting: false, finished: false};
+            navigator.locks.request = (name, ...args) => {
+                if (!name.startsWith('workout-timer-v1:')) return request(name, ...args);
+                window.manualAcquisition.waiting = true;
+                return new Promise(resolve => { window.manualAcquisition.release = resolve; }).then(() => request(name, ...args)).finally(() => { window.manualAcquisition.finished = true; });
+            };
+        });
+        await guided.getByRole('button', {name: 'Continue manually', exact: true}).click();
+        await expect.poll(() => page.evaluate(() => window.manualAcquisition.waiting)).toBe(true);
+        await mockAuthenticatedDashboard(page, dashboard.anchorDate, {workoutExercises: state.exercises});
+        await page.evaluate(() => { window.history.pushState({}, '', '/'); window.dispatchEvent(new PopStateEvent('popstate')); });
+        await expect(page).toHaveURL('/');
+        if (destination === 'logout') {
+            await page.getByRole('button', {name: 'Account', exact: true}).click();
+            await page.getByText('Log out', {exact: true}).click();
+            await expect(page).toHaveURL(/\/login$/);
+        }
+        await page.evaluate(() => window.manualAcquisition.release());
+        await expect.poll(() => page.evaluate(() => window.manualAcquisition.finished)).toBe(true);
+        expect(await page.evaluate(async () => (await navigator.locks.query()).held.filter(lock => lock.name.startsWith('workout-timer-v1:')))).toEqual([]);
+        expect(await page.evaluate(() => localStorage.getItem('workout-timer-v1:jllado@gmail.com'))).toBeNull();
+        expect(await page.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com'))).not.toBeNull();
+        await expect(page.getByRole('dialog', {name: 'Workout', exact: true})).toBeHidden();
+        await expect(page).toHaveURL(destination === 'Home' ? /\/$/ : /\/login$/);
+    });
+}
+
+for (const obstacle of ['existing draft', 'editor lock', 'storage failure', 'catalog failure']) {
+    test(`guided manual handoff retains both drafts after ${obstacle} and can retry`, async ({page}) => {
+        await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[0], [{repetitions: 10, weight: 20}])]);
+        const guided = await startEstimatedPlan(page);
+        await page.clock.fastForward(12000);
+        const source = await page.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com'));
+        let failCatalog = obstacle === 'catalog failure';
+        if (failCatalog) await page.route('**/api/workout-exercises', route => failCatalog ? route.fulfill({status: 503, json: {message: 'Catalog unavailable'}}) : route.fallback());
+        await page.evaluate(async obstacle => {
+            const key = 'workout-timer-v1:jllado@gmail.com';
+            if (obstacle === 'existing draft') localStorage.setItem(key, JSON.stringify({form: {note: 'Keep existing draft'}, elapsed: {warmUpMinutes: 0, trainingMinutes: 1234, cardioMinutes: 0, stretchingMinutes: 0}, runningPhase: null, startedAt: null}));
+            if (obstacle === 'editor lock') await new Promise(resolve => {
+                window.manualLock = navigator.locks.request(`${key}:editor`, async () => { resolve(); await new Promise(release => { window.releaseManualLock = release; }); });
+            });
+            if (obstacle === 'storage failure') {
+                window.originalStorageSet = Storage.prototype.setItem;
+                Storage.prototype.setItem = function(k, v) { if (k === key) throw new DOMException('Storage full', 'QuotaExceededError'); return window.originalStorageSet.call(this, k, v); };
+            }
+        }, obstacle);
+        const destination = await page.evaluate(() => localStorage.getItem('workout-timer-v1:jllado@gmail.com'));
+        await guided.getByRole('button', {name: 'Continue manually', exact: true}).click();
+        await expect(guided.getByRole('alert')).toContainText('Your guided workout is unchanged.');
+        await expect(page.getByRole('dialog', {name: 'Workout', exact: true})).toBeHidden();
+        await expect(guided.getByRole('button', {name: 'Continue manually', exact: true})).toBeFocused();
+        expect(await page.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com'))).toBe(source);
+        expect(await page.evaluate(() => localStorage.getItem('workout-timer-v1:jllado@gmail.com'))).toBe(destination);
+        failCatalog = false;
+        await page.evaluate(async obstacle => {
+            if (obstacle === 'existing draft') localStorage.removeItem('workout-timer-v1:jllado@gmail.com');
+            if (obstacle === 'editor lock') { window.releaseManualLock(); await window.manualLock; }
+            if (obstacle === 'storage failure') Storage.prototype.setItem = window.originalStorageSet;
+        }, obstacle);
+        await guided.getByRole('button', {name: 'Continue manually', exact: true}).click();
+        await expect(page).toHaveURL(/\/workouts$/);
+        await expect(page.getByRole('dialog', {name: 'Workout', exact: true})).toBeVisible();
+        expect(await page.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com'))).toBeNull();
+    });
+}
+
+test('guided manual handoff retries a lost save response with the same recording identity', async ({page}) => {
+    const state = await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[0], [{repetitions: 10, weight: 20}, {repetitions: 8, weight: 20}])]);
+    await page.route(url => url.pathname.startsWith('/workouts'), route => route.request().resourceType() === 'document' ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')}) : route.fallback());
+    const savedByKey = new Map();
+    const attempts = [];
+    await page.route('**/api/workouts', route => {
+        if (route.request().method() !== 'POST') return route.fulfill({json: [...savedByKey.values()]});
+        const payload = route.request().postDataJSON(); attempts.push(payload);
+        if (!savedByKey.has(payload.recordingKey)) savedByKey.set(payload.recordingKey, workoutResponse(1, payload, state.exercises));
+        if (attempts.length === 1) return route.abort('connectionreset');
+        return route.fulfill({json: {result: savedByKey.get(payload.recordingKey), recordAchievements: []}});
+    });
+    const guided = await startEstimatedPlan(page);
+    await page.clock.fastForward(12000);
+    await completeGuidedSetWithoutRest(page, guided);
+    const identity = await page.evaluate(() => JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')).recordingKey);
+    await guided.getByRole('button', {name: 'Continue manually', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await expect(page).toHaveURL(/\/workouts$/);
+    await editor.getByLabel('Note', {exact: true}).fill('Reviewed manual finish');
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(page.locator('.p-toast')).toContainText('Workout not saved');
+    await expect(editor).toBeVisible();
+    expect(savedByKey.size).toBe(1);
+    await page.reload();
+    await page.getByRole('button', {name: 'Resume workout', exact: true}).click();
+    await expect(editor.getByLabel('Note', {exact: true})).toHaveValue('Reviewed manual finish');
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(editor).toBeHidden();
+    expect(attempts).toHaveLength(2);
+    expect(attempts[1]).toEqual(attempts[0]);
+    expect(attempts[1].recordingKey).toBe(identity);
+    expect(savedByKey.size).toBe(1);
+    expect(await page.evaluate(() => localStorage.getItem('workout-timer-v1:jllado@gmail.com'))).toBeNull();
+    expect((await page.evaluate(() => fetch('/api/workouts').then(r => r.json())))).toHaveLength(1);
+});
+
+for (const sourceState of ['exercise', 'rest', 'pause', 'review']) {
+    test(`guided manual handoff preserves ${sourceState} progress through close reload and Save`, async ({page}, testInfo) => {
+        const errors = [];
+        page.on('pageerror', error => errors.push(error.message));
+        const state = await estimatedWorkoutPlan(page, exercises => [
+            estimatedLine(exercises[0], [{repetitions: 10, weight: 20}, {repetitions: 8, weight: 20, skipped: true}, {repetitions: 6, weight: 22}]),
+            estimatedLine(exercises[4], [{durationSeconds: 60, speedKph: 8, cadenceRpm: 70, distanceKm: 1, inclinePercent: 2, resistanceLevel: 3}], {calories: 120, averageHeartRate: 130})
+        ]);
+        state.current.days.find(day => day.day === 'SUNDAY').sessions[0].note = 'Keep the workout note';
+        await page.route(url => url.pathname.startsWith('/workouts'), route => route.request().resourceType() === 'document' ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')}) : route.fallback());
+        const writes = [];
+        page.on('request', request => { if (request.url().endsWith('/api/workouts') && request.method() === 'POST') writes.push(request.postDataJSON()); });
+        const guided = await startEstimatedPlan(page);
+        await page.clock.fastForward(12000);
+        await completeGuidedSetWithoutRest(page, guided);
+        await page.clock.fastForward(7000);
+        if (sourceState === 'rest') {
+            await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+            const rest = page.getByRole('dialog', {name: /^(Rest|Rest after this set\?)$/});
+            await rest.getByRole('button', {name: 'Start rest', exact: true}).click();
+            await rest.getByRole('button', {name: 'Close', exact: true}).last().click();
+            await page.clock.fastForward(5000);
+        } else if (sourceState === 'pause') await guided.getByRole('button', {name: 'Pause', exact: true}).click();
+        else if (sourceState === 'review') {
+            await guided.getByRole('button', {name: 'Review', exact: true}).click();
+            await guided.getByRole('button', {name: 'Edit workout', exact: true}).click();
+            const reviewEditor = page.getByRole('dialog', {name: 'Workout', exact: true});
+            for (const [label, value] of [['Training (min)', '20'], ['Start time (optional)', '10:00'], ['End time', '27/09/2026 10:20']]) {
+                await reviewEditor.getByLabel(label, {exact: true}).fill(value);
+                await reviewEditor.getByLabel(label, {exact: true}).press('Tab');
+            }
+            await reviewEditor.getByRole('button', {name: 'Apply', exact: true}).click();
+            await expect(reviewEditor).toBeHidden();
+        }
+        await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+        const original = await page.evaluate(() => JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')));
+        if (sourceState === 'exercise') for (const width of [390, 1280]) {
+            await page.setViewportSize({width, height: 900});
+            await guided.screenshot({path: testInfo.outputPath(`guided-manual-action-${width}.png`), animations: 'disabled'});
+        }
+        await guided.getByRole('button', {name: 'Continue manually', exact: true}).click();
+        const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+        await expect(editor).toBeVisible();
+        await expect(page).toHaveURL(/\/workouts$/);
+        const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('workout-timer-v1:jllado@gmail.com')));
+        await expect.poll(stored).not.toBeNull();
+        const transferred = await stored();
+        expect(transferred.form.recordingKey).toBe(original.recordingKey);
+        expect(transferred.form.note).toBe(original.workout.note);
+        const transferredAt = await page.evaluate(() => Date.now());
+        for (const [key, milliseconds] of Object.entries(original.timer.elapsed)) {
+            expect(transferred.elapsed[key]).toBe(milliseconds + (original.timer.runningPhase === key ? transferredAt - original.timer.startedAt : 0));
+        }
+        expect(transferred.form.plannedTargets).toEqual(original.workout.plannedTargets);
+        expect(transferred.form.lines.map(line => line.exerciseId)).toEqual(original.workout.lines.map(line => line.exerciseId));
+        expect(transferred.form.lines[0].segments.map(segment => segment.repetitions)).toEqual([10, 8, 6]);
+        expect(transferred.form.lines[0].segments[1].skipped).toBe(true);
+        expect(transferred.form.lines[1].segments[0]).toMatchObject({durationMinutes: 1, pendingGuided: true});
+        expect(transferred.form.lines[0].exerciseDurationSeconds).toBeGreaterThanOrEqual(sourceState === 'review' ? 12 : 19);
+        expect(transferred.runningPhase).toBeNull();
+        expect(transferred.startedAt).toBeNull();
+        expect(await page.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com'))).toBeNull();
+        expect(writes).toEqual([]);
+        await expect(editor).toContainText('Review unfinished planned sets before saving.');
+        await page.clock.runFor(200);
+        await expect(editor).not.toHaveClass(/p-dialog-enter-active/);
+        await expect(editor).toHaveCSS('opacity', '1');
+        if (sourceState === 'exercise') for (const width of [390, 575, 640, 960, 1280]) {
+            await page.setViewportSize({width, height: 900});
+            await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+            await editor.screenshot({path: testInfo.outputPath(`manual-handoff-${width}.png`), animations: 'disabled'});
+        }
+        await editor.getByRole('button', {name: 'Close', exact: true}).click();
+        await expect(editor).toBeHidden();
+        await page.clock.fastForward(120000);
+        expect((await stored()).elapsed).toEqual(transferred.elapsed);
+        await page.reload();
+        await page.getByRole('button', {name: 'Resume workout', exact: true}).click();
+        await expect(editor).toBeVisible();
+        expect((await stored()).form.recordingKey).toBe(original.recordingKey);
+        await editor.getByRole('button', {name: 'Save', exact: true}).click();
+        await expect(editor).toBeHidden();
+        expect(writes).toHaveLength(1);
+        expect(writes[0]).toMatchObject({recordingKey: original.recordingKey, plannedTargets: original.workout.plannedTargets});
+        if (sourceState === 'review') expect(writes[0]).toMatchObject({startTime: '10:00', endTime: '2026-09-27T08:20:00.000Z', trainingMinutes: 20});
+        expect(writes[0].lines[0].segments[1].skipped).toBe(true);
+        expect(writes[0].lines[1]).toMatchObject({calories: 120, averageHeartRate: 130, segments: [{durationSeconds: 60, speedKph: 8, cadenceRpm: 70, distanceKm: 1, inclinePercent: 2, resistanceLevel: 3}]});
+        for (const [key, milliseconds] of Object.entries(transferred.elapsed)) expect(writes[0][key]).toBe(Math.ceil(milliseconds / 60000));
+        expect(await stored()).toBeNull();
+        expect(errors).toEqual([]);
+    });
+}
+
 test('guided review timing corrections survive cancellation, reload and an overnight save with sauna', async ({page}, testInfo) => {
     const errors = [];
     page.on('pageerror', error => errors.push(error.stack));
