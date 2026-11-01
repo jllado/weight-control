@@ -87,7 +87,7 @@ export default {
       if (!draft) return null;
       const phaseMinutes = draft.timer ? Object.fromEntries(this.phases.map(({key}) => [key, Math.ceil(phaseMilliseconds(draft.timer, key, Date.now()) / 60000)])) : null;
       const durationMinutes = phaseMinutes ? Object.values(phaseMinutes).reduce((sum, minutes) => sum + minutes, 0) : this.savedDurationMinutes;
-      return {...draft.workout, id: null, workoutDate: draft.workout.workoutDate || new Date(), durationMinutes,
+      return {...draft.workout, id: null, workoutDate: draft.workout.workoutDate || new Date(), durationMinutes: durationMinutes + this.saunaDuration,
         warmUpMinutes: phaseMinutes?.warmUpMinutes ?? null, trainingMinutes: phaseMinutes?.trainingMinutes ?? null,
         cardioMinutes: phaseMinutes?.cardioMinutes ?? null, stretchingMinutes: phaseMinutes?.stretchingMinutes ?? null,
         lines: this.reviewLines.map(line => ({...line, exerciseDurationSeconds: Math.floor(line.exerciseDurationMilliseconds / 1000),

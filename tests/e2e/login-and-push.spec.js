@@ -14667,6 +14667,123 @@ test('final rest can resume without a current exercise timer', async ({page}) =>
     await expect(guided.getByRole('heading', {name: /Review workout/i})).toBeVisible();
 });
 
+test('guided review timing corrections survive cancellation, reload and an overnight save with sauna', async ({page}, testInfo) => {
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.stack));
+    page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+    await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[0], [{repetitions: 10, weight: 20}])]);
+    await page.route(url => url.pathname.startsWith('/workouts'), route => route.request().resourceType() === 'document' ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')}) : route.fallback());
+    const writes = [];
+    page.on('request', request => { if (request.url().endsWith('/api/workouts') && request.method() === 'POST') writes.push(request.postDataJSON()); });
+    const guided = await startEstimatedPlan(page);
+    await page.clock.fastForward(12000);
+    await completeGuidedSetWithoutRest(page, guided);
+    await guided.getByRole('button', {name: 'Review', exact: true}).click();
+    const draft = () => page.evaluate(() => JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')));
+    const original = await draft();
+    const edit = guided.locator('header').getByRole('button', {name: 'Edit workout', exact: true});
+    const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
+    for (const dismiss of ['Cancel', 'Escape', 'Close']) {
+        await edit.click();
+        await dialog.getByLabel('Warm-up (min)', {exact: true}).fill('5');
+        await dialog.getByLabel('Warm-up (min)', {exact: true}).press('Tab');
+        if (dismiss === 'Escape') await page.keyboard.press('Escape');
+        else await dialog.getByRole('button', {name: dismiss, exact: true}).click();
+        await expect(dialog).toBeHidden();
+        await expect(edit).toBeFocused();
+        expect(await draft()).toEqual(original);
+    }
+    await edit.click();
+    const phases = {'Warm-up': 5, Training: 20, Cardio: 10, Stretching: 5};
+    for (const [label, minutes] of Object.entries(phases)) {
+        await dialog.getByLabel(`${label} (min)`, {exact: true}).fill(String(minutes));
+        await dialog.getByLabel(`${label} (min)`, {exact: true}).press('Tab');
+    }
+    await dialog.getByText('Sauna session', {exact: true}).click();
+    await dialog.getByLabel('Round 1 (min)', {exact: true}).fill('15');
+    await dialog.getByLabel('Round 1 (min)', {exact: true}).press('Tab');
+    await expect(dialog.getByLabel('Duration (min)', {exact: true})).toHaveValue('55');
+    await dialog.getByLabel('Start time (optional)', {exact: true}).fill('23:30');
+    await dialog.getByLabel('Start time (optional)', {exact: true}).press('Tab');
+    await dialog.getByLabel('End time', {exact: true}).fill('28/09/2026 00:25');
+    await dialog.getByLabel('End time', {exact: true}).press('Tab');
+    for (const width of [390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await dialog.screenshot({path: testInfo.outputPath(`guided-review-timing-${width}.png`), animations: 'disabled'});
+    }
+    await dialog.getByRole('button', {name: 'Apply', exact: true}).click();
+    expect(errors).toEqual([]);
+    await expect(dialog).toBeHidden();
+    await expect(edit).toBeFocused();
+    const corrected = await draft();
+    expect(corrected.workout).toMatchObject({startTime: '23:30', endTime: '2026-09-27T22:25:00.000Z', durationMinutes: 55});
+    expect(corrected.timer).toEqual({elapsed: {warmUpMinutes: 300000, trainingMinutes: 1200000, cardioMinutes: 600000, stretchingMinutes: 300000}, runningPhase: null, startedAt: null});
+    const recorded = lines => lines.map(line => ({exerciseId: line.exerciseId, exerciseDurationMilliseconds: line.exerciseDurationMilliseconds,
+        exerciseElapsedBySegment: line.exerciseElapsedBySegment,
+        segments: line.segments.map(({repetitions, weight, skipped, guidedSegmentKey}) => ({repetitions, weight, skipped: !!skipped, guidedSegmentKey}))}));
+    expect(recorded(corrected.workout.lines)).toEqual(recorded(original.workout.lines));
+    expect(corrected.workout.plannedTargets).toEqual(original.workout.plannedTargets);
+    expect(corrected.recordingKey).toBe(original.recordingKey);
+    expect(writes).toEqual([]);
+    await expect(guided.getByRole('region', {name: 'Review workout'})).toContainText('Session duration: 55 min, including 15 min in sauna.');
+    await page.reload();
+    await page.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
+    await edit.click();
+    await expect(dialog.getByLabel('Start time (optional)', {exact: true})).toHaveValue('23:30');
+    await expect(dialog.getByLabel('End time', {exact: true})).toHaveValue('28/09/2026 00:25');
+    await expect(dialog.getByLabel('Duration (min)', {exact: true})).toHaveValue('55');
+    await dialog.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await guided.getByRole('button', {name: 'Save workout', exact: true}).click();
+    await expect(guided).toBeHidden();
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toMatchObject({recordingKey: original.recordingKey, startTime: '23:30', endTime: '2026-09-27T22:25:00.000Z', durationMinutes: 55,
+        warmUpMinutes: 5, trainingMinutes: 20, cardioMinutes: 10, stretchingMinutes: 5, saunaRoundsMinutes: [15]});
+    expect(writes[0].lines[0].exerciseDurationSeconds).toBe(12);
+    expect(writes[0].lines[0].segments).toMatchObject([{repetitions: 10, durationSeconds: null, breaths: null, weight: 20, skipped: false}]);
+    await page.reload();
+    const saved = await page.evaluate(() => fetch('/api/workouts').then(response => response.json()));
+    expect(saved[0]).toMatchObject({startTime: '23:30', endTime: '2026-09-27T22:25:00.000Z', durationMinutes: 55});
+});
+
+test('guided review validates corrected timing and freezes accepted phase totals', async ({page}) => {
+    await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[0], [{repetitions: 10, weight: 20}, {repetitions: 8, weight: 20}])]);
+    const guided = await startEstimatedPlan(page);
+    await page.clock.fastForward(12000);
+    await completeGuidedSetWithoutRest(page, guided);
+    await guided.getByRole('button', {name: 'Review', exact: true}).click();
+    const before = await page.evaluate(() => JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')));
+    await guided.locator('header').getByRole('button', {name: 'Edit workout', exact: true}).click();
+    const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
+    const training = dialog.getByLabel('Training (min)', {exact: true});
+    await training.fill(''); await training.press('Tab');
+    await dialog.getByRole('button', {name: 'Apply', exact: true}).click();
+    await expect(dialog.getByRole('alert')).toContainText('Enter all four duration values');
+    await expect(training).toBeFocused();
+    await training.fill('0'); await training.press('Tab');
+    await dialog.getByRole('button', {name: 'Apply', exact: true}).click();
+    await expect(dialog.getByRole('alert')).toContainText('Duration must be a positive whole number');
+    await training.fill('20'); await training.press('Tab');
+    const start = dialog.getByLabel('Start time (optional)', {exact: true});
+    await start.fill('10:00'); await start.press('Tab');
+    const end = dialog.getByLabel('End time', {exact: true});
+    await end.fill('27/09/2026 10:19'); await end.press('Tab');
+    await dialog.getByRole('button', {name: 'Apply', exact: true}).click();
+    await expect(dialog.getByRole('alert')).toContainText('End time must be at least the full duration after the start');
+    await end.fill('27/09/2026 10:20'); await end.press('Tab');
+    await dialog.getByRole('button', {name: 'Apply', exact: true}).click();
+    await expect(dialog).toBeHidden();
+    const draft = () => page.evaluate(() => JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')));
+    const corrected = await draft();
+    expect(corrected.timer.runningPhase).toBeNull();
+    expect(corrected.timer.startedAt).toBeNull();
+    expect(corrected.timer.elapsed.trainingMinutes).toBe(1200000);
+    expect(corrected.workout.lines[0].exerciseDurationMilliseconds).toBe(before.workout.lines[0].exerciseDurationMilliseconds);
+    await page.clock.fastForward(120000);
+    expect((await draft()).timer).toEqual(corrected.timer);
+    await expect(guided.getByRole('region', {name: 'Review workout'})).toContainText('Training: 20 min');
+});
+
 test('guided review edits cardio and removes an exercise before saving without changing recorded timing', async ({page}, testInfo) => {
     const state = await estimatedWorkoutPlan(page, exercises => [
         estimatedLine(exercises[0], [{repetitions: 10, weight: 20}]),
@@ -14789,6 +14906,16 @@ test('guided review Escape closes only the active overlay before cancelling buff
     await expect(page.getByRole('listbox')).toHaveCount(0);
     await expect(editor).toBeVisible();
     await expect(editor.getByLabel('Calories', {exact: true})).toHaveValue('210');
+    for (const label of ['Start time (optional)', 'End time']) {
+        const input = editor.getByLabel(label, {exact: true});
+        await input.click();
+        const panel = page.locator(`[id="${await input.getAttribute('aria-controls')}"]`);
+        await expect(panel).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(panel).toBeHidden();
+        await expect(editor).toBeVisible();
+        await expect(editor.getByLabel('Calories', {exact: true})).toHaveValue('210');
+    }
     for (const label of ['Exercise', 'Seconds']) {
         await editor.getByRole('combobox', {name: label, exact: true}).click();
         await expect(page.getByRole('listbox')).toBeVisible();
@@ -14863,6 +14990,8 @@ test('guided review excludes unlogged exercises and preserves skipped sets throu
 });
 
 test('guided review rejects deleting every exercise unless a valid sauna session remains', async ({page}) => {
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.stack));
     await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[0], [{repetitions: 10, weight: 20}])]);
     const guided = await startEstimatedPlan(page);
     await completeGuidedSetWithoutRest(page, guided);
@@ -14875,6 +15004,11 @@ test('guided review rejects deleting every exercise unless a valid sauna session
     await expect(editor).toContainText('Add at least one exercise');
     await editor.locator('label[for="workout-sauna-session"]').click();
     await editor.getByLabel(/Round 1 \(min\)/).fill('10');
+    await editor.getByRole('button', {name: 'Apply', exact: true}).click();
+    expect(errors).toEqual([]);
+    await expect(editor).toContainText('End time must be at least the full duration after the start');
+    await editor.getByLabel('End time', {exact: true}).fill('27/09/2026 12:11');
+    await editor.getByLabel('End time', {exact: true}).press('Tab');
     await editor.getByRole('button', {name: 'Apply', exact: true}).click();
     await expect(editor).toBeHidden();
     await expect(guided.getByRole('region', {name: 'Review workout'})).toBeVisible();
