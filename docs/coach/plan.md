@@ -656,3 +656,7 @@ Consumed foods use the existing meal Actions. Coach must read a saved recipe or 
 Manual Action attempts stay separate from Coach plans, routines and reflection storage; no Coach operation or ACTIVE_PLAN field is added. One semantic mapper supplies app/HTML/plain-text recommendations and owned opaque activation links. See [Actions](../actions.md) for date, history and identity rules.
 
 New weekly summaries freeze all three periods of nutrient intake, eligibility, coverage/estimates, current targets and exact dated allocations. Targets describe settings captured when saved, not historical goals. Legacy snapshots remain unchanged. Deploy backend support before publishing the optional WEEKLY schema, then compare live configuration hashes and verify fresh read-only context.
+
+## Proportionate feedback for isolated poor nights
+
+With fully covered healthy seven-day sleep results and an existing healthy longer-term trend through the selected date, briefly acknowledge an isolated nightly miss without a plan-score penalty or concern escalation solely for that night. Apply the rule to the title, summary, score rationale, watchouts and next actions; keep the actual nightly result, repeated/worsening evidence and other supported concerns accurate. Missing broader evidence stays unknown. Preserve nightly minima, server-derived warning goals and separately dated current warning evidence; no historical reflection rewriting. Verify the [fresh published scenarios](coach-gpt.md#isolated-poor-nights) and exact saved private GPT configuration.
