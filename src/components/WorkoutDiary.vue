@@ -306,6 +306,8 @@ export default {
     scrollSelectedTab() {
       this.$nextTick(() => {
         const tabs = this.$refs.workout_tabs;
+        // Navigation can unmount the diary before this queued scroll runs.
+        if (!tabs) return;
         tabs.$el.querySelector('[role="tab"][aria-selected="true"]').scrollIntoView({block: 'nearest', inline: 'nearest'});
         if (this.active_tab === 6) { tabs.$refs.content.scrollLeft = tabs.$refs.content.scrollWidth; tabs.updateButtonState(); }
       });

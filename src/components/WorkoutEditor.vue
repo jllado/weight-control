@@ -33,15 +33,15 @@
         <p v-else-if="planningPreloadsError" role="alert" class="error">{{ planningPreloadsError }} <Button label="Retry" class="p-button-text" @click="loadPlanningPreloads" /></p>
         <p v-else-if="!preload_options.length">No completed workouts yet.</p>
       </div>
-      <section v-if="guided_edit" aria-label="Recorded workout timing" class="p-mb-4"><strong>Recorded workout timing</strong><p>Phase totals remain unchanged while editing exercise content.</p><ul><li v-for="phase in durationPhases" :key="phase.key">{{ phase.label }}: {{ workout_form[phase.key] ?? 0 }} min</li><li>Total: {{ sessionDuration ?? 0 }} min</li></ul></section>
+      <section v-if="guided_edit && !guided_review" aria-label="Recorded workout timing" class="p-mb-4"><strong>Recorded workout timing</strong><p>Phase totals remain unchanged while editing exercise content.</p><ul><li v-for="phase in durationPhases" :key="phase.key">{{ phase.label }}: {{ workout_form[phase.key] ?? 0 }} min</li><li>Total: {{ sessionDuration ?? 0 }} min</li></ul></section>
       <WorkoutPhaseTimers v-if="!planning && !guided_edit" :draft="timerDraft" @start="startTimer" @stop="stopTimer" />
       <p v-if="timerError && !guided_edit" class="error" role="alert">{{ timerError }}</p>
       <p v-if="legacyTiming && !guided_edit" class="p-mb-3">Earlier training time may include cardio. New cardio time is recorded separately.</p>
-      <section v-if="!planning && !guided_edit" aria-label="Workout timing" class="p-mb-4">
+      <section v-if="!planning && (!guided_edit || guided_review)" aria-label="Workout timing" class="p-mb-4">
         <div class="p-grid">
           <div class="p-col-12 p-md-6 p-field">
             <label for="workout-start-time">Start time (optional)</label>
-            <Calendar inputId="workout-start-time" :disabled="timerRunning" v-model="workout_form.startTime" appendTo="body" :timeOnly="true" hourFormat="24" showButtonBar />
+            <Calendar :pt="timingCalendarPassThrough" inputId="workout-start-time" @show="editorOverlays.startTime = true" @hide="editorOverlays.startTime = false" :disabled="timerRunning" v-model="workout_form.startTime" appendTo="body" :timeOnly="true" hourFormat="24" showButtonBar />
           </div>
           <div class="p-col-12 p-md-6 p-field">
             <label for="workout-duration">Duration (min){{ workout_form.breakdown ? '' : ' (optional)' }}</label>
@@ -51,11 +51,11 @@
         </div>
         <div v-if="endTimeAvailable" class="p-field p-mb-3">
           <label for="workout-end-time">End time</label>
-          <Calendar inputId="workout-end-time" :modelValue="effectiveEndTime" :inputProps="endTimeInputProps()" :disabled="timerRunning" appendTo="body" dateFormat="dd/mm/yy" :showTime="true" hourFormat="24" showButtonBar @update:modelValue="setEndTime" />
+          <Calendar :pt="timingCalendarPassThrough" inputId="workout-end-time" @show="editorOverlays.endTime = true" @hide="editorOverlays.endTime = false" :modelValue="effectiveEndTime" :inputProps="endTimeInputProps()" :disabled="timerRunning" appendTo="body" dateFormat="dd/mm/yy" :showTime="true" hourFormat="24" showButtonBar @update:modelValue="setEndTime" />
           <small id="workout-end-time-help">Calculated from the start time and duration by default. It must be at least the full duration after the start.</small>
           <span v-if="workout_errors.endTime" id="workout-end-time-error" class="error" role="alert" data-workout-error data-error-target="workout-end-time">{{ workout_errors.endTime }}</span>
         </div>
-        <div class="workout-breakdown-toggle">
+        <div v-if="!guided_review" class="workout-breakdown-toggle">
           <Checkbox inputId="workout-breakdown" :disabled="!!timerDraft" v-model="workout_form.breakdown" :binary="true" @change="toggleDurationBreakdown" />
           <label for="workout-breakdown">Break down duration</label>
         </div>
@@ -404,11 +404,27 @@ export default {
   computed: {
     timerDraft() { return this.timerState.editor === this.timerEditor ? this.timerState.draft : null; },
     timerRunning() { return !!this.timerDraft?.runningPhase; },
+    timingCalendarPassThrough() {
+      return {
+        root: {onKeydown: event => { if (event.code === 'Escape' && event.defaultPrevented) event.stopPropagation(); }},
+        panel: {onKeydown: event => { if (event.code === 'Escape') event.stopPropagation(); }}
+      };
+    },
     sessionDuration() {
       if (!this.workout_form.breakdown) return this.workout_form.durationMinutes ?? (this.workout_form.saunaSession ? this.saunaDuration : null);
       const values = this.durationPhases.map(phase => this.workout_form[phase.key]);
       return values.some(value => value === null) ? null : values.reduce((sum, value) => sum + value, this.saunaDuration);
     },
+    reviewTimingChanged() {
+      if (!this.guided_review) return false;
+      const startTime = this.workout_form.startTime ? dayjs(this.workout_form.startTime).format('HH:mm') : null;
+      return this.durationPhases.some(({key}) => this.workout_form[key] !== (this.workout[key] ?? 0))
+          || this.sessionDuration !== this.workout.durationMinutes
+          || startTime !== (this.workout.startTime?.slice(0, 5) ?? null)
+          || this.workout_form.endTimeManual !== !!this.workout.endTime
+          || this.workout_form.endTimeManual && !this.preservingSourceEndTime;
+    },
+    validateTiming() { return !this.guided_edit || this.reviewTimingChanged; },
     endTimeAvailable() { return !this.planning && !!this.workout_form.startTime && (this.sessionDuration > 0 || this.workout_form.endTimeManual); },
     preservingSourceEndTime() {
       const {endTime, endTimeManual, endTimeSource} = this.workout_form;
@@ -510,7 +526,8 @@ export default {
     },
     starterSourceOverlayOpen() { return Object.values(this.starterSourceOverlays).some(Boolean); },
     editorOverlayOpen() {
-      return this.workout_form.lines.some(line => this.editorOverlays[`exercise-${line.localId}`] || this.editorOverlays[`mode-${line.localId}`] || line.segments.some(segment => this.editorOverlays[`seconds-${segment.localId}`]));
+      return this.editorOverlays.startTime || this.editorOverlays.endTime
+          || this.workout_form.lines.some(line => this.editorOverlays[`exercise-${line.localId}`] || this.editorOverlays[`mode-${line.localId}`] || line.segments.some(segment => this.editorOverlays[`seconds-${segment.localId}`]));
     },
     newManualWorkout() { return !this.planning && !this.workout && !this.resume_timer; },
     previousSourceOptions() { return this.preload_options.map(option => ({...option, workout: this.preload_workouts.find(workout => workout.id === option.id)})); },
@@ -701,11 +718,11 @@ export default {
         durationMinutes: workout.saunaSession && workout.warmUpMinutes == null
             && workout.durationMinutes === (workout.saunaRoundsMinutes ?? []).reduce((sum, minutes) => sum + minutes, 0)
             ? null : workout.durationMinutes ?? null,
-        warmUpMinutes: workout.warmUpMinutes ?? null,
-        trainingMinutes: workout.trainingMinutes ?? null,
-        stretchingMinutes: workout.stretchingMinutes ?? null,
-        cardioMinutes: workout.warmUpMinutes != null ? (workout.cardioMinutes ?? 0) : null,
-        breakdown: workout.warmUpMinutes != null,
+        warmUpMinutes: workout.warmUpMinutes ?? (this.guided_review ? 0 : null),
+        trainingMinutes: workout.trainingMinutes ?? (this.guided_review ? 0 : null),
+        stretchingMinutes: workout.stretchingMinutes ?? (this.guided_review ? 0 : null),
+        cardioMinutes: this.guided_review || workout.warmUpMinutes != null ? (workout.cardioMinutes ?? 0) : null,
+        breakdown: this.guided_review || workout.warmUpMinutes != null,
         lines: workout.lines.map(line => {
           const exercise = this.exercises.find(candidate => candidate.id === line.exerciseId);
           const cardioMetric = line.cardioMetric || exercise?.cardioMetric || null;
@@ -1079,7 +1096,7 @@ export default {
     },
     validateWorkoutForm(summary = 'Workout not saved') {
       const errors = {};
-      if (!this.planning && !this.guided_edit) {
+      if (!this.planning && this.validateTiming) {
         if (this.workout_form.breakdown && this.durationPhases.some(phase => !Number.isInteger(this.workout_form[phase.key]) || this.workout_form[phase.key] < 0)) {
           errors.durationMinutes = 'Enter all four duration values, using zero for phases you skipped';
         } else if ((this.workout_form.breakdown || this.sessionDuration !== null) && (!Number.isInteger(this.sessionDuration) || this.sessionDuration <= 0 || this.sessionDuration > 2147483647)) {
@@ -1099,8 +1116,8 @@ export default {
       } else if (this.saunaDuration > 2147483647) {
         errors.saunaRoundsMinutes = 'Total sauna time is too long; reduce the round minutes';
       }
-      if (!this.planning && !this.guided_edit && this.sessionDuration !== null && this.sessionDuration < this.saunaDuration) errors.durationMinutes = 'Duration cannot be shorter than sauna rounds';
-      if (!this.guided_edit && this.endTimeAvailable && this.workout_form.startTime) {
+      if (!this.planning && this.validateTiming && this.sessionDuration !== null && this.sessionDuration < this.saunaDuration) errors.durationMinutes = 'Duration cannot be shorter than sauna rounds';
+      if (this.validateTiming && this.endTimeAvailable && this.workout_form.startTime) {
         const startInstant = madridInstant(this.startDateTime());
         const endInstant = this.preservingSourceEndTime ? this.workout_form.endTimeSource : this.effectiveEndTime && madridInstant(this.effectiveEndTime);
         if (!startInstant || !endInstant) errors.endTime = 'Choose a valid end time for this date';
@@ -1176,6 +1193,27 @@ export default {
     toDurationSeconds(segment) {
       return (segment.durationMinutes || 0) * 60 + (segment.durationRemainder || 0);
     },
+    buildWorkoutTiming() {
+      const workout = {};
+      workout.startTime = this.workout_form.startTime ? dayjs(this.workout_form.startTime).format('HH:mm') : null;
+      let {warmUpMinutes, trainingMinutes, stretchingMinutes, cardioMinutes} = this.workout_form;
+      if (!this.guided_review && this.recordedCardioMinutes !== null) {
+        if (!this.workout_form.breakdown) {
+          warmUpMinutes = 0;
+          trainingMinutes = Math.max(0, (this.workout_form.durationMinutes || 0) - this.recordedCardioMinutes);
+          stretchingMinutes = 0;
+        }
+        cardioMinutes = Math.max(cardioMinutes || 0, this.recordedCardioMinutes);
+      }
+      workout.durationMinutes = warmUpMinutes === null ? this.sessionDuration : warmUpMinutes + trainingMinutes + stretchingMinutes + (cardioMinutes ?? 0) + this.saunaDuration;
+      Object.assign(workout, {warmUpMinutes, trainingMinutes, stretchingMinutes, cardioMinutes});
+      if (this.preservingSourceEndTime) {
+        workout.endTime = this.workout_form.endTimeSource;
+      } else {
+        workout.endTime = this.effectiveEndTime ? madridInstant(this.effectiveEndTime) : null;
+      }
+      return workout;
+    },
     buildWorkoutPayload() {
       const workout = new Workout();
       workout.id = this.workout_form.id;
@@ -1186,25 +1224,7 @@ export default {
       workout.plannedSaunaRoundsMinutes = this.workout_form.plannedSaunaRoundsMinutes;
       workout.workoutDate = this.workout_form.workoutDate;
       workout.note = this.workout_form.note || null;
-      if (!this.planning) {
-        workout.startTime = this.workout_form.startTime ? dayjs(this.workout_form.startTime).format('HH:mm') : null;
-        let {warmUpMinutes, trainingMinutes, stretchingMinutes, cardioMinutes} = this.workout_form;
-        if (this.recordedCardioMinutes !== null) {
-          if (!this.workout_form.breakdown) {
-            warmUpMinutes = 0;
-            trainingMinutes = Math.max(0, (this.workout_form.durationMinutes || 0) - this.recordedCardioMinutes);
-            stretchingMinutes = 0;
-          }
-          cardioMinutes = Math.max(cardioMinutes || 0, this.recordedCardioMinutes);
-        }
-        workout.durationMinutes = warmUpMinutes === null ? this.sessionDuration : warmUpMinutes + trainingMinutes + stretchingMinutes + (cardioMinutes ?? 0) + this.saunaDuration;
-        Object.assign(workout, {warmUpMinutes, trainingMinutes, stretchingMinutes, cardioMinutes});
-        if (this.preservingSourceEndTime) {
-          workout.endTime = this.workout_form.endTimeSource;
-        } else {
-          workout.endTime = this.effectiveEndTime ? madridInstant(this.effectiveEndTime) : null;
-        }
-      }
+      if (!this.planning) Object.assign(workout, this.buildWorkoutTiming());
       workout.lines = this.workout_form.lines.map(line => ({
         exerciseId: line.exerciseId,
         exerciseType: line.exerciseType,
@@ -1259,7 +1279,8 @@ export default {
     },
     applyGuidedEdit() {
       if (!this.validateWorkoutForm('Workout not applied')) return;
-      this.$emit('onApply', JSON.parse(JSON.stringify(this.workout_form)));
+      const form = {...this.workout_form, timing: this.reviewTimingChanged ? this.buildWorkoutTiming() : null};
+      this.$emit('onApply', JSON.parse(JSON.stringify(form)));
       this.close_modal();
     },
     close_modal() {

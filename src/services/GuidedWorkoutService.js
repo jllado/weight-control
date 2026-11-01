@@ -1,6 +1,6 @@
 import {reactive} from 'vue';
 import dayjs from 'dayjs';
-import {createPhaseTimer, pausePhaseTimer, switchPhaseTimer} from './WorkoutTimerService';
+import {createPhaseTimer, pausePhaseTimer, switchPhaseTimer, workoutPhases} from './WorkoutTimerService';
 
 export const guidedWorkoutState = reactive({draft: null, editor: null, resumeRequest: 0, discardRequest: 0, startRequest: 0, startSource: null});
 let storageKey;
@@ -249,6 +249,15 @@ export function applyGuidedWorkoutEdit(draft, form, now = Date.now()) {
         estimatedSecondsByLine: estimateByLine,
         completedSegmentKeys: [...completed].filter(key => lines.some(line => line.segments.some(segment => segment.guidedSegmentKey === key)))
     };
+    if (reviewEdit && form.timing) {
+        Object.assign(nextDraft.workout, form.timing);
+        nextDraft.timer = draft.timer ? {...draft.timer, elapsed: {...draft.timer.elapsed}} : createPhaseTimer(form.timing);
+        pausePhaseTimer(nextDraft.timer, now);
+        for (const {key} of workoutPhases) {
+            // Keep measured seconds when the displayed rounded phase was not corrected.
+            if (Math.ceil(nextDraft.timer.elapsed[key] / 60000) !== form.timing[key]) nextDraft.timer.elapsed[key] = form.timing[key] * 60000;
+        }
+    }
     const steps = guidedWorkoutSteps(nextDraft.workout);
     const segmentKeyAt = step => nextDraft.workout.lines[step.lineIndex].segments[step.segmentIndex].guidedSegmentKey;
     let chosenKey = oldCurrentKey && steps.some(step => segmentKeyAt(step) === oldCurrentKey) ? oldCurrentKey : null;
