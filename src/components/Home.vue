@@ -682,7 +682,7 @@
                     </div>
                   </template>
                   <div class="p-grid">
-                    <template v-if="last_weight && current_weight_trend">
+                    <template v-if="last_weight">
                       <div class="p-col-6">
                         <div id="fat-bar-status" />
                       </div>
@@ -701,17 +701,21 @@
                       <div class="p-col-7" :style="{color: last_weight.status().color}">{{ last_weight.status().name }}</div>
                       <div class="p-col-5">BMI: </div>
                       <div class="p-col-7">{{ last_weight.bmi().value }} <span :style="{color: last_weight.bmi().status().color}">{{ last_weight.bmi().status().name }}</span></div>
-                      <div class="p-col-5">Trend Weight-Loss: </div>
-                      <div class="p-col-7"><span v-bind:class="{'bad': current_weight_trend.lost_weight > 0, 'good': current_weight_trend.lost_weight <= 0}">{{ current_weight_trend.lost_weight > 0 ? '+' : '' }}{{ current_weight_trend.lost_weight }}kg</span></div>
-                      <div class="p-col-5">Trend Fat-Loss: </div>
-                      <div class="p-col-7"><span v-bind:class="{'bad': current_weight_trend.lost_fat > 0, 'good': current_weight_trend.lost_fat <= 0}">{{ current_weight_trend.lost_fat > 0 ? '+' : '' }}{{ current_weight_trend.lost_fat }}kg</span></div>
-                      <div class="p-col-5">Trend Muscle-Gain: </div>
-                      <div class="p-col-7"><span v-bind:class="{'good': current_weight_trend.lost_muscle >= 0, 'bad': current_weight_trend.lost_muscle < 0}">{{ current_weight_trend.lost_muscle > 0 ? '+' : '' }}{{ current_weight_trend.lost_muscle }}kg</span></div>
+                      <template v-if="current_weight_trend">
+                        <div class="p-col-5">Trend Weight-Loss: </div>
+                        <div class="p-col-7"><span v-bind:class="{'bad': current_weight_trend.lost_weight > 0, 'good': current_weight_trend.lost_weight <= 0}">{{ current_weight_trend.lost_weight > 0 ? '+' : '' }}{{ current_weight_trend.lost_weight }}kg</span></div>
+                        <div class="p-col-5">Trend Fat-Loss: </div>
+                        <div class="p-col-7"><span v-bind:class="{'bad': current_weight_trend.lost_fat > 0, 'good': current_weight_trend.lost_fat <= 0}">{{ current_weight_trend.lost_fat > 0 ? '+' : '' }}{{ current_weight_trend.lost_fat }}kg</span></div>
+                        <div class="p-col-5">Trend Muscle-Gain: </div>
+                        <div class="p-col-7"><span v-bind:class="{'good': current_weight_trend.lost_muscle >= 0, 'bad': current_weight_trend.lost_muscle < 0}">{{ current_weight_trend.lost_muscle > 0 ? '+' : '' }}{{ current_weight_trend.lost_muscle }}kg</span></div>
+                      </template>
+                      <div v-else class="p-col-12">Trend: Not enough data</div>
                       <div class="p-col-5">Streak: </div>
-                      <div class="p-col-7">{{ current_weight_strike }} days &lt; {{ last_weight.range() }} kg</div>
+                      <div class="p-col-7">{{ current_weight_strike }} {{ current_weight_strike === 1 ? 'day' : 'days' }} &lt; {{ last_weight.range() }} kg</div>
                       <div class="p-col-5">Fat Streak: </div>
-                      <div class="p-col-7">{{ current_fat_percentage_strike }} days &lt;= {{ last_weight.fat_percentage_threshold() }}%</div>
+                      <div class="p-col-7">{{ current_fat_percentage_strike }} {{ current_fat_percentage_strike === 1 ? 'day' : 'days' }} &lt;= {{ last_weight.fat_percentage_threshold() }}%</div>
                     </template>
+                    <div v-if="!last_weight" class="p-col-12">Not recorded</div>
                     <div class="p-col-5">In shape: </div>
                     <div class="p-col-7" role="status" aria-label="In shape">
                       <template v-if="in_shape_duration.days === null">Not enough data</template>
@@ -722,7 +726,7 @@
                     </div>
                     <template v-if="last_weight && current_weight_trend">
                       <div class="p-col-5">Next Goal: </div>
-                      <div class="p-col-7">{{ months_next_range }} months for {{ last_weight.next_range() }} kg</div>
+                      <div class="p-col-7">{{ months_next_range === undefined ? 'Not enough data' : `${months_next_range} months for ${last_weight.next_range()} kg` }}</div>
                     </template>
                   </div>
                   <PersonalRecordSummary :records="records_for('Body')" layout="table" />
@@ -736,7 +740,7 @@
                       <CreateBloodPressure :initial_date="daily_status.date" :blood_pressure="get_blood_pressure_for(daily_status.date)" fixed_date @onSave="load_all" />
                     </div>
                   </template>
-                  <div class="p-grid" v-if="last_blood_pressure && current_blood_pressure_trend" >
+                  <div class="p-grid" v-if="last_blood_pressure" >
                     <div class="p-col-5">Date: </div>
                     <div class="p-col-7">{{ last_blood_pressure.dateFormat }}</div>
                     <div class="p-col-5">Status: </div>
@@ -745,23 +749,27 @@
                     <div class="p-col-7">{{ last_blood_pressure.upper }} mm Hg <span class="extra_info" v-bind:class="{'bad': last_blood_pressure.lost_upper > 0, 'good': last_blood_pressure.lost_upper <= 0}">{{ last_blood_pressure.lost_upper >= 0 ? '+' : '' }}{{ last_blood_pressure.lost_upper }} mm Hg</span></div>
                     <div class="p-col-5">Lower: </div>
                     <div class="p-col-7">{{ last_blood_pressure.lower }} mm Hg <span class="extra_info" v-bind:class="{'bad': last_blood_pressure.lost_lower > 0, 'good': last_blood_pressure.lost_lower <= 0}">{{ last_blood_pressure.lost_lower >= 0 ? '+' : '' }}{{ last_blood_pressure.lost_lower }} mm Hg</span></div>
-                    <div class="p-col-5">Trend Status: </div>
-                    <div class="p-col-7" :style="{color: current_blood_pressure_trend.stage().color}">{{ current_blood_pressure_trend.stage().name }}</div>
-                    <div class="p-col-5">Trend Upper: </div>
-                    <div class="p-col-7">
-                      {{ current_blood_pressure_trend.upper }} mm Hg
-                      <span class="extra_info" v-bind:class="{'bad': current_blood_pressure_trend.lost_upper > 0, 'good': current_blood_pressure_trend.lost_upper <= 0}">
-                        {{ current_blood_pressure_trend.lost_upper >= 0 ? '+' : '' }}{{ current_blood_pressure_trend.lost_upper }}
-                      </span>
-                    </div>
-                    <div class="p-col-5">Trend Lower: </div>
-                    <div class="p-col-7">
-                      {{ current_blood_pressure_trend.lower }} mm Hg
-                      <span class="extra_info" v-bind:class="{'bad': current_blood_pressure_trend.lost_lower > 0, 'good': current_blood_pressure_trend.lost_lower <= 0}">
-                        {{ current_blood_pressure_trend.lost_lower >= 0 ? '+' : '' }}{{ current_blood_pressure_trend.lost_lower }}
-                      </span>
-                    </div>
+                    <template v-if="current_blood_pressure_trend">
+                      <div class="p-col-5">Trend Status: </div>
+                      <div class="p-col-7" :style="{color: current_blood_pressure_trend.stage().color}">{{ current_blood_pressure_trend.stage().name }}</div>
+                      <div class="p-col-5">Trend Upper: </div>
+                      <div class="p-col-7">
+                        {{ current_blood_pressure_trend.upper }} mm Hg
+                        <span class="extra_info" v-bind:class="{'bad': current_blood_pressure_trend.lost_upper > 0, 'good': current_blood_pressure_trend.lost_upper <= 0}">
+                          {{ current_blood_pressure_trend.lost_upper >= 0 ? '+' : '' }}{{ current_blood_pressure_trend.lost_upper }}
+                        </span>
+                      </div>
+                      <div class="p-col-5">Trend Lower: </div>
+                      <div class="p-col-7">
+                        {{ current_blood_pressure_trend.lower }} mm Hg
+                        <span class="extra_info" v-bind:class="{'bad': current_blood_pressure_trend.lost_lower > 0, 'good': current_blood_pressure_trend.lost_lower <= 0}">
+                          {{ current_blood_pressure_trend.lost_lower >= 0 ? '+' : '' }}{{ current_blood_pressure_trend.lost_lower }}
+                        </span>
+                      </div>
+                    </template>
+                    <div v-else class="p-col-12">Trend: Not enough data</div>
                   </div>
+                  <div v-else>Not recorded</div>
                   <PersonalRecordSummary :records="records_for('Blood pressure')" layout="table" />
                 </Panel>
               </div>
@@ -785,7 +793,7 @@
                     <div class="p-col-5">Triglycerides: </div>
                     <div class="p-col-7">{{ last_lipid_panel.triglycerides }} mg/dL <span :class="last_lipid_panel.metricStatus('triglycerides', state.user.profile.sex).className">{{ last_lipid_panel.metricStatus('triglycerides', state.user.profile.sex).label }}</span> <span class="extra_info" :class="last_lipid_panel.changeClass('triglycerides', last_lipid_panel.triglyceridesChange)">{{ last_lipid_panel.formatChange(last_lipid_panel.triglyceridesChange) }}</span></div>
                   </div>
-                  <div v-else>No lipid panels yet.</div>
+                  <div v-else>Not recorded</div>
                   <PersonalRecordSummary :records="records_for('Lipids')" layout="table" />
                 </Panel>
               </div>
@@ -876,16 +884,14 @@
                 <div class="p-col-7">
                   <span>{{ this.get_sleep_for(this.daily_status.date) ? this.get_sleep_for(this.daily_status.date).hrvFormat() : 'Not recorded' }}</span>
                 </div>
-                <template v-if="last_sleep">
-                  <div class="p-col-5">Bedtime: </div>
-                  <div class="p-col-7">{{ last_sleep.bedtimeWindowFormat() }}</div>
-                  <div class="p-col-5">Total bedtime: </div>
-                  <div class="p-col-7">{{ last_sleep.totalBedtimeFormat() }}</div>
-                  <div class="p-col-5">Deep / REM / Light: </div>
-                  <div class="p-col-7">{{ last_sleep.deepSleepDurationFormat() }} / {{ last_sleep.remSleepDurationFormat() }} / {{ last_sleep.lightSleepDurationFormat() }}</div>
-                  <div class="p-col-5">Awake: </div>
-                  <div class="p-col-7">{{ last_sleep.awakeTimeFormat() }}</div>
-                </template>
+                <div class="p-col-5">Bedtime: </div>
+                <div class="p-col-7">{{ selected_sleep ? selected_sleep.bedtimeWindowFormat() : 'Not recorded' }}</div>
+                <div class="p-col-5">Total bedtime: </div>
+                <div class="p-col-7">{{ selected_sleep ? selected_sleep.totalBedtimeFormat() : 'Not recorded' }}</div>
+                <div class="p-col-5">Deep / REM / Light: </div>
+                <div class="p-col-7">{{ selected_sleep ? `${selected_sleep.deepSleepDurationFormat()} / ${selected_sleep.remSleepDurationFormat()} / ${selected_sleep.lightSleepDurationFormat()}` : 'Not recorded' }}</div>
+                <div class="p-col-5">Awake: </div>
+                <div class="p-col-7">{{ selected_sleep ? selected_sleep.awakeTimeFormat() : 'Not recorded' }}</div>
                 <div class="p-col-5">Trend Status: </div>
                 <div class="p-col-7">
                   <span v-if="this.current_sleep_status" :class="this.current_sleep_status.className">{{ this.current_sleep_status.name }} ({{ this.current_sleep_status.score }}/4)</span>
@@ -1447,9 +1453,6 @@ export default {
       week_ago_status: undefined,
       last_week_daily_status: undefined,
       wins_and_misses_status: undefined,
-      last_weight: undefined,
-      last_blood_pressure: undefined,
-      last_lipid_panel: undefined,
       last_sleep: undefined,
       workout_days: [],
       current_workouts: [],
@@ -1552,6 +1555,12 @@ export default {
     }
   },
   computed: {
+    selected_sleep() { return this.get_sleep_for(this.daily_status.date); },
+    selected_weights() { return summaryService.get_measures_through(this.daily_status.date, this.weights); },
+    selected_blood_pressures() { return summaryService.get_measures_through(this.daily_status.date, this.blood_pressures); },
+    last_weight() { return this.selected_weights[0]; },
+    last_blood_pressure() { return this.selected_blood_pressures[0]; },
+    last_lipid_panel() { return summaryService.get_measures_through(this.daily_status.date, this.lipid_panels)[0]; },
     in_shape_duration() {
       return summaryService.get_in_shape_duration(this.daily_status.date, this.weights, this.state.user.profile.inShapeBodyFatLimit);
     },
@@ -1716,6 +1725,11 @@ export default {
     'daily_status.date'(date) {
       this.load_weekly_calorie_plan(date);
       if (this.loaded_dashboard_tabs.calories) this.load_calorie_trends();
+      if (this.loaded_dashboard_tabs.sleep) this.load_sleep_trends();
+      if (this.loaded_dashboard_tabs.body) {
+        this.load_body_trends();
+        this.render_body_status_bars();
+      }
     },
     'pauseUi.decisionRevision'() { this.decision_outcome_saved(); },
     async '$route.fullPath'() {
@@ -3225,18 +3239,15 @@ export default {
     },
     async load_all_weights() {
       this.weights = await weightService.get_all_by(this.state.user.mail);
-      this.last_weight = this.weights[0];
     },
     async load_personal_records() {
       this.personal_records = await personalRecordService.getCurrent();
     },
     async load_all_blood_pressures() {
       this.blood_pressures = await bloodPressureService.get_all_by(this.state.user.mail);
-      this.last_blood_pressure = this.blood_pressures[0];
     },
     async load_all_lipid_panels() {
       this.lipid_panels = await lipidPanelService.get_all();
-      this.last_lipid_panel = this.lipid_panels[0];
     },
     async load_all_moods() {
       this.moods = await moodService.get_all_by(this.state.user.mail);
@@ -3459,11 +3470,6 @@ export default {
         if (tab === 'body') {
           await Promise.all([this.load_all_weights(), this.load_all_blood_pressures(), this.load_all_lipid_panels(), this.load_personal_records()]);
           this.load_body_trends();
-          if (this.last_weight && this.current_weight_trend) {
-            this.load_current_weight_strike();
-            this.load_current_fat_percentage_strike();
-            this.load_months_next_range();
-          }
         } else if (tab === 'back') {
           await this.load_all_back_pain_episodes();
         } else if (tab === 'sleep') {
@@ -3496,9 +3502,14 @@ export default {
       }
     },
     async render_body_status_bars() {
-      if (this.active_dashboard_tab !== 2 || !this.last_weight || !this.current_weight_trend) {
+      if (!this.last_weight) {
+        this.fat_status_bar?.dispose();
+        this.bmi_status_bar?.dispose();
+        this.fat_status_bar = undefined;
+        this.bmi_status_bar = undefined;
         return;
       }
+      if (this.active_dashboard_tab !== 2) return;
       await nextTick();
       if (!this.fat_status_bar) {
         await this.init_fat_status_bar();
@@ -3506,6 +3517,8 @@ export default {
       if (!this.bmi_status_bar) {
         await this.init_bmi_status_bar();
       }
+      this.set_fat_status_bar_data();
+      this.set_bmi_status_bar_data();
     },
     async show_charts() {
       this.charts_visible = true;
@@ -3527,8 +3540,13 @@ export default {
       this.charts_observer.observe(this.$refs.charts_trigger);
     },
     load_body_trends() {
-      this.current_weight_trend = this.last_weight ? summaryService.get_weight_trend(this.weights) : undefined;
-      this.current_blood_pressure_trend = this.last_blood_pressure ? summaryService.get_blood_pressure_trend(this.blood_pressures) : undefined;
+      this.current_weight_trend = this.last_weight ? summaryService.get_weight_trend(this.selected_weights, this.daily_status.date) : undefined;
+      this.current_blood_pressure_trend = this.last_blood_pressure ? summaryService.get_blood_pressure_trend(this.selected_blood_pressures, this.daily_status.date) : undefined;
+      if (this.last_weight) {
+        this.load_current_weight_strike();
+        this.load_current_fat_percentage_strike();
+      }
+      if (this.current_weight_trend) this.load_months_next_range();
     },
     load_sleep_trends() {
       const current_period_sleeps = summaryService.get_rolling_period_measures_for(this.daily_status.date, this.sleeps);
@@ -3573,17 +3591,17 @@ export default {
     },
     load_current_weight_strike() {
       let range = this.last_weight.range();
-      this.current_weight_strike = summaryService.get_weight_strike_days(range, this.weights);
+      this.current_weight_strike = summaryService.get_weight_strike_days(range, this.selected_weights, this.daily_status.date);
     },
     load_current_fat_percentage_strike() {
       let threshold = this.last_weight.fat_percentage_threshold();
-      this.current_fat_percentage_strike = summaryService.get_fat_percentage_strike_days(threshold, this.weights);
+      this.current_fat_percentage_strike = summaryService.get_fat_percentage_strike_days(threshold, this.selected_weights, this.daily_status.date);
     },
     load_months_next_range() {
-      this.months_next_range = this.last_weight.months_next_range(this.current_weight_trend)
+      this.months_next_range = this.current_weight_trend.lost_weight === 0 ? undefined : this.last_weight.months_next_range(this.current_weight_trend)
     },
     load_chart_data: async function () {
-      if (!this.last_weight && !this.last_sleep && this.routines.length === 0 && this.calories.length === 0 && this.moods.length === 0 && this.lipid_panels.length === 0 && !this.coach_metrics.selectedWeek) {
+      if (this.weights.length === 0 && !this.last_sleep && this.routines.length === 0 && this.calories.length === 0 && this.moods.length === 0 && this.lipid_panels.length === 0 && !this.coach_metrics.selectedWeek) {
         return;
       }
       if (this.routines.length > 0) {
@@ -3599,7 +3617,7 @@ export default {
         this.routines_chart_data = undefined;
         this.selected_routine_chart_data = undefined;
       }
-      if (this.last_weight) {
+      if (this.weights.length > 0) {
         let from_date = get_measures_from_date(this.chart_type, this.weights, this.blood_pressures);
         let month_measures = get_month_measures_from(from_date, this.weights, this.blood_pressures);
         this.weight_chart_data = build_month_weight_chart(month_measures, this.chart_type);

@@ -16565,7 +16565,7 @@ test.describe('personal in-shape body-fat duration', () => {
         await expect(page.getByRole('status',{name:'In shape',exact:true})).toHaveText('2 days');
         const fatStreak=await page.getByText('Fat Streak:',{exact:true}).locator('+ div').innerText();
         expect(fatStreak).toContain('<= 17%');
-        await expect(page.getByText('Streak:',{exact:true}).locator('+ div')).toHaveText('0 days < 85 kg');
+        await expect(page.getByText('Streak:',{exact:true}).locator('+ div')).toHaveText('11 days < 85 kg');
         await openSpaRoute(page,'/settings');
         const settings=page.locator('.p-panel').filter({has:page.getByText('Settings',{exact:true})}).first();
         const input=page.getByRole('spinbutton',{name:'In-shape body-fat limit (%)',exact:true});
@@ -16590,6 +16590,133 @@ test.describe('personal in-shape body-fat duration', () => {
         await expect(page.getByText('Fat Streak:',{exact:true}).locator('+ div')).toHaveText(fatStreak);
         expect(JSON.stringify(weights)).toBe(originalWeights);
         await expect(page.locator('.p-toast-message-error')).toHaveCount(0);
+        expect(errors).toEqual([]);
+    });
+});
+
+test.describe('dashboard selected-date consistency', () => {
+    test.use({timezoneId: 'Europe/Madrid'});
+
+    async function datedNavigation(page, initialDate) {
+        let selected = initialDate;
+        await page.route(url => /^\/api\/dashboard(?:\/(advance|retreat|refresh))?$/.test(url.pathname), route => {
+            const path = new URL(route.request().url()).pathname;
+            if (path.endsWith('/retreat') || path.endsWith('/advance')) {
+                const day = new Date(`${selected}T12:00:00Z`);
+                day.setUTCDate(day.getUTCDate() + (path.endsWith('/retreat') ? -1 : 1));
+                selected = day.toISOString().slice(0, 10);
+            }
+            const previous = new Date(`${selected}T12:00:00Z`);
+            previous.setUTCDate(previous.getUTCDate() - 7);
+            return route.fulfill({json: {...dashboard, anchorDate: selected, dailyStatus: dashboardDailyStatus(selected), lastWeekDailyStatus: dashboardDailyStatus(previous.toISOString().slice(0, 10))}});
+        });
+    }
+
+    test('sleep uses one exact-day record through missing days, DST navigation and reload', async ({page}, testInfo) => {
+        const errors = [];
+        page.on('pageerror', error => errors.push(error.message));
+        await page.clock.install({time: new Date('2026-10-28T12:00:00Z')});
+        const sleeps = [
+            {...sleepHistory('2026-10-27', 1)[0], id: 3, bedtimeStart: '2026-10-26T22:00:00+01:00', bedtimeEnd: '2026-10-27T06:00:00+01:00', deepSleepDuration: 7200, averageHeartRate: 99},
+            {...sleepHistory('2026-10-25', 1)[0], id: 2, bedtimeStart: '2026-10-24T23:30:00+02:00', bedtimeEnd: '2026-10-25T07:30:00+01:00', totalSleepDuration: 28800, deepSleepDuration: 3600, remSleepDuration: 7200, lightSleepDuration: 18000, awakeTime: 3600, averageHeartRate: 55, averageHrv: 42}
+        ];
+        await mockAuthenticatedDashboard(page, '2026-10-25', {initialSleeps: sleeps});
+        await datedNavigation(page, '2026-10-25');
+        await openSpaRoute(page, '/');
+        const tabs = page.locator('.home-panels-tabs');
+        await tabs.getByRole('tab', {name: /^Sleep/}).click();
+        const panel = tabs.locator('.p-tabview-panel:visible');
+        const value = label => panel.getByText(label, {exact: true}).locator('+ div');
+        await expect(value('Bedtime:')).toHaveText('24/10 23:30 - 25/10 07:30');
+        await expect(value('Total bedtime:')).toHaveText('9.0 h');
+        await expect(value('Deep / REM / Light:')).toHaveText('1.0 h / 2.0 h / 5.0 h');
+        await expect(value('Awake:')).toHaveText('1.0 h');
+        await expect(value('Today Average Heart Rate:')).toHaveText('55 bpm');
+        await expect(value('Today HRV:')).toHaveText('42 ms');
+        for (const width of [390, 1280]) {
+            await page.setViewportSize({width, height: 900});
+            await panel.screenshot({path: testInfo.outputPath(`selected-sleep-${width}.png`)});
+        }
+        await page.getByRole('button', {name: 'New Day', exact: true}).click();
+        for (const label of ['Bedtime:', 'Total bedtime:', 'Deep / REM / Light:', 'Awake:', 'Today Average Heart Rate:', 'Today HRV:']) await expect(value(label)).toHaveText('Not recorded');
+        await page.reload();
+        await tabs.getByRole('tab', {name: /^Sleep/}).click();
+        await expect(value('Bedtime:')).toHaveText('Not recorded');
+        await page.getByRole('button', {name: 'Previous Day', exact: true}).click();
+        await expect(value('Total bedtime:')).toHaveText('9.0 h');
+        await page.getByRole('button', {name: 'Previous Day', exact: true}).click();
+        await expect(value('Bedtime:')).toHaveText('Not recorded');
+        await expect(value('Trend Total Sleep:')).toHaveText('Not enough data');
+        expect(errors).toEqual([]);
+    });
+
+    test('loaded sleep trends recompute their selected-date windows on backward and forward navigation', async ({page}) => {
+        await page.clock.install({time: new Date('2026-08-15T12:00:00Z')});
+        const sleeps = sleepHistory('2026-08-12', 60).map((sleep, index) => sleepWithElapsedHours(sleep, index < 30 ? 8 : 7));
+        sleeps.unshift({...sleepWithElapsedHours(sleepHistory('2026-08-13', 1)[0], 20), id: 100});
+        await mockAuthenticatedDashboard(page, '2026-08-12', {initialSleeps: sleeps});
+        await datedNavigation(page, '2026-08-12');
+        await openSpaRoute(page, '/');
+        const tabs = page.locator('.home-panels-tabs');
+        await tabs.getByRole('tab', {name: /^Sleep/}).click();
+        const trend = tabs.getByText('Trend Time in bed:', {exact: true}).locator('+ div');
+        await expect(trend).toHaveText('8.0 h +60 min');
+        await page.getByRole('button', {name: 'New Day', exact: true}).click();
+        await expect(trend).toHaveText('8.4 h +82 min');
+        await page.getByRole('button', {name: 'Previous Day', exact: true}).click();
+        await expect(trend).toHaveText('8.0 h +60 min');
+        await page.getByRole('button', {name: 'Previous Day', exact: true}).click();
+        await expect(trend).toHaveText('8.0 h +58 min');
+    });
+
+    test('Last body values retain their record dates and exclude future evidence across navigation', async ({page}, testInfo) => {
+        const errors = [];
+        page.on('pageerror', error => errors.push(error.message));
+        await page.clock.install({time: new Date('2026-10-28T12:00:00Z')});
+        await mockAuthenticatedDashboard(page, '2026-10-25', {initialLipidPanels: [
+            {id: 2, date: '2026-10-26', totalCholesterol: 299, hdlCholesterol: 60, ldlCholesterol: 190, triglycerides: 150},
+            {id: 1, date: '2026-10-24', totalCholesterol: 180, hdlCholesterol: 60, ldlCholesterol: 100, triglycerides: 90}
+        ]});
+        await datedNavigation(page, '2026-10-25');
+        await page.route('**/api/weights', route => route.fulfill({json: [
+            {...reminderWeight('2026-10-26'), date: '2026-10-26T08:00:00+01:00', id: 2, weight: 99, lostWeight: 19},
+            {...reminderWeight('2026-10-24'), id: 1, weight: 80}
+        ]}));
+        await page.route('**/api/blood-pressures', route => route.fulfill({json: [
+            {id: 2, date: '2026-10-26T08:00:00+01:00', upper: 190, lower: 120, lostUpper: 70, lostLower: 40},
+            {id: 1, date: '2026-10-24T08:00:00+02:00', upper: 120, lower: 80, lostUpper: 0, lostLower: 0}
+        ]}));
+        await openSpaRoute(page, '/');
+        const tabs = page.locator('.home-panels-tabs');
+        await tabs.getByRole('tab', {name: 'Body', exact: true}).click();
+        const panel = name => tabs.locator('.p-panel').filter({has: page.locator('.table-header strong', {hasText: name})});
+        await expect(panel('Last Weight')).toContainText('24/10/2026');
+        await expect(panel('Last Weight')).toContainText('80 kg');
+        await expect(panel('Last Weight')).not.toContainText('99 kg');
+        await expect(panel('Last Weight').getByText('Trend Weight-Loss:', {exact: true}).locator('+ div')).toHaveText('0kg');
+        await expect(panel('Last Weight').getByText('Streak:', {exact: true}).locator('+ div')).toHaveText('1 day < 85 kg');
+        await expect(panel('Last Weight').getByText('Next Goal:', {exact: true}).locator('+ div')).toHaveText('Not enough data');
+        await expect(panel('Last Pressure')).toContainText('24/10/2026');
+        await expect(panel('Last Pressure')).toContainText('120 mm Hg');
+        await expect(panel('Last Pressure')).toContainText('Not enough data');
+        await expect(panel('Latest Lipid Panel')).toContainText('24/10/2026');
+        await expect(panel('Latest Lipid Panel')).toContainText('180 mg/dL');
+        for (const width of [390, 1280]) {
+            await page.setViewportSize({width, height: 900});
+            await tabs.locator('.p-tabview-panel:visible').screenshot({path: testInfo.outputPath(`selected-body-${width}.png`)});
+        }
+        await page.getByRole('button', {name: 'New Day', exact: true}).click();
+        await expect(panel('Last Weight')).toContainText('99 kg');
+        await expect(panel('Last Weight').getByText('Trend Weight-Loss:', {exact: true}).locator('+ div')).toHaveText('+19kg');
+        await expect(panel('Last Pressure')).toContainText('190 mm Hg');
+        await page.reload();
+        await tabs.getByRole('tab', {name: 'Body', exact: true}).click();
+        await expect(panel('Last Weight')).toContainText('99 kg');
+        for (let index = 0; index < 3; index++) await page.getByRole('button', {name: 'Previous Day', exact: true}).click();
+        for (const name of ['Last Weight', 'Last Pressure', 'Latest Lipid Panel']) await expect(panel(name)).toContainText('Not recorded');
+        await page.getByRole('button', {name: 'New Day', exact: true}).click();
+        await expect(panel('Last Weight')).toContainText('80 kg');
+        await expect(panel('Last Pressure')).toContainText('120 mm Hg');
         expect(errors).toEqual([]);
     });
 });
