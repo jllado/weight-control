@@ -93,6 +93,7 @@ export default {
         const previous_time_in_bed = this.get_average_time_in_bed(this.get_rolling_period_measures_for(referenceDate, sleeps, 1));
         const has_time_in_bed_comparison = current_time_in_bed !== null && previous_time_in_bed !== null;
         const has_bedtime_comparison = current_average_sleep.bedtimeStartMinutes !== null && previous_average_sleep.bedtimeStartMinutes !== null;
+        const has_wake_time_comparison = current_average_sleep.bedtimeEndMinutes !== null && previous_average_sleep.bedtimeEndMinutes !== null;
         return new SleepTrendSummaryData(
             current_average_sleep.totalSleepDuration,
             this.round(current_average_sleep.totalSleepDuration - previous_average_sleep.totalSleepDuration),
@@ -111,7 +112,9 @@ export default {
             has_bedtime_comparison ? current_average_sleep.bedtimeStartMinutes : null,
             has_bedtime_comparison ? Math.round(current_average_sleep.bedtimeStartMinutes - previous_average_sleep.bedtimeStartMinutes) : null,
             has_time_in_bed_comparison ? current_time_in_bed : null,
-            has_time_in_bed_comparison ? current_time_in_bed - previous_time_in_bed : null
+            has_time_in_bed_comparison ? current_time_in_bed - previous_time_in_bed : null,
+            has_wake_time_comparison ? current_average_sleep.bedtimeEndMinutes : null,
+            has_wake_time_comparison ? Math.round(current_average_sleep.bedtimeEndMinutes - previous_average_sleep.bedtimeEndMinutes) : null
         );
     },
     get_calorie_trend(calories, referenceDate = this.get_last_date(calories)) {
@@ -413,7 +416,7 @@ class SleepSummaryData {
 }
 
 class SleepTrendSummaryData {
-    constructor(totalSleepDuration, lostTotalSleepDuration, deepSleepDuration, lostDeepSleepDuration, remSleepDuration, lostRemSleepDuration, lightSleepDuration, lostLightSleepDuration, awakeTime, lostAwakeTime, averageHeartRate, lostAverageHeartRate, averageHrv, lostAverageHrv, bedtimeStartMinutes, bedtimeChangeMinutes, timeInBedSeconds, timeInBedChangeSeconds) {
+    constructor(totalSleepDuration, lostTotalSleepDuration, deepSleepDuration, lostDeepSleepDuration, remSleepDuration, lostRemSleepDuration, lightSleepDuration, lostLightSleepDuration, awakeTime, lostAwakeTime, averageHeartRate, lostAverageHeartRate, averageHrv, lostAverageHrv, bedtimeStartMinutes, bedtimeChangeMinutes, timeInBedSeconds, timeInBedChangeSeconds, bedtimeEndMinutes, wakeTimeChangeMinutes) {
         this.totalSleepDuration = totalSleepDuration;
         this.lostTotalSleepDuration = lostTotalSleepDuration;
         this.deepSleepDuration = deepSleepDuration;
@@ -432,6 +435,8 @@ class SleepTrendSummaryData {
         this.bedtimeChangeMinutes = bedtimeChangeMinutes;
         this.timeInBedSeconds = timeInBedSeconds;
         this.timeInBedChangeSeconds = timeInBedChangeSeconds;
+        this.bedtimeEndMinutes = bedtimeEndMinutes;
+        this.wakeTimeChangeMinutes = wakeTimeChangeMinutes;
     }
 }
 
