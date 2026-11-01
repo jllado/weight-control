@@ -1692,7 +1692,8 @@ export default {
           'Awake Time',
           'Average Heart Rate',
           'Average HRV',
-          'Bedtime'
+          'Bedtime',
+          'Wake time'
         ].map(label => ({label, value: 'Not enough data'}));
       }
       const trend = this.current_sleep_trend;
@@ -1706,7 +1707,8 @@ export default {
         {label: 'Awake Time', value: this.format_sleep_duration(trend.awakeTime), change: this.format_sleep_trend(trend.lostAwakeTime), className: this.get_heart_rate_trend_class(trend.lostAwakeTime)},
         {label: 'Average Heart Rate', valueClassName: getHeartRateMetricColor(trend.averageHeartRate, this.daily_status.date, this.sleeps), value: `${trend.averageHeartRate} bpm`, change: this.format_sleep_metric_trend(trend.lostAverageHeartRate, 'bpm'), className: this.get_heart_rate_trend_class(trend.lostAverageHeartRate)},
         {label: 'Average HRV', valueClassName: getHrvMetricColor(trend.averageHrv, this.daily_status.date, this.sleeps), value: `${trend.averageHrv} ms`, change: this.format_sleep_metric_trend(trend.lostAverageHrv, 'ms'), className: this.get_hrv_trend_class(trend.lostAverageHrv)},
-        {label: 'Bedtime', value: trend.bedtimeStartMinutes === null ? 'Not enough data' : formatTimeOfDayFromMinutes(trend.bedtimeStartMinutes), change: trend.bedtimeChangeMinutes === null ? undefined : this.format_bedtime_trend(trend.bedtimeChangeMinutes)}
+        {label: 'Bedtime', value: trend.bedtimeStartMinutes === null ? 'Not enough data' : formatTimeOfDayFromMinutes(trend.bedtimeStartMinutes), change: trend.bedtimeChangeMinutes === null ? undefined : this.format_sleep_metric_trend(trend.bedtimeChangeMinutes, 'min'), className: this.get_heart_rate_trend_class(trend.bedtimeChangeMinutes)},
+        {label: 'Wake time', value: trend.bedtimeEndMinutes === null ? 'Not enough data' : formatTimeOfDayFromMinutes(trend.bedtimeEndMinutes), change: trend.wakeTimeChangeMinutes === null ? undefined : this.format_sleep_metric_trend(trend.wakeTimeChangeMinutes, 'min')}
       ].map(metric => ({...metric, valueStatus: statusNames[metric.valueClassName]}));
     }
   },
@@ -2386,9 +2388,6 @@ export default {
         return `${sign}${Math.round(Math.abs(value) / 60)} min`;
       }
       return `${sign}${formatDuration(Math.abs(value))}`;
-    },
-    format_bedtime_trend(minutes) {
-      return minutes === 0 ? 'No change' : `${Math.abs(minutes)} min ${minutes < 0 ? 'earlier' : 'later'}`;
     },
     format_calorie_trend(value) {
       if (value === null || value === undefined) {

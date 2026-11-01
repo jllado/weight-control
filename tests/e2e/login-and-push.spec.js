@@ -3044,10 +3044,11 @@ test('dashboard shows all sleep status trends', async ({page}) => {
     await expect(panel.getByText('Trend Average HRV:', {exact: true})).toBeVisible();
     await expect(panel.getByText('Trend Bedtime:', {exact: true})).toBeVisible();
     const bedtime = panel.getByText('Trend Bedtime:', {exact: true}).locator('+ div');
-    await expect(bedtime).toHaveText('00:15 30 min later');
-    for (const value of await bedtime.locator('span').all()) {
-        await expect(value).not.toHaveClass(/perfect|good|normal|fail|bad/);
-    }
+    await expect(bedtime).toHaveText('00:15 +30 min');
+    await expect(bedtime.locator('.extra_info')).toHaveClass(/bad/);
+    await expect(bedtime.locator('span').first()).not.toHaveClass(/perfect|good|normal|fail|bad/);
+    const wakeTime = panel.getByText('Trend Wake time:', {exact: true}).locator('+ div');
+    await expect(wakeTime).toHaveText('08:00 0 min');
     await expect(panel.getByText(/30-Day Average/)).toHaveCount(0);
     await expect(panel.getByText('Trend Status:', {exact: true})).toBeVisible();
     await expect(panel.getByLabel('7.0 h: Excellent', {exact: true})).toHaveClass(/perfect/);
@@ -3057,7 +3058,7 @@ test('dashboard shows all sleep status trends', async ({page}) => {
     await expect(panel.getByText('Trend Awake Time:', {exact: true}).locator('+ div').getByText('-30 min', {exact: true})).toHaveClass(/good/);
     await expect(panel.getByText('-5 bpm', {exact: true})).toHaveClass(/good/);
     await expect(panel.getByText('+5 ms', {exact: true})).toHaveClass(/good/);
-    await expect(panel.locator('.extra_info')).toHaveCount(9);
+    await expect(panel.locator('.extra_info')).toHaveCount(10);
     await expect(panel.getByText(/per month|Current .*Trend/)).toHaveCount(0);
     const labels = await panel.locator('.p-col-5').allTextContents();
     expect(labels.indexOf('Awake: ')).toBeLessThan(labels.indexOf('Trend Status: '));
@@ -3068,23 +3069,39 @@ test('dashboard shows all sleep status trends', async ({page}) => {
     }
 });
 
-for (const [currentBedtime, previousBedtime, change] of [
-    ['23:45', '00:15', '30 min earlier'],
-    ['00:15', '00:15', 'No change']
+for (const [currentBedtime, previousBedtime, change, color, currentWake, previousWake, wakeChange] of [
+    ['22:51', '23:30', '-39 min', 'good', '07:00', '08:00', '-60 min'],
+    ['23:45', '00:15', '-30 min', 'good', '08:30', '08:00', '+30 min'],
+    ['00:15', '23:45', '+30 min', 'bad', '08:00', '08:00', '0 min'],
+    ['00:15', '00:15', '0 min', null, '08:00', '08:00', '0 min']
 ]) {
-    test(`dashboard shows all sleep status trends with bedtime ${change}`, async ({page}) => {
-        const sleeps = sleepHistory(dashboard.anchorDate, 60).map((sleep, index) =>
-            sleepWithBedtime(sleep, index < 30 ? currentBedtime : previousBedtime));
+    test(`dashboard shows all sleep status trends with bedtime ${change} and wake ${wakeChange}`, async ({page}) => {
+        const sleeps = sleepHistory(dashboard.anchorDate, 60).map((sleep, index) => ({
+            ...sleepWithBedtime(sleep, index < 30 ? currentBedtime : previousBedtime),
+            bedtimeEnd: `${sleep.date}T${index < 30 ? currentWake : previousWake}:00`
+        }));
         await mockAuthenticatedDashboard(page, dashboard.anchorDate, {initialSleeps: sleeps});
         await openSpaRoute(page, '/');
         const tabs = page.locator('.home-panels-tabs');
         await tabs.getByRole('tab', {name: 'Sleep'}).click();
-        const bedtime = tabs.locator('.p-tabview-panel:visible').getByText('Trend Bedtime:', {exact: true}).locator('+ div');
+        const panel = tabs.locator('.p-tabview-panel:visible');
+        const bedtime = panel.getByText('Trend Bedtime:', {exact: true}).locator('+ div');
+        const wakeTime = panel.getByText('Trend Wake time:', {exact: true}).locator('+ div');
         await expect(bedtime).toHaveText(`${currentBedtime} ${change}`);
-        for (const value of await bedtime.locator('span').all()) {
+        await expect(wakeTime).toHaveText(`${currentWake} ${wakeChange}`);
+        if (color) await expect(bedtime.locator('.extra_info')).toHaveClass(new RegExp(color));
+        else await expect(bedtime.locator('.extra_info')).not.toHaveClass(/perfect|good|normal|fail|bad/);
+        await expect(bedtime.locator('span').first()).not.toHaveClass(/perfect|good|normal|fail|bad/);
+        for (const value of await wakeTime.locator('span').all()) {
             await expect(value).not.toHaveClass(/perfect|good|normal|fail|bad/);
         }
+        const labels = await panel.locator('.p-col-5').allTextContents();
+        expect(labels.indexOf('Trend Wake time: ')).toBe(labels.indexOf('Trend Bedtime: ') + 1);
         await bedtime.screenshot({path: test.info().outputPath(`bedtime-${change.replaceAll(' ', '-')}.png`)});
+        await page.reload();
+        await tabs.getByRole('tab', {name: 'Sleep'}).click();
+        await expect(bedtime).toHaveText(`${currentBedtime} ${change}`);
+        await expect(wakeTime).toHaveText(`${currentWake} ${wakeChange}`);
     });
 }
 
@@ -3141,7 +3158,8 @@ for (const length of [0, 30]) {
         await expect(panel.getByText('Trend Total Sleep:', {exact: true})).toBeVisible();
         await expect(panel.getByText('Trend Bedtime:', {exact: true}).locator('+ div')).toHaveText('Not enough data');
         const values = panel.getByText('Not enough data', {exact: true});
-        await expect(values).toHaveCount(9);
+        await expect(values).toHaveCount(10);
+        await expect(panel.getByText('Trend Wake time:', {exact: true}).locator('+ div')).toHaveText('Not enough data');
         for (const value of await values.all()) {
             await expect(value).not.toHaveClass(/perfect|good|normal|fail|bad/);
             await expect(value).not.toHaveAttribute('title');
@@ -3170,7 +3188,9 @@ for (const missingTimes of ['previous', 'current', 'all', 'some', 'current-start
         await tabs.getByRole('tab', {name: 'Sleep'}).click();
         const panel = tabs.locator('.p-tabview-panel:visible');
         const bedtime = panel.getByText('Trend Bedtime:', {exact: true}).locator('+ div');
-        await expect(bedtime).toHaveText(['some', 'current-start-only'].includes(missingTimes) ? '00:15 No change' : 'Not enough data');
+        await expect(bedtime).toHaveText(['some', 'current-start-only'].includes(missingTimes) ? '00:15 0 min' : 'Not enough data');
+        const wakeTime = panel.getByText('Trend Wake time:', {exact: true}).locator('+ div');
+        await expect(wakeTime).toHaveText(['some', 'current-end-only'].includes(missingTimes) ? '08:00 0 min' : 'Not enough data');
         const status = panel.getByText('Trend Status:', {exact: true}).locator('+ div');
         await expect(status).toHaveText(missingTimes === 'previous' ? 'EXCELLENT (4/4)' : `Not enough data (${missingTimes === 'some' ? 15 : 0}/30)`);
         await expect(panel.getByLabel('7.0 h: Excellent', {exact: true})).toBeVisible();
