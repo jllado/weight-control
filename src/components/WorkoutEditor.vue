@@ -33,6 +33,7 @@
         <p v-else-if="planningPreloadsError" role="alert" class="error">{{ planningPreloadsError }} <Button label="Retry" class="p-button-text" @click="loadPlanningPreloads" /></p>
         <p v-else-if="!preload_options.length">No completed workouts yet.</p>
       </div>
+      <p v-if="pendingGuidedSets" role="status">Review unfinished planned sets before saving.</p>
       <section v-if="guided_edit && !guided_review" aria-label="Recorded workout timing" class="p-mb-4"><strong>Recorded workout timing</strong><p>Phase totals remain unchanged while editing exercise content.</p><ul><li v-for="phase in durationPhases" :key="phase.key">{{ phase.label }}: {{ workout_form[phase.key] ?? 0 }} min</li><li>Total: {{ sessionDuration ?? 0 }} min</li></ul></section>
       <WorkoutPhaseTimers v-if="!planning && !guided_edit" :draft="timerDraft" @start="startTimer" @stop="stopTimer" />
       <p v-if="timerError && !guided_edit" class="error" role="alert">{{ timerError }}</p>
@@ -170,6 +171,7 @@
                 <CompactAction icon="pi pi-arrow-down" :aria-label="`Move ${line.trackingMode === ExerciseTrackingMode.CARDIO ? 'interval' : 'set'} ${segmentIndex + 1} down`" :disabled="segmentIndex === line.segments.length - 1" @click="moveSegment(line, segmentIndex, 1)" />
                 <CompactAction icon="pi pi-trash" :aria-label="`Delete set ${segmentIndex + 1}`" @click="removeSegment(line, segmentIndex)" destructive />
               </div>
+              <small v-if="segment.pendingGuided" class="p-d-block p-mb-2">Planned · review before saving</small>
               <p v-if="segment.skipped" class="skipped-segment-label">Skipped · no time recorded</p>
               <div v-else class="p-grid">
                 <div class="p-col-12 p-md-4" v-if="line.stretchingUnit === 'BREATHS'">
@@ -293,7 +295,7 @@ import WorkoutPhaseTimers from './WorkoutPhaseTimers.vue';
 import WorkoutSourcePicker from './WorkoutSourcePicker.vue';
 import {weekdays, dayLabel, copyPlan} from '@/model/WorkoutPlan';
 import SaunaRoundsEditor from './SaunaRoundsEditor.vue';
-import {timerState, workoutPhases, openTimerEditor, closeTimerEditor, createTimerDraft, saveTimerForm, startPhase, stopPhase, setPhaseMinutes, discardTimer, resumeTimer} from '@/services/WorkoutTimerService';
+import {timerState, workoutPhases, openTimerEditor, closeTimerEditor, createTimerDraft, createTransferredTimerDraft, saveTimerForm, startPhase, stopPhase, setPhaseMinutes, discardTimer, resumeTimer} from '@/services/WorkoutTimerService';
 import ExercisePicture from './ExercisePicture.vue';
 import stretchingSetService from '../services/StretchingSetService';
 import dayjs from 'dayjs';
@@ -321,6 +323,7 @@ export default {
     resume_timer: Boolean,
     guided_edit: Boolean,
     guided_review: Boolean,
+    guided_transfer: Object,
   },
   data() {
     const locale = {
@@ -367,8 +370,8 @@ export default {
       selectedStretchingSet: null,
       exercises: [],
       exercise_records: {},
-      display_modal: this.show && (this.planning || !!this.workout || this.resume_timer),
-      starterVisible: this.show && !this.planning && !this.workout && !this.resume_timer,
+      display_modal: this.show && (this.planning || !!this.workout || this.resume_timer || !!this.guided_transfer),
+      starterVisible: this.show && !this.planning && !this.workout && !this.resume_timer && !this.guided_transfer,
       showEditorAfterStarter: false,
       starterTrigger: null,
       starterSourceOverlays: {previous: false, planned: false},
@@ -403,6 +406,7 @@ export default {
   },
   computed: {
     timerDraft() { return this.timerState.editor === this.timerEditor ? this.timerState.draft : null; },
+    pendingGuidedSets() { return this.workout_form.lines.some(line => line.segments.some(segment => segment.pendingGuided)); },
     timerRunning() { return !!this.timerDraft?.runningPhase; },
     timingCalendarPassThrough() {
       return {
@@ -529,7 +533,7 @@ export default {
       return this.editorOverlays.startTime || this.editorOverlays.endTime
           || this.workout_form.lines.some(line => this.editorOverlays[`exercise-${line.localId}`] || this.editorOverlays[`mode-${line.localId}`] || line.segments.some(segment => this.editorOverlays[`seconds-${segment.localId}`]));
     },
-    newManualWorkout() { return !this.planning && !this.workout && !this.resume_timer; },
+    newManualWorkout() { return !this.planning && !this.workout && !this.resume_timer && !this.guided_transfer; },
     previousSourceOptions() { return this.preload_options.map(option => ({...option, workout: this.preload_workouts.find(workout => workout.id === option.id)})); },
     plannedSourceOptions() {
       if (!this.active_plan) return [];
@@ -667,6 +671,29 @@ export default {
       if (generation !== this.formGeneration) return;
       this.exercises = exercises;
       if (this.newManualWorkout) { await sources; return; }
+      if (this.guided_transfer) {
+        const acquired = await openTimerEditor(this.timerEditor);
+        if (generation !== this.formGeneration) { closeTimerEditor(this.timerEditor); return; }
+        if (!acquired || this.timerState.draft) {
+          closeTimerEditor(this.timerEditor);
+          this.$emit('onTransferFailed', 'Close or finish the existing manual workout before switching. Your guided workout is unchanged.');
+          this.close_modal();
+          return;
+        }
+        const {workout, timer} = this.guided_transfer;
+        this.includeWorkoutExercises(workout);
+        this.workout_form = this.formFromWorkout(workout, workout.workoutDate, workout.note || '', null);
+        try { createTransferredTimerDraft(this.workout_form, timer); }
+        catch (error) {
+          closeTimerEditor(this.timerEditor);
+          this.$emit('onTransferFailed', 'The manual draft could not be stored. Your guided workout is unchanged.');
+          this.close_modal();
+          return;
+        }
+        this.loadExerciseRecordContext();
+        this.$emit('onTransfer');
+        return;
+      }
       if (this.resume_timer) {
         if (!await openTimerEditor(this.timerEditor)) {
           this.timerError = 'This timed workout is open in another tab. Close it there first.';
@@ -682,14 +709,11 @@ export default {
         this.workout_form.endTimeSource ??= null;
         nextLocalId = Math.max(nextLocalId, ...this.workout_form.lines.flatMap(line => [line.localId + 1, ...line.segments.map(segment => segment.localId + 1)]));
         this.legacyTiming = !!this.workout_form.legacyTiming;
+        if (this.workout_form.recordingKey) this.includeWorkoutExercises(this.workout_form);
         this.loadExerciseRecordContext();
         return;
       }
-      if ((this.planning || this.guided_edit) && this.workout) {
-        const catalog = new Map(this.exercises.map(exercise => [exercise.id, exercise]));
-        this.workout.lines.forEach(line => catalog.set(line.exerciseId, {...catalog.get(line.exerciseId), id: line.exerciseId, name: line.exerciseName, description: line.exerciseDescription, exerciseType: line.exerciseType, trackingMode: line.trackingMode}));
-        this.exercises = [...catalog.values()];
-      }
+      if ((this.planning || this.guided_edit) && this.workout) this.includeWorkoutExercises(this.workout);
       if (this.workout) {
         this.legacyTiming = this.workout.warmUpMinutes != null && this.workout.cardioMinutes == null;
         this.workout_form = this.formFromWorkout(this.workout, this.workout.workoutDate, this.workout.note || '', this.workout.id);
@@ -701,9 +725,15 @@ export default {
       if (!this.planning) this.addLine(ExerciseType.TRAINING);
       if (this.planning) await this.loadPlanningPreloads();
     },
+    includeWorkoutExercises(workout) {
+      const catalog = new Map(this.exercises.map(exercise => [exercise.id, exercise]));
+      workout.lines.forEach(line => catalog.set(line.exerciseId, {...catalog.get(line.exerciseId), id: line.exerciseId, name: line.exerciseName, description: line.exerciseDescription, exerciseType: line.exerciseType, trackingMode: line.trackingMode}));
+      this.exercises = [...catalog.values()];
+    },
     formFromWorkout(workout, workoutDate, note, id) {
       return {
         id,
+        recordingKey: workout.recordingKey,
         workoutDate: new Date(workoutDate),
         note,
         plannedSessionName: workout.plannedSessionName ?? null,
@@ -754,6 +784,7 @@ export default {
       return sourceSegments.map(segment => ({
         localId: nextId(), guidedSegmentKey: segment.guidedSegmentKey,
         skipped: segment.skipped ?? false,
+        pendingGuided: segment.pendingGuided ?? false,
         repetitions: segment.repetitions ?? null,
         breaths: segment.breaths ?? null,
         durationMinutes: segment.durationSeconds ? Math.floor(segment.durationSeconds / 60) : 0,
@@ -1197,7 +1228,7 @@ export default {
       const workout = {};
       workout.startTime = this.workout_form.startTime ? dayjs(this.workout_form.startTime).format('HH:mm') : null;
       let {warmUpMinutes, trainingMinutes, stretchingMinutes, cardioMinutes} = this.workout_form;
-      if (!this.guided_review && this.recordedCardioMinutes !== null) {
+      if (!this.guided_review && !this.workout_form.recordingKey && this.recordedCardioMinutes !== null) {
         if (!this.workout_form.breakdown) {
           warmUpMinutes = 0;
           trainingMinutes = Math.max(0, (this.workout_form.durationMinutes || 0) - this.recordedCardioMinutes);
@@ -1246,7 +1277,7 @@ export default {
           skipped: segment.skipped
         }))
       }));
-      return workout.toObject();
+      return {...workout.toObject(), recordingKey: this.workout_form.recordingKey};
     },
     async saveWorkout() {
       if (this.saving || this.timerRunning) return;
@@ -1297,6 +1328,12 @@ export default {
       this.$emit('onClose');
     },
     handleError(e) {
+      if (this.guided_transfer) {
+        closeTimerEditor(this.timerEditor);
+        this.$emit('onTransferFailed', 'The manual editor could not be opened. Your guided workout is unchanged.');
+        this.close_modal();
+        return;
+      }
       this.$log.error(e);
       this.$toast.add({severity:'error', summary: 'Failed', detail: e.message || e, life: 4000});
     }

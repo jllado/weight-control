@@ -1,6 +1,6 @@
 import {reactive} from 'vue';
 import dayjs from 'dayjs';
-import {createPhaseTimer, pausePhaseTimer, switchPhaseTimer, workoutPhases} from './WorkoutTimerService';
+import {createPhaseTimer, pausePhaseTimer, switchPhaseTimer, workoutPhases, roundedPhaseMinutes} from './WorkoutTimerService';
 
 export const guidedWorkoutState = reactive({draft: null, editor: null, resumeRequest: 0, discardRequest: 0, startRequest: 0, startSource: null});
 let storageKey;
@@ -285,6 +285,29 @@ export function applyGuidedWorkoutEdit(draft, form, now = Date.now()) {
 }
 
 export function saveGuidedWorkoutDraft() { persist(); }
+
+export function prepareManualWorkoutTransfer(source, now = Date.now()) {
+    const draft = JSON.parse(JSON.stringify(source));
+    const exerciseTimer = draft.exerciseTimer;
+    if (exerciseTimer.lineIndex != null && exerciseTimer.segmentIndex != null) {
+        const line = draft.workout.lines[exerciseTimer.lineIndex];
+        line.exerciseElapsedBySegment[exerciseTimer.segmentIndex] = exerciseTimer.pendingMilliseconds
+            + (exerciseTimer.startedAt == null ? 0 : Math.max(0, now - exerciseTimer.startedAt));
+        line.exerciseDurationMilliseconds = line.exerciseElapsedBySegment.reduce((sum, value) => sum + (value || 0), 0);
+    }
+    if (draft.timer) pausePhaseTimer(draft.timer, now);
+    const phases = draft.timer ? roundedPhaseMinutes(draft.timer) : {};
+    const sauna = draft.workout.saunaSession ? draft.workout.saunaRoundsMinutes.reduce((sum, minutes) => sum + (minutes || 0), 0) : 0;
+    const completed = new Set(draft.completedSegmentKeys);
+    const workout = {...draft.workout, id: null, recordingKey: draft.recordingKey, ...phases,
+        ...(draft.timer ? {durationMinutes: Object.values(phases).reduce((sum, minutes) => sum + minutes, sauna)} : {}),
+        lines: draft.workout.lines.filter(line => !line.omitFromActual).map(line => {
+            const segments = line.segments.map(segment => ({...segment, pendingGuided: !segment.skipped && !completed.has(segment.guidedSegmentKey)}));
+            return {...line, exerciseDurationSeconds: Math.floor(line.exerciseDurationMilliseconds / 1000),
+                sets: line.trackingMode === 'CARDIO' ? [] : segments, intervals: line.trackingMode === 'CARDIO' ? segments : []};
+        })};
+    return {workout, timer: draft.timer};
+}
 export function discardGuidedWorkoutDraft() { guidedWorkoutState.draft = null; persist(); }
 export function discardSavedGuidedWorkoutDraft(email, recordingKey) {
     const key = `guided-workout-v1:${email}`;
