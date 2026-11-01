@@ -32,6 +32,7 @@ import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
 import InputNumber from 'primevue/inputnumber';
 import weeklyCaloriePlanService from '@/services/WeeklyCaloriePlanService';
+import {formatCalories} from '@/services/CalorieFormatting';
 
 export default {
   name: 'WeeklyCaloriePlanEditor',
@@ -63,7 +64,7 @@ export default {
   async mounted() { await this.load(); },
   methods: {
     formatDate(date) { return dayjs(`${date}T12:00:00`).format('dddd, DD/MM/YYYY'); },
-    formatCalories(value) { return value === null ? '—' : formatCalories(value); },
+    formatCalories,
     async load() {
       this.loading = true;
       this.loadError = '';
@@ -105,9 +106,6 @@ export default {
   }
 };
 
-function formatCalories(value) {
-  return new Intl.NumberFormat('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2}).format(value);
-}
 </script>
 
 <style scoped>

@@ -49,8 +49,11 @@
       </div>
       <div v-for="day in typicalCaloriesDays" :key="day.key" class="p-field p-col-12 p-md-6">
         <label :for="day.key">{{ day.label }}</label>
-        <InputNumber :id="day.key" v-model="profile.typicalCaloriesPerDay[day.key]" suffix=" kcal" :min="0" />
+        <InputNumber :inputId="day.key" v-model="profile.typicalCaloriesPerDay[day.key]" suffix=" kcal" :min="0" />
         <span class="error">{{ errors[day.key] }}</span>
+      </div>
+      <div class="p-field p-col-12" role="status" aria-label="Typical daily calorie average">
+        <strong>Daily average:</strong> {{ formatCalories(typicalCaloriesAverage) }} kcal/day
       </div>
     </div>
     </SaveFields>
@@ -71,6 +74,7 @@ import userProfileService from '../services/UserProfileService';
 import PushNotificationSettings from './PushNotificationSettings.vue';
 import WeeklySummarySettings from './WeeklySummarySettings.vue';
 import NutrientTargetSettings from './NutrientTargetSettings.vue';
+import {formatCalories} from '../services/CalorieFormatting';
 
 export default {
   components: {PushNotificationSettings, WeeklySummarySettings, NutrientTargetSettings},
@@ -91,6 +95,12 @@ export default {
       state: userState()
     }
   },
+  computed: {
+    typicalCaloriesAverage() {
+      const values = typicalCaloriesDays.map(day => this.profile.typicalCaloriesPerDay[day]);
+      return values.some(value => value === null) ? null : values.reduce((sum, value) => sum + value, 0) / 7;
+    }
+  },
   async created() {
     if (this.state.user.profile) {
       this.profile = new UserProfile(this.state.user.profile);
@@ -99,6 +109,7 @@ export default {
     await this.loadProfile();
   },
   methods: {
+    formatCalories,
     async loadProfile() {
       this.state.loading = true;
       try {
