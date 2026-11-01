@@ -16029,6 +16029,60 @@ for (const tab of ['diary', 'plan']) {
 }
 
 
+for (const width of [390, 1280]) {
+    test(`typical calorie average updates, cancels and persists at ${width}px`, async ({page}, testInfo) => {
+        await page.setViewportSize({width, height: 900});
+        await mockAuthenticatedSettings(page, {});
+        let savedProfile = {...profile, birthDate: '1979-04-28', typicalCaloriesPerDay: {
+            saturday: 2589, sunday: 2589, monday: 2450, tuesday: 2450, wednesday: 2450, thursday: 2450, friday: 1350
+        }};
+        const writes = [];
+        await page.route('**/api/profile', async route => {
+            if (route.request().method() === 'PUT') {
+                writes.push(route.request().postDataJSON());
+                savedProfile = writes[writes.length - 1];
+            }
+            await route.fulfill({json: savedProfile});
+        });
+        await page.addInitScript(() => window.history.replaceState({}, '', '/settings'));
+        await page.goto('/');
+        const settings = page.locator('.p-panel').filter({has: page.getByText('Settings', {exact: true})}).first();
+        const average = page.getByRole('status', {name: 'Typical daily calorie average'});
+        await expect(average).toHaveText('Daily average: 2,332.57 kcal/day');
+        const saturday = page.getByRole('spinbutton', {name: 'Saturday', exact: true});
+        await saturday.fill('3289');
+        await saturday.press('Tab');
+        await expect(average).toHaveText('Daily average: 2,432.57 kcal/day');
+        expect(writes).toHaveLength(0);
+        await settings.getByRole('button', {name: 'Cancel', exact: true}).click();
+        await expect(average).toHaveText('Daily average: 2,332.57 kcal/day');
+        await saturday.fill('3289');
+        await saturday.press('Tab');
+        await settings.getByRole('button', {name: 'Save', exact: true}).click();
+        await expect(page.getByText('Settings updated', {exact: true})).toBeVisible();
+        expect(writes).toHaveLength(1);
+        expect(writes[0].typicalCaloriesPerDay.saturday).toBe(3289);
+        expect(Object.keys(writes[0]).sort()).toEqual(['birthDate', 'calorieShortcuts', 'fitnessLevel', 'heightCm', 'inShapeBodyFatLimit', 'sex', 'takesMedication', 'typicalCaloriesPerDay', 'weeklyAverageCalorieMaximum']);
+        await page.goto('/');
+        await expect(average).toHaveText('Daily average: 2,432.57 kcal/day');
+        await saturday.fill('');
+        await saturday.press('Tab');
+        await expect(average).toHaveText('Daily average: — kcal/day');
+        for (const day of ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']) {
+            const input = page.getByRole('spinbutton', {name: day, exact: true});
+            await input.fill('0');
+            await input.press('Tab');
+        }
+        await expect(average).toHaveText('Daily average: 0.00 kcal/day');
+        expect(writes).toHaveLength(1);
+        await settings.getByRole('button', {name: 'Cancel', exact: true}).click();
+        await expect(average).toHaveText('Daily average: 2,432.57 kcal/day');
+        await average.scrollIntoViewIfNeeded();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await average.locator('..').screenshot({path: testInfo.outputPath(`typical-calorie-average-${width}.png`)});
+    });
+}
+
 test.describe('personal in-shape body-fat duration', () => {
     test.use({timezoneId: 'Europe/Madrid'});
     async function mockShapeSettingsChildren(page) {
