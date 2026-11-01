@@ -54,9 +54,10 @@ export default {
         }
         return this.get_average(month_calories.map(calorie => calorie.calories));
     },
-    get_weight_trend(weights) {
-        let previous_month_average_weight = this.get_previous_month_average_weight(weights);
-        let previous_weight = this.get_previous_weight(dayjs(new Date()), weights);
+    get_weight_trend(weights, referenceDate = this.get_last_date(weights)) {
+        let previous_month_average_weight = this.get_previous_month_average_weight(weights, referenceDate);
+        if (!previous_month_average_weight) return undefined;
+        let previous_weight = this.get_previous_weight(dayjs(referenceDate).endOf('day'), weights);
         let lost_fat_percentage_trend = this.round((previous_month_average_weight.lost_fat * 100) / previous_month_average_weight.weight);
         let lost_muscle_percentage_trend = this.round((previous_month_average_weight.lost_muscle * 100) / previous_month_average_weight.weight);
         return new WeightSummaryData(
@@ -68,10 +69,10 @@ export default {
             previous_month_average_weight.lost_muscle
         );
     },
-    get_blood_pressure_trend(blood_pressures) {
-        let previous_month_average_blood_pressure = this.get_previous_month_average_blood_pressure(blood_pressures);
-        let previous_second_month_average_blood_pressure = this.get_previous_second_month_average_blood_pressure(blood_pressures);
-        if (previous_second_month_average_blood_pressure === undefined) {
+    get_blood_pressure_trend(blood_pressures, referenceDate = this.get_last_date(blood_pressures)) {
+        let previous_month_average_blood_pressure = this.get_previous_month_average_blood_pressure(blood_pressures, referenceDate);
+        let previous_second_month_average_blood_pressure = this.get_previous_second_month_average_blood_pressure(blood_pressures, referenceDate);
+        if (previous_month_average_blood_pressure === undefined || previous_second_month_average_blood_pressure === undefined) {
             return undefined
         }
         let lost_upper_trend = this.round(previous_month_average_blood_pressure.upper - previous_second_month_average_blood_pressure.upper);
@@ -173,18 +174,18 @@ export default {
         }
         return this.round(calorie_trend.calories + calorie_trend.lostCalories);
     },
-    get_previous_month_average_weight: function (weights) {
-        let previous_month_weights = this.get_last_month_measures_for(weights);
+    get_previous_month_average_weight: function (weights, referenceDate = this.get_last_date(weights)) {
+        let previous_month_weights = this.get_last_month_measures_for(weights, referenceDate);
         let previous_month_average_weight = this.get_average_weight(previous_month_weights)
         return previous_month_average_weight;
     },
-    get_previous_month_average_blood_pressure: function (blood_pressures) {
-        let previous_month_blood_pressures = this.get_last_month_measures_for(blood_pressures);
+    get_previous_month_average_blood_pressure: function (blood_pressures, referenceDate = this.get_last_date(blood_pressures)) {
+        let previous_month_blood_pressures = this.get_last_month_measures_for(blood_pressures, referenceDate);
         let previous_month_average_blood_pressure = this.get_average_blood_pressure(previous_month_blood_pressures)
         return previous_month_average_blood_pressure;
     },
-    get_previous_second_month_average_blood_pressure: function (blood_pressures) {
-        let previous_second_month_blood_pressures = this.get_last_second_month_measures_for(blood_pressures);
+    get_previous_second_month_average_blood_pressure: function (blood_pressures, referenceDate = this.get_last_date(blood_pressures)) {
+        let previous_second_month_blood_pressures = this.get_last_second_month_measures_for(blood_pressures, referenceDate);
         let previous_second_month_average_blood_pressure = this.get_average_blood_pressure(previous_second_month_blood_pressures)
         return previous_second_month_average_blood_pressure;
     },
@@ -200,16 +201,17 @@ export default {
     get_previous_trend_average_calorie: function (calories, referenceDate = this.get_last_date(calories)) {
         return this.get_average_calories(this.get_rolling_period_measures_for(referenceDate, calories, 1));
     },
-    get_weight_strike_days(weight, weights) {
+    get_weight_strike_days(weight, weights, referenceDate = new Date()) {
         let strikePreviousDate = weights.filter(w => w.weight > weight).map(w => w.date).sort((d1, d2) => d2 - d1)[0];
-        let strikeStartDate = weights.filter(w => w.date > strikePreviousDate).map(w => w.date).sort((d1, d2) => d1 - d2)[0];
-        return dayjs(new Date()).diff(strikeStartDate, 'day')
+        let strikeWeights = strikePreviousDate ? weights.filter(w => w.date > strikePreviousDate) : weights;
+        let strikeStartDate = strikeWeights.map(w => w.date).sort((d1, d2) => d1 - d2)[0];
+        return strikeStartDate ? dayjs(referenceDate).startOf('day').diff(dayjs(strikeStartDate).startOf('day'), 'day') : 0
     },
-    get_fat_percentage_strike_days(fatPercentage, weights) {
+    get_fat_percentage_strike_days(fatPercentage, weights, referenceDate = new Date()) {
         let strikePreviousDate = weights.filter(w => w.fat_percentage > fatPercentage).map(w => w.date).sort((d1, d2) => d2 - d1)[0];
         let strikeWeights = strikePreviousDate ? weights.filter(w => w.date > strikePreviousDate) : weights;
         let strikeStartDate = strikeWeights.map(w => w.date).sort((d1, d2) => d1 - d2)[0];
-        return dayjs(new Date()).diff(strikeStartDate, 'day')
+        return strikeStartDate ? dayjs(referenceDate).startOf('day').diff(dayjs(strikeStartDate).startOf('day'), 'day') : 0
     },
     get_in_shape_duration(referenceDate, weights, limit) {
         const selectedDate = dayjs(referenceDate).startOf('day');
@@ -223,6 +225,9 @@ export default {
             start = weight;
         }
         return {days: selectedDate.diff(dayjs(start.date).startOf('day'), 'day'), startDate: start.date, latestDate: latest.date};
+    },
+    get_measures_through(referenceDate, measures) {
+        return measures.filter(measure => !dayjs(measure.date).isAfter(referenceDate, 'day'));
     },
     get_month_measures_for(date, measures) {
         let start = date.startOf('month').toDate();
@@ -246,13 +251,13 @@ export default {
     get_first_date(measures) {
         return new Date(Math.min.apply(null, this.get_dates(measures)));
     },
-    get_last_month_measures_for(measures) {
-        let last_date = this.get_last_date(measures);
+    get_last_month_measures_for(measures, referenceDate = this.get_last_date(measures)) {
+        let last_date = referenceDate;
         let previous_month = dayjs(last_date).subtract(1, 'month').toDate();
-        return measures.filter(w => w.date >= previous_month);
+        return this.get_measures_through(referenceDate, measures).filter(w => w.date >= previous_month);
     },
-    get_last_second_month_measures_for(measures) {
-        let last_date = this.get_last_date(measures);
+    get_last_second_month_measures_for(measures, referenceDate = this.get_last_date(measures)) {
+        let last_date = referenceDate;
         let previous_month = dayjs(last_date).subtract(1, 'month').toDate();
         let previous_weight_before_last_month = this.get_last_date_of(this.get_dates(measures.filter(w => w.date < previous_month)));
         let previous_second_month = dayjs(previous_weight_before_last_month).subtract(1, 'month').toDate();
