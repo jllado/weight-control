@@ -660,3 +660,9 @@ New weekly summaries freeze all three periods of nutrient intake, eligibility, c
 ## Proportionate feedback for isolated poor nights
 
 With fully covered healthy seven-day sleep results and an existing healthy longer-term trend through the selected date, briefly acknowledge an isolated nightly miss without a plan-score penalty or concern escalation solely for that night. Apply the rule to the title, summary, score rationale, watchouts and next actions; keep the actual nightly result, repeated/worsening evidence and other supported concerns accurate. Missing broader evidence stays unknown. Preserve nightly minima, server-derived warning goals and separately dated current warning evidence; no historical reflection rewriting. Verify the [fresh published scenarios](coach-gpt.md#isolated-poor-nights) and exact saved private GPT configuration.
+
+## Improving trends with unmet goals
+
+Acknowledge supported improvement in reflection summaries and plan-progress rationales even while goals remain unmet. Compare equivalent dated metrics and coverage; calorie direction compares the raw, fully covered seven-day mean with the seven-day window ending one day earlier, under the same goal. Put the direction and remaining gap in `metricsReview.shortStatus` itself (at most 120 characters), for example: “Calorie average is improving but remains above goal.” Stable and worsening evidence receive accurate wording; missing or incomparable evidence supports no invented trend or score. Improvement never overrides server-derived `NOT_MET`. Preserve the compact Current/Goal display, historical reflection cutoffs and separately dated current warning reviews; do not rewrite saved history.
+
+Verify [fresh published scenarios](coach-gpt.md#improving-trends-with-unmet-goals), exact saved private GPT configuration and fixture-backed current/saved warning rendering at mobile and desktop widths. The existing app, API and warning lifecycle need no change.

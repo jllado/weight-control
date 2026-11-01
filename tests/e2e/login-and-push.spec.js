@@ -7896,6 +7896,55 @@ test('warning dialog shows rolling goals with original Madrid dates, unknown cov
     expect(warningRequests.every(request => request.method === 'GET' && request.path === '/api/coach-warnings')).toBe(true);
 });
 
+test('improving calorie wording survives current and saved warning reloads without resolving the goal', async ({page}, testInfo) => {
+    const warning = nutritionWarning();
+    warning.progress.direction = 'UNCHANGED';
+    warning.progress.metricsReview.metrics[0].value = 2706.86;
+    warning.progress.metricsReview.shortStatus = 'Calorie average is improving but remains above goal.';
+    const sentence = warning.progress.metricsReview.shortStatus;
+    const reflection = {...reflectionArchiveFixture(1)[0],
+        summary: 'Calorie intake is improving, with the rolling average still above goal.',
+        planProgressScore: 7,
+        planProgressRationale: 'Calorie intake improved; the rolling average remains above goal.',
+        warningReview: {reviewedDate: '2026-10-26', items: [warning]}};
+    const writes = [];
+    page.on('request', request => { if (request.url().includes('/api/') && request.method() !== 'GET') writes.push(request.method()); });
+    await mockAuthenticatedDashboard(page);
+    await page.route('**/api/coach-warnings', route => route.fulfill({json: {active: [warning], hasHistory: true}}));
+    await openSpaRoute(page, '/');
+    await page.getByRole('button', {name: /^Current Coach warnings:/}).click();
+    const card = page.getByRole('article', {name: 'Nutrition imbalance warning progress'});
+    const assertWarning = async () => {
+        await expect(card).toContainText(sentence);
+        await expect(card).toContainText('Goals not met');
+        await expect(card.getByRole('cell', {name: /Current Calories.*Goal not met/})).toContainText('2,706.86');
+        await expect(card.getByRole('cell', {name: /Current Calories.*Goal not met/})).toHaveCSS('color', 'rgb(192, 86, 33)');
+        await expect(card.getByRole('cell', {name: '≤2,500', exact: true})).toBeVisible();
+    };
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await assertWarning();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+        await page.screenshot({path: testInfo.outputPath(`improving-current-${width}.png`), animations: 'disabled'});
+    }
+    await page.reload();
+    await page.getByRole('button', {name: /^Current Coach warnings:/}).click();
+    await assertWarning();
+    await mockAuthenticatedReflections(page, reflection, true, [reflection]);
+    await openSpaRoute(page, '/reflections?date=2026-08-13');
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await assertWarning();
+        await expect(page.getByText(reflection.summary, {exact: true})).toBeVisible();
+        await expect(page.getByText(reflection.planProgressRationale, {exact: true})).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+        await page.screenshot({path: testInfo.outputPath(`improving-saved-${width}.png`), fullPage: true, animations: 'disabled'});
+    }
+    await page.goto('/');
+    await assertWarning();
+    expect(writes).toEqual([]);
+});
+
 test('warning metric goals use inclusive boundaries and preserve unknown values', async ({page}) => {
     await mockAuthenticatedDashboard(page);
     const warning = nutritionWarning();
