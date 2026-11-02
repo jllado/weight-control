@@ -1283,6 +1283,9 @@
             </div>
             <div v-else>No mood data yet.</div>
           </TabPanel>
+          <TabPanel header="Back pain">
+            <BackPainChart :episodes="back_pain_episodes" :chartType="chart_type" :today="back_pain_chart_today" :loading="back_pain_loading" :error="back_pain_error" @retry="load_back_pain_chart" />
+          </TabPanel>
           <TabPanel header="Nutrition">
             <div v-if="calorie_chart_data">
               <Chart type="line" :data="calorie_chart_data.data" :options="calorie_chart_data.options" :height="175" />
@@ -1341,6 +1344,7 @@ import {pauseUi, openPauseControls} from '../services/UrgePauseService';
 import reflectionService from '../services/ReflectionService';
 import CoachWarnings from './CoachWarnings.vue';
 import backPainEpisodeService from '../services/BackPainEpisodeService';
+import BackPainChart from './BackPainChart.vue';
 import inAppNotificationService, {notificationsChanged} from '../services/InAppNotificationService';
 import medicationService from '../services/MedicationService';
 import lipidPanelService from '../services/LipidPanelService';
@@ -1416,7 +1420,7 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {DashboardActions, WeeklyCaloriePlanEditor, NutrientSummary, NutrientTrendCharts, NutrientTrendSummary, WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, SleepGoalValue, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
+  components: {BackPainChart, DashboardActions, WeeklyCaloriePlanEditor, NutrientSummary, NutrientTrendCharts, NutrientTrendSummary, WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, SleepGoalValue, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       pauseUi,
@@ -1447,6 +1451,8 @@ export default {
       overall_progress_loading: false,
       overall_progress_request_id: 0,
       back_pain_episodes: [],
+      back_pain_loading: false,
+      back_pain_error: '',
       lipid_panels: [],
       daily_status: undefined,
       week_status: undefined,
@@ -1555,6 +1561,7 @@ export default {
     }
   },
   computed: {
+    back_pain_chart_today() { return madrid_date(this.fasting_duration_now); },
     selected_sleep() { return this.get_sleep_for(this.daily_status.date); },
     selected_weights() { return summaryService.get_measures_through(this.daily_status.date, this.weights); },
     selected_blood_pressures() { return summaryService.get_measures_through(this.daily_status.date, this.blood_pressures); },
@@ -3274,7 +3281,23 @@ export default {
       this.previous_week_workouts = workoutStatus.previousWeekWorkouts;
     },
     async load_all_back_pain_episodes() {
-      this.back_pain_episodes = await backPainEpisodeService.get_all();
+      this.back_pain_loading = true;
+      this.back_pain_error = '';
+      try {
+        this.back_pain_episodes = await backPainEpisodeService.get_all();
+      } catch (error) {
+        this.back_pain_error = 'Unable to load back check-ins. ' + error.message;
+        throw error;
+      } finally {
+        this.back_pain_loading = false;
+      }
+    },
+    async load_back_pain_chart() {
+      try {
+        await this.load_dashboard_tab(3, !!this.back_pain_error);
+      } catch {
+        // The Back pain chart displays the loader's error and offers Retry.
+      }
     },
     async remove_meal(meal) {
       if (!confirm('Are you sure you want to delete this meal?')) {
@@ -3524,7 +3547,7 @@ export default {
       this.charts_visible = true;
       this.charts_loading = true;
       try {
-        await Promise.all([2, 4, 5, 6, 9].map(index => this.load_dashboard_tab(index)));
+        await Promise.all([... [2, 4, 5, 6, 9].map(index => this.load_dashboard_tab(index)), this.load_back_pain_chart()]);
         await this.load_chart_data();
       } finally {
         this.charts_loading = false;
