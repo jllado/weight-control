@@ -8,6 +8,8 @@ function chartModel() {
     const model = readFileSync(require.resolve('../../src/model/BackPainEpisode.js'), 'utf8')
         .replace(/^import .*;$/gm, '').replace('export default class', 'class').replaceAll('export ', '');
     vm.runInNewContext(model, context);
+    const daily = readFileSync(require.resolve('../../src/model/BackPainDaily.js'), 'utf8').replace(/^import .*;$/gm, '').replaceAll('export ', '');
+    vm.runInNewContext(daily, context);
     const source = readFileSync(require.resolve('../../src/model/BackPainChart.js'), 'utf8')
         .replace(/^import .*;$/gm, '').replaceAll('export ', '');
     vm.runInNewContext(source, context);

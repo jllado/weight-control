@@ -1,29 +1,17 @@
 import dayjs from 'dayjs';
-import {BACK_PAIN_SEVERITIES, getBackPainSeverityRank} from './BackPainEpisode';
-
-const backPainDateFormatter = new Intl.DateTimeFormat('en-CA', {timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit'});
+import {BACK_PAIN_SEVERITIES} from './BackPainEpisode';
+import {datedBackPainRecords, backPainDailyAverages} from './BackPainDaily';
 
 function observationLabel(point) {
     return `${dayjs(point.date).format('DD/MM/YYYY')}: ${point.average.toFixed(2)}/4, ${point.count} check-in${point.count === 1 ? '' : 's'}`;
 }
 
 export function buildBackPainChart(episodes, {chartType, today, area, period}) {
-    const records = episodes.map(episode => ({...episode, date: backPainDateFormatter.format(episode.date)})).filter(episode => episode.date <= today);
+    const records = datedBackPainRecords(episodes).filter(episode => episode.date <= today);
     const firstDate = records.reduce((first, episode) => episode.date < first ? episode.date : first, today);
     const start = chartType === 'all' ? firstDate : dayjs(today).subtract(chartType === 'monthly' ? 3 : 1, chartType === 'monthly' ? 'month' : 'year').format('YYYY-MM-DD');
-    const totals = new Map();
-    for (const record of records) {
-        if (period !== 'ALL' && record.period !== period) continue;
-        if (area !== 'ALL' && record.severity !== 'NONE' && `${record.region}_${record.side}` !== area) continue;
-        const total = totals.get(record.date) || {sum: 0, count: 0};
-        total.sum += getBackPainSeverityRank(record.severity);
-        total.count++;
-        totals.set(record.date, total);
-    }
-    const point = date => {
-        const total = totals.get(date);
-        return total ? {date, average: total.sum / total.count, count: total.count} : null;
-    };
+    const daily = backPainDailyAverages(records, area, period);
+    const point = date => daily.get(date) ?? null;
     const rows = [];
     for (let day = dayjs(start); !day.isAfter(today, 'day'); day = day.add(1, 'day')) {
         const date = day.format('YYYY-MM-DD');
