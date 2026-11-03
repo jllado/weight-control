@@ -26,7 +26,7 @@
 </template>
 
 <script>
-import {BACK_REGIONS, BACK_SIDES} from '../model/BackPainEpisode';
+import {BACK_PAIN_AREAS} from '../model/BackPainDaily';
 import {getMoodPeriodOptions} from '../model/Mood';
 import {buildBackPainChart} from '../model/BackPainChart';
 
@@ -39,7 +39,7 @@ export default {
   data() {
     return {
       area: 'ALL', period: 'ALL',
-      areas: [{label: 'All', value: 'ALL'}, ...BACK_REGIONS.flatMap(region => BACK_SIDES.map(side => ({label: `${region.label} ${side.label.toLowerCase()}`, value: `${region.value}_${side.value}`})))],
+      areas: [{label: 'All', value: 'ALL'}, ...BACK_PAIN_AREAS],
       periods: [{label: 'All', value: 'ALL'}, ...getMoodPeriodOptions()]
     };
   },

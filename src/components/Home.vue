@@ -804,6 +804,7 @@
               <span>Back</span>
             </template>
             <div v-if="is_dashboard_tab_loading('back')" class="dashboard-tab-loading"><i class="pi pi-spin pi-spinner dashboard-tab-loading-icon"></i> Loading back pain data…</div>
+            <p v-else-if="back_pain_error" role="alert">{{ back_pain_error }} <Button label="Retry" class="p-button-text" @click="load_back_pain_chart" /></p>
             <Panel v-else>
               <template #header>
                 <div class="table-header">
@@ -821,6 +822,7 @@
                 <div class="p-col-5">30-Day Worst: </div>
                 <div class="p-col-7 back-pain-summary-value"><span :class="get_back_pain_severity_class(get_back_pain_rolling_worst())">{{ format_back_pain_severity(get_back_pain_rolling_worst()) }}</span></div>
               </div>
+              <BackPainTrendSummary :episodes="back_pain_episodes" :date="daily_status.date" />
               <DataTable :value="get_back_pain_episodes_for(daily_status.date)" responsiveLayout="scroll" class="back-pain-episodes">
                 <template #empty>No pain recorded.</template>
                 <Column header="Period" headerStyle="width: 140px">
@@ -1345,6 +1347,7 @@ import reflectionService from '../services/ReflectionService';
 import CoachWarnings from './CoachWarnings.vue';
 import backPainEpisodeService from '../services/BackPainEpisodeService';
 import BackPainChart from './BackPainChart.vue';
+import BackPainTrendSummary from './BackPainTrendSummary.vue';
 import inAppNotificationService, {notificationsChanged} from '../services/InAppNotificationService';
 import medicationService from '../services/MedicationService';
 import lipidPanelService from '../services/LipidPanelService';
@@ -1420,7 +1423,7 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {BackPainChart, DashboardActions, WeeklyCaloriePlanEditor, NutrientSummary, NutrientTrendCharts, NutrientTrendSummary, WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, SleepGoalValue, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
+  components: {BackPainTrendSummary, BackPainChart, DashboardActions, WeeklyCaloriePlanEditor, NutrientSummary, NutrientTrendCharts, NutrientTrendSummary, WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, SleepGoalValue, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       pauseUi,
@@ -4852,7 +4855,7 @@ class MeasureGraphData {
   }
 }
 .back-pain-summary {
-  margin-bottom: 1rem;
+  margin-bottom: 0;
 }
 .progress-overview-card {
   position: relative;
