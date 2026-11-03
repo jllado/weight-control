@@ -4577,6 +4577,44 @@ async function expectRoutineActionCentered(button) {
     expect(Math.abs(buttonBounds.x + buttonBounds.width / 2 - cellBounds.x - cellBounds.width / 2)).toBeLessThanOrEqual(1);
 }
 
+test('Home shortcut stays visible and returns home across responsive navigation layouts', async ({page}, testInfo) => {
+    await mockAuthenticatedDashboard(page);
+    await openSpaRoute(page, '/weights');
+    const shell = page.locator('.app-menubar');
+    const home = shell.getByRole('link', {name: 'Home', exact: true});
+    for (const width of [376, 393, 575, 576, 960, 961, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expect(home).toBeVisible();
+        await expect(home).toHaveAttribute('href', '/');
+        await expect(home).not.toHaveAttribute('aria-current', 'page');
+        await expect(shell.getByRole('menuitem', {name: 'Home', exact: true, includeHidden: true})).toHaveCount(0);
+        await expect(shell.locator('.coach-notes-button')).toBeVisible({visible: width > 575});
+        await home.focus();
+        await expect(page.getByRole('tooltip', {name: 'Home', exact: true})).toBeVisible();
+        const box = await home.boundingBox();
+        expect(box.width).toBeCloseTo(box.height, 1);
+        const visibleControls = shell.locator('a:visible, button:visible');
+        for (const control of await visibleControls.all()) {
+            const bounds = await control.boundingBox();
+            expect(bounds.x).toBeGreaterThanOrEqual(0);
+            expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
+        }
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await shell.screenshot({path: testInfo.outputPath(`home-header-${width}.png`), animations: 'disabled'});
+        await home.press('Enter');
+        await expect(page).toHaveURL('/');
+        await expect(home).toHaveAttribute('aria-current', 'page');
+        await expect(page.getByText('Failed', {exact: true})).toHaveCount(0);
+        await expect(home).toHaveClass(/router-link-exact-active/);
+        await page.goBack();
+        await expect(page).toHaveURL('/weights');
+        await home.click();
+        await expect(page).toHaveURL('/');
+        await page.goBack();
+        await expect(page).toHaveURL('/weights');
+    }
+});
+
 test('grouped navigation keeps destinations and utilities accessible on desktop and mobile', async ({page}) => {
     const desktopViewport = {width: 1440, height: 900};
     await page.setViewportSize(desktopViewport);
@@ -4584,12 +4622,12 @@ test('grouped navigation keeps destinations and utilities accessible on desktop 
     await openSpaRoute(page, '/');
 
     const menubar = page.locator('.app-menubar');
-    const home = menubar.getByText('Home', {exact: true});
+    const home = menubar.getByRole('link', {name: 'Home', exact: true});
     const track = menubar.getByText('Track', {exact: true});
     const plan = menubar.getByText('Plan', {exact: true});
     const review = menubar.getByText('Review', {exact: true});
     const topLevelBoxes = await Promise.all([home, track, plan, review].map(item => item.boundingBox()));
-    expect(Math.max(...topLevelBoxes.map(box => box.y)) - Math.min(...topLevelBoxes.map(box => box.y))).toBeLessThanOrEqual(1);
+    expect(Math.max(...topLevelBoxes.map(box => box.y + box.height / 2)) - Math.min(...topLevelBoxes.map(box => box.y + box.height / 2))).toBeLessThanOrEqual(1);
 
     const menubarBox = await menubar.boundingBox();
     const bellBox = await page.getByRole('button', {name: '0 pending notifications'}).boundingBox();
@@ -15829,7 +15867,7 @@ for (const action of ['duplicate Resume', 'logout', 'Home']) {
         if (action === 'duplicate Resume') await resume.click();
         else if (action === 'Home') {
             await mockAuthenticatedDashboard(page, dashboard.anchorDate);
-            await page.getByRole('menuitem', {name: 'Home', exact: true}).click();
+            await page.getByRole('link', {name: 'Home', exact: true}).click();
             await expect(page).toHaveURL('/');
         } else {
             await page.getByRole('button', {name: 'Account', exact: true}).click();

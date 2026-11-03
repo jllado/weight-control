@@ -1,6 +1,11 @@
 <template>
   <div class="p-mb-5" v-if="this.state.authenticated && $route.name !== 'GuidedWorkoutPage'" >
     <Menubar :model="items" class="app-menubar">
+      <template #start>
+        <RouterLink to="/" v-tooltip.bottom="{value: 'Home', id: 'home-shortcut-tooltip'}" @focus="tooltipEvent($event, 'mouseenter')" @blur="tooltipEvent($event, 'mouseleave')" aria-describedby="home-shortcut-tooltip" class="p-button p-component p-button-sm p-button-outlined p-button-icon-only home-button" aria-label="Home" title="Home">
+          <span class="p-button-icon pi pi-home" aria-hidden="true" />
+        </RouterLink>
+      </template>
       <template #item="{ item, props, hasSubmenu }">
         <router-link v-if="item.to" v-slot="{ href, navigate, isActive, isExactActive }" :to="item.to" custom>
           <a :href="href" v-bind="props.action" :class="[props.action.class, { 'router-link-active': isActive, 'router-link-active-exact': isExactActive }]" @click="navigate">
@@ -82,11 +87,6 @@ export default {
   data() {
     return {
       items: [
-        {
-          label:'Home',
-          icon:'pi pi-fw pi-home',
-          to: '/'
-        },
         {
           label:'Track',
           icon:'pi pi-fw pi-chart-bar',
@@ -346,9 +346,17 @@ export default {
   align-items: center;
   gap: 0.35rem;
 }
+.home-button, .home-button:hover, .home-button:focus,
 .coach-notes-button, .coach-notes-button:hover, .coach-notes-button:focus,
 .agenda-button, .agenda-button:hover, .agenda-button:focus {
   text-decoration: none;
+}
+.app-menubar .p-menubar-start {
+  margin-right: 0.35rem;
+}
+.home-button.router-link-exact-active {
+  background: var(--highlight-bg);
+  color: var(--highlight-text-color);
 }
 .app-menubar .p-menubar-root-list {
   flex-wrap: nowrap;
@@ -382,17 +390,20 @@ export default {
   .account-menu-button .p-button-label {
     display: none;
   }
-  .coach-button .p-button-label, .coach-notes-button .p-button-label, .agenda-button .p-button-label {
+  .coach-notes-button {
     display: none;
   }
-  .p-button.coach-button, .p-button.coach-notes-button, .p-button.agenda-button {
+  .coach-button .p-button-label, .agenda-button .p-button-label {
+    display: none;
+  }
+  .p-button.coach-button, .p-button.agenda-button {
     width: var(--app-icon-button-size);
     height: var(--app-icon-button-size);
     padding: 0;
     flex-shrink: 0;
     justify-content: center;
   }
-  .p-button.coach-button .p-button-icon, .p-button.coach-notes-button .p-button-icon, .p-button.agenda-button .p-button-icon {
+  .p-button.coach-button .p-button-icon, .p-button.agenda-button .p-button-icon {
     font-size: 1rem;
     margin: 0;
   }

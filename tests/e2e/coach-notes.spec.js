@@ -25,7 +25,7 @@ async function mockCoachNotes(page) {
 }
 
 for (const width of [320, 376, 390, 1280]) {
-    test(`Coach Notes shortcut routes and preserves a saved note at ${width}px`, async ({page}, testInfo) => {
+    test(`Coach Notes navigation routes and preserves a saved note at ${width}px`, async ({page}, testInfo) => {
         await page.setViewportSize({width, height: 900});
         await mockCoachNotes(page);
         await page.addInitScript(() => {
@@ -36,39 +36,40 @@ for (const width of [320, 376, 390, 1280]) {
         });
         await page.goto('/');
 
-        const shortcut = page.getByRole('link', {name: 'Coach Notes', exact: true});
-        await expect(shortcut).toBeVisible();
-        await expect(shortcut).toHaveAttribute('href', '/coach-notes');
-        await expect(shortcut).toHaveAttribute('title', 'Coach Notes');
-        await expect(shortcut.locator('.pi-book.p-button-icon-left')).toHaveCount(1);
-        await expect(shortcut).toHaveCSS('text-decoration-line', 'none');
-        await expect(shortcut.locator('.p-button-label')).toBeVisible({visible: width > 575});
-        if (width <= 575) {
-            const appearance = await shortcut.evaluate(element => {
-                const box = element.getBoundingClientRect();
-                const icon = element.querySelector('.p-button-icon');
-                return {width: box.width, height: box.height, iconSize: parseFloat(getComputedStyle(icon).fontSize), rem: parseFloat(getComputedStyle(document.documentElement).fontSize)};
-            });
-            expect(appearance.width).toBeCloseTo(appearance.rem * 2.357, 1);
-            expect(appearance.height).toBeCloseTo(appearance.width, 1);
-            expect(appearance.iconSize).toBe(appearance.rem);
+        const headerShortcut = page.locator('.app-header-actions').getByRole('link', {name: 'Coach Notes', exact: true});
+        await expect(headerShortcut).toBeVisible({visible: width > 575});
+        if (width > 575) {
+            await expect(headerShortcut).toHaveAttribute('href', '/coach-notes');
+            await expect(headerShortcut).toHaveAttribute('title', 'Coach Notes');
+            await expect(headerShortcut.locator('.pi-book.p-button-icon-left')).toHaveCount(1);
+            await expect(headerShortcut).toHaveCSS('text-decoration-line', 'none');
+            await expect(headerShortcut.locator('.p-button-label')).toBeVisible();
         }
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-        await page.locator('.app-header-actions').screenshot({path: testInfo.outputPath(`coach-notes-header-${width}.png`), animations: 'disabled'});
+        await page.locator('.app-menubar').screenshot({path: testInfo.outputPath(`coach-notes-header-${width}.png`), animations: 'disabled'});
 
-        await shortcut.focus();
-        await expect(shortcut).toBeFocused();
-        await shortcut.press('Enter');
+        const openNotes = async () => {
+            if (width <= 575) {
+                await page.getByRole('button', {name: 'Navigation', exact: true}).click();
+                await page.getByRole('menuitem', {name: 'Review', exact: true}).click();
+                await page.getByRole('menuitem', {name: 'Coach Notes', exact: true}).click();
+                return;
+            }
+            await headerShortcut.focus();
+            await expect(headerShortcut).toBeFocused();
+            await headerShortcut.press('Enter');
+        };
+        await openNotes();
         await expect(page).toHaveURL('/coach-notes');
         await expect(page.getByText('Existing private note', {exact: true})).toBeVisible();
 
-        const content = `Saved from the header at ${width}px`;
+        const content = `Saved through navigation at ${width}px`;
         await page.getByLabel('Note', {exact: true}).fill(content);
         await page.getByRole('button', {name: 'Add note', exact: true}).click();
         await expect(page.getByText(content, {exact: true})).toBeVisible();
         await page.goBack();
         await expect(page).toHaveURL('/weights');
-        await page.getByRole('link', {name: 'Coach Notes', exact: true}).click();
+        await openNotes();
         await expect(page.getByText(content, {exact: true})).toBeVisible();
         await page.reload();
         await expect(page.getByText(content, {exact: true})).toBeVisible();
