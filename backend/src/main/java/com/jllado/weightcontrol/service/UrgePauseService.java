@@ -57,7 +57,7 @@ public class UrgePauseService {
         lock(user);
         UrgePause pause = owned(user, id);
         if (pause.getStatus() == UrgePause.Status.FINISHED && pause.getAnswer() == UrgePause.Answer.NOT_ANYMORE
-            && request.answer() == UrgePause.Answer.NOT_ANYMORE && pause.getDecisionOutcome() != null) {
+            && request.answer() == UrgePause.Answer.NOT_ANYMORE) {
             return current(user);
         }
         requireReady(pause);

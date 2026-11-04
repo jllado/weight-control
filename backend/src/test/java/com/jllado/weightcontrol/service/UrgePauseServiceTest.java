@@ -31,6 +31,8 @@ class UrgePauseServiceTest {
     @Autowired UrgePauseRepository pauses;
     @Autowired UserRepository users;
     @Autowired DecisionOutcomeRepository decisions;
+    @Autowired DecisionOutcomeService decisionService;
+    @Autowired org.springframework.transaction.PlatformTransactionManager transactionManager;
     @Autowired InAppNotificationService notifications;
     @Autowired HealthDataContextService context;
     @Autowired ObjectMapper mapper;
@@ -187,6 +189,81 @@ class UrgePauseServiceTest {
         assertEquals(result.result().id(), service.finish(user, pause.id(), new FinishRequest(DecisionOutcomeType.WIN, "retry")).result().id());
         assertEquals(1, decisions.findByUserOrderByOutcomeDateAscIdAsc(user).size());
         assertNull(service.current(user).pause());
+    }
+
+    @Test void deletingLinkedOutcomesPreservesPauseHistoryAndCompletionRetries() {
+        for (var outcome : DecisionOutcomeType.values()) {
+            var pause = start("Keep this pause");
+            var decision = service.finish(user, pause.id(), new FinishRequest(outcome, "Delete this decision")).result();
+            var before = service.context(user, decision.date(), decision.date());
+            var original = pauses.findById(pause.id()).orElseThrow();
+            decisionService.delete(user, decision.id());
+            assertFalse(decisions.existsById(decision.id()));
+            var stored = pauses.findById(pause.id()).orElseThrow();
+            assertNull(stored.getDecisionOutcome());
+            assertEquals(original.getStatus(), stored.getStatus());
+            assertEquals(original.getStartedAt(), stored.getStartedAt());
+            assertEquals(original.getEndsAt(), stored.getEndsAt());
+            assertEquals(original.getClosedAt(), stored.getClosedAt());
+            assertEquals(original.getDescription(), stored.getDescription());
+            assertEquals(before.size(), service.context(user, decision.date(), decision.date()).size());
+            assertNull(service.finish(user, pause.id(), new FinishRequest(outcome, "retry")).result());
+            assertNull(service.current(user).pause());
+        }
+        assertEquals(0, decisions.countByUser(user));
+        assertEquals(2, pauses.countByUser(user));
+    }
+
+    @Test void deletedCheckInWinDoesNotReappearOnRetryAndKeepsItsAnswer() {
+        var pause = start("Craving"); expire(pause.id());
+        var result = service.checkIn(user, pause.id(), new CheckInRequest(UrgePause.Answer.NOT_ANYMORE));
+        var original = pauses.findById(pause.id()).orElseThrow();
+        decisionService.delete(user, result.decisionOutcome().result().id());
+        var newerPause = start("Another craving");
+        var retry = service.checkIn(user, pause.id(), new CheckInRequest(UrgePause.Answer.NOT_ANYMORE));
+        assertEquals(newerPause.id(), retry.pause().id());
+        assertNull(retry.decisionOutcome());
+        var stored = pauses.findById(pause.id()).orElseThrow();
+        assertEquals(original.getAnswer(), stored.getAnswer());
+        assertEquals(original.getAnsweredAt(), stored.getAnsweredAt());
+        assertEquals(original.getClosedAt(), stored.getClosedAt());
+        assertEquals(0, decisions.countByUser(user));
+    }
+
+    @Test void deletionIsOwnerScopedAndRollsBackBothTheDecisionAndPauseLink() {
+        var pause = start("Keep me");
+        var decision = service.finish(user, pause.id(), new FinishRequest(DecisionOutcomeType.MISS, null)).result();
+        assertThrows(NotFoundException.class, () -> decisionService.delete(newUser(), decision.id()));
+        assertThrows(IllegalStateException.class, () -> new org.springframework.transaction.support.TransactionTemplate(transactionManager)
+            .executeWithoutResult(transaction -> {
+                decisionService.delete(user, decision.id());
+                decisions.flush();
+                assertFalse(decisions.existsById(decision.id()));
+                throw new IllegalStateException("Later operation failed");
+            }));
+        assertTrue(decisions.existsById(decision.id()));
+        assertEquals(decision.id(), pauses.findById(pause.id()).orElseThrow().getDecisionOutcome().getId());
+        decisionService.delete(user, decision.id());
+        assertThrows(NotFoundException.class, () -> decisionService.delete(user, decision.id()));
+    }
+
+    @Test void deletingStandaloneDecisionsRecalculatesCountsRatesAndStreaks() {
+        var date = LocalDate.now(DateTimes.USER_ZONE);
+        var win = decisionService.create(user, new com.jllado.weightcontrol.api.dto.DecisionOutcomeDtos.DecisionOutcomeRequest(date, DecisionOutcomeType.WIN, null));
+        var miss = decisionService.create(user, new com.jllado.weightcontrol.api.dto.DecisionOutcomeDtos.DecisionOutcomeRequest(date, DecisionOutcomeType.MISS, null));
+        assertEquals(0, decisionService.summarize(user, date).currentWinStreak());
+        decisionService.delete(user, miss.getId());
+        var summary = decisionService.summarize(user, date);
+        assertEquals(1, summary.currentWinStreak());
+        assertEquals(1, summary.selectedDate().wins());
+        assertEquals(0, summary.selectedDate().misses());
+        assertEquals(0, new java.math.BigDecimal("100").compareTo(summary.selectedDate().winRate()));
+        assertEquals(summary.selectedDate(), summary.rolling30Days());
+        assertEquals(summary.selectedDate(), summary.allTime());
+        assertEquals(List.of(win.getId()), decisionService.history(user).stream().map(DecisionOutcome::getId).toList());
+        decisionService.delete(user, win.getId());
+        assertNull(decisionService.summarize(user, date).allTime().winRate());
+        assertTrue(decisionService.history(user).isEmpty());
     }
 
     @Test void notificationsSurviveMidnightAndAreGenericDeduplicatedAndDismissedByLifecycle() {

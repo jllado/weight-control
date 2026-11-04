@@ -9026,6 +9026,123 @@ for (const width of [390, 1280]) {
     });
 }
 
+for (const width of [376, 1280]) {
+    test(`decision history deletes wins and misses with confirmation and retry at ${width}px`, async ({page}, testInfo) => {
+        await page.setViewportSize({width, height: 900});
+        await mockAuthenticatedDashboard(page, '2026-08-11');
+        const entries = Array.from({length: 11}, (_, index) => ({id: 11 - index, date: '2026-08-11', dateFormat: '11/08/2026', outcome: index === 10 ? 'MISS' : 'WIN', reason: index === 0 ? 'Long reason '.repeat(40) : null}));
+        let deleteCalls = 0;
+        let releaseDelete;
+        await page.route('**/api/decision-outcomes**', async route => {
+            if (route.request().method() === 'GET') return route.fulfill({json: entries});
+            expect(route.request().method()).toBe('DELETE');
+            deleteCalls++;
+            if (deleteCalls === 1) return route.fulfill({status: 503, body: 'Deletion unavailable'});
+            if (deleteCalls === 2) await new Promise(resolve => { releaseDelete = resolve; });
+            const id = Number(new URL(route.request().url()).pathname.split('/').pop());
+            entries.splice(entries.findIndex(entry => entry.id === id), 1);
+            return route.fulfill({status: 200, body: ''});
+        });
+        await page.goto('/');
+        await openSpaRoute(page, '/wins');
+        await expect(page.getByText('1 to 10 of 11')).toBeVisible();
+        await page.screenshot({path: testInfo.outputPath(`decision-actions-${width}.png`), fullPage: true, animations: 'disabled'});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.getByRole('button', {name: 'Next Page', exact: true}).click();
+        const removeMiss = page.getByRole('button', {name: 'Delete MISS on 11/08/2026'});
+        page.once('dialog', dialog => dialog.dismiss());
+        await removeMiss.click();
+        expect(deleteCalls).toBe(0);
+        await expect(page.getByText('11 to 11 of 11')).toBeVisible();
+        page.once('dialog', dialog => { expect(dialog.message()).toContain('MISS on 11/08/2026'); return dialog.accept(); });
+        await removeMiss.click();
+        await expect(page.getByText('Deletion unavailable', {exact: true})).toBeVisible();
+        await expect(removeMiss).toBeEnabled();
+        page.once('dialog', dialog => dialog.accept());
+        await removeMiss.click();
+        await expect(removeMiss).toBeDisabled();
+        await expect(removeMiss).toHaveAttribute('aria-busy', 'true');
+        await expect.poll(() => deleteCalls).toBe(2);
+        releaseDelete();
+        await expect(page.getByText('1 to 10 of 10')).toBeVisible();
+        await expect(removeMiss).toHaveCount(0);
+        const removeWin = page.getByRole('button', {name: 'Delete WIN on 11/08/2026'}).first();
+        await expect(removeWin).toBeEnabled();
+        await removeWin.focus();
+        page.once('dialog', dialog => dialog.accept());
+        await page.keyboard.press('Enter');
+        await expect(page.getByText('1 to 9 of 9')).toBeVisible();
+        await openSpaRoute(page, '/wins');
+        await expect(page.getByText('1 to 9 of 9')).toBeVisible();
+        expect(entries.map(entry => entry.id)).toEqual([10, 9, 8, 7, 6, 5, 4, 3, 2]);
+        expect(deleteCalls).toBe(3);
+    });
+}
+
+test('decision history disables all row actions until deletion and refresh finish', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-11');
+    const entries = [
+        {id: 2, date: '2026-08-11', dateFormat: '11/08/2026', outcome: 'MISS', reason: null},
+        {id: 1, date: '2026-08-11', dateFormat: '11/08/2026', outcome: 'WIN', reason: null}
+    ];
+    let releaseDelete;
+    let releaseRefresh;
+    let deleteCalls = 0;
+    await page.route('**/api/decision-outcomes**', async route => {
+        if (route.request().method() === 'DELETE') {
+            deleteCalls++;
+            await new Promise(resolve => { releaseDelete = resolve; });
+            entries.shift();
+            return route.fulfill({status: 200, body: ''});
+        }
+        if (deleteCalls) await new Promise(resolve => { releaseRefresh = resolve; });
+        return route.fulfill({json: entries});
+    });
+    await openSpaRoute(page, '/wins');
+    const deleteWin = page.getByRole('button', {name: 'Delete WIN on 11/08/2026'});
+    const editWin = page.getByRole('button', {name: 'Edit reason for WIN on 11/08/2026'});
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByRole('button', {name: 'Delete MISS on 11/08/2026'}).click();
+    await expect(deleteWin).toBeDisabled();
+    await expect(editWin).toBeDisabled();
+    await expect.poll(() => typeof releaseDelete).toBe('function');
+    releaseDelete();
+    await expect.poll(() => typeof releaseRefresh).toBe('function');
+    await expect(page.getByRole('button', {name: 'Delete MISS on 11/08/2026'})).toHaveCount(0);
+    await expect(deleteWin).toBeDisabled();
+    await expect(editWin).toBeDisabled();
+    releaseRefresh();
+    await expect(deleteWin).toBeEnabled();
+    await expect(editWin).toBeEnabled();
+    expect(deleteCalls).toBe(1);
+    await expect(page.getByText('1 to 1 of 1')).toBeVisible();
+});
+
+test('decision history refresh failure can retry after deleting the final entry', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-11');
+    const entries = [{id: 1, date: '2026-08-11', dateFormat: '11/08/2026', outcome: 'MISS', reason: null}];
+    let failRefresh = false;
+    await page.route('**/api/decision-outcomes**', async route => {
+        if (route.request().method() === 'DELETE') {
+            entries.length = 0;
+            failRefresh = true;
+            return route.fulfill({status: 200, body: ''});
+        }
+        if (failRefresh) { failRefresh = false; return route.fulfill({status: 503, body: 'History unavailable'}); }
+        return route.fulfill({json: entries});
+    });
+    await page.goto('/');
+    await openSpaRoute(page, '/wins');
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByRole('button', {name: 'Delete MISS on 11/08/2026'}).click();
+    await expect(page.getByRole('alert')).toContainText('History unavailable');
+    await expect(page.getByRole('button', {name: 'Delete MISS on 11/08/2026'})).toHaveCount(0);
+    await page.getByRole('button', {name: 'Retry', exact: true}).click();
+    await expect(page.getByText('No wins or misses recorded.')).toBeVisible();
+    await openSpaRoute(page, '/wins');
+    await expect(page.getByText('No wins or misses recorded.')).toBeVisible();
+});
+
 async function mockUrgePause(page, {initialPause = null, requiresLogin = false} = {}) {
     await mockAuthenticatedDashboard(page, '2026-08-11', {requiresLogin});
     const state = {pause: initialPause, now: Date.parse('2026-08-12T10:00:00Z'), nextId: 2, finishes: [], decisions: [], starts: [], fail: false, delayCheckIn: false};

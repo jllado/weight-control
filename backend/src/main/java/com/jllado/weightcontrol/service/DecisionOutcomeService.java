@@ -5,6 +5,8 @@ import com.jllado.weightcontrol.domain.DecisionOutcome;
 import com.jllado.weightcontrol.domain.DecisionOutcomeType;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.DecisionOutcomeRepository;
+import com.jllado.weightcontrol.repository.UrgePauseRepository;
+import com.jllado.weightcontrol.repository.UserRepository;
 import com.jllado.weightcontrol.util.DateTimes;
 import com.jllado.weightcontrol.util.Numbers;
 import jakarta.transaction.Transactional;
@@ -20,8 +22,13 @@ public class DecisionOutcomeService {
 
     private final DecisionOutcomeRepository repository;
 
-    public DecisionOutcomeService(DecisionOutcomeRepository repository) {
+    private final UrgePauseRepository pauses;
+    private final UserRepository users;
+
+    public DecisionOutcomeService(DecisionOutcomeRepository repository, UrgePauseRepository pauses, UserRepository users) {
         this.repository = repository;
+        this.pauses = pauses;
+        this.users = users;
     }
 
     public DecisionOutcome create(User user, DecisionOutcomeRequest request) {
@@ -46,12 +53,25 @@ public class DecisionOutcomeService {
     }
 
     public DecisionOutcome updateReason(User user, Long id, String reason) {
+        DecisionOutcome decision = owned(user, id);
+        decision.setReason(normalizeReason(reason));
+        return repository.save(decision);
+    }
+
+    public void delete(User user, Long id) {
+        users.findByIdForUpdate(user.getId()).orElseThrow();
+        DecisionOutcome decision = owned(user, id);
+        pauses.findByUserAndDecisionOutcome(user, decision).ifPresent(pause -> pause.setDecisionOutcome(null));
+        pauses.flush();
+        repository.delete(decision);
+    }
+
+    private DecisionOutcome owned(User user, Long id) {
         DecisionOutcome decision = repository.findById(id).orElseThrow(() -> new NotFoundException("Decision outcome not found"));
         if (!decision.getUser().getId().equals(user.getId())) {
             throw new NotFoundException("Decision outcome not found");
         }
-        decision.setReason(normalizeReason(reason));
-        return repository.save(decision);
+        return decision;
     }
 
     private String normalizeReason(String reason) {

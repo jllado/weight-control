@@ -1,9 +1,10 @@
 import dayjs from 'dayjs';
-import {get, post, put} from './api';
+import {get, post, put, del} from './api';
 import {celebrateDecisionMiss, celebrateDecisionWin, celebratePersonalRecords} from './CelebrationService';
 
 export default {
     history() { return get('/decision-outcomes'); },
+    delete(id) { return del(`/decision-outcomes/${id}`); },
     updateReason(id, reason) { return put(`/decision-outcomes/${id}/reason`, {reason}); },
     async create(date, outcome, reason) {
         const response = await post('/decision-outcomes', {
