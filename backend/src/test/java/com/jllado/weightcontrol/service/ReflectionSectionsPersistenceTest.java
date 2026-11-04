@@ -302,7 +302,7 @@ class ReflectionSectionsPersistenceTest {
         var section = new ReflectionSection("Recorded evidence is mixed.", "Continue recording.");
         var base = request(section, section);
         var request = new SaveReflectionRequest(base.title(), base.summary(), base.planProgressScore(), base.planProgressRationale(),
-            base.positiveSignals(), base.watchouts(), base.nextActions(), base.meals(), base.workouts(), review);
+            base.positiveSignals(), base.watchouts(), base.nextActions(), base.meals(), base.workouts(), review, null);
 
         reflections.save(owner, selectedDate, request);
 
@@ -325,7 +325,7 @@ class ReflectionSectionsPersistenceTest {
 
         var valid = request(section, section);
         var omitted = new SaveReflectionRequest(valid.title(), valid.summary(), valid.planProgressScore(), valid.planProgressRationale(),
-            valid.positiveSignals(), valid.watchouts(), valid.nextActions(), valid.meals(), valid.workouts(), null);
+            valid.positiveSignals(), valid.watchouts(), valid.nextActions(), valid.meals(), valid.workouts(), null, null);
         assertThrows(BadRequestException.class, () -> reflections.save(owner, date, omitted));
         assertTrue(reflections.find(owner, date).isEmpty());
     }
@@ -361,7 +361,7 @@ class ReflectionSectionsPersistenceTest {
         var expandedBase = request(meals, workouts);
         var longAction = "A".repeat(200);
         var expanded = new SaveReflectionRequest(expandedBase.title(), expandedBase.summary(), expandedBase.planProgressScore(),
-            expandedBase.planProgressRationale(), expandedBase.positiveSignals(), expandedBase.watchouts(), List.of(longAction), meals, workouts, expandedBase.warningReview());
+            expandedBase.planProgressRationale(), expandedBase.positiveSignals(), expandedBase.watchouts(), List.of(longAction), meals, workouts, expandedBase.warningReview(), null);
         assertEquals(saved.getId(), reflections.save(owner, date, expanded).getId());
         assertEquals(List.of(longAction), ReflectionResponse.from(reflections.find(owner, date).orElseThrow()).nextActions());
 
@@ -379,7 +379,7 @@ class ReflectionSectionsPersistenceTest {
         }
         var compact = request(valid, valid);
         var tooLong = new SaveReflectionRequest(compact.title(), compact.summary(), compact.planProgressScore(),
-            compact.planProgressRationale(), compact.positiveSignals(), compact.watchouts(), List.of("A".repeat(201)), valid, valid, compact.warningReview());
+            compact.planProgressRationale(), compact.positiveSignals(), compact.watchouts(), List.of("A".repeat(201)), valid, valid, compact.warningReview(), null);
         assertThrows(BadRequestException.class, () -> reflections.save(owner, date, tooLong));
         assertEquals(prior, json.writeValueAsString(ReflectionResponse.from(reflections.find(owner, date).orElseThrow())));
         var omitted = json.readValue("""
@@ -399,6 +399,39 @@ class ReflectionSectionsPersistenceTest {
         assertNull(read.meals());
         assertNull(read.workouts());
         assertEquals(1, reflections.getOverview(owner).reflections().size());
+    }
+
+    @Test
+    void expandedRationalesPersistWithOptionalConfirmationAndRejectInvalidWritesAtomically() throws Exception {
+        var date = LocalDate.now(DateTimes.USER_ZONE).minusDays(1);
+        var owner = user("long-rationale-" + UUID.randomUUID() + "@example.com", date);
+        snapshots.getOrBuild(owner, date);
+        var section = new ReflectionSection("Recorded evidence.", "Keep recording.");
+        var base = request(section, section);
+        for (Boolean confirmed : java.util.Arrays.asList(null, true)) {
+            for (int length : List.of(120, 121, 500)) {
+                var rationale = "R".repeat(length);
+                var request = new SaveReflectionRequest(base.title(), base.summary(), 7, rationale,
+                    base.positiveSignals(), base.watchouts(), base.nextActions(), section, section, base.warningReview(), confirmed);
+                reflections.save(owner, date, request);
+                var read = ReflectionResponse.from(reflections.find(owner, date).orElseThrow());
+                assertEquals(rationale, read.planProgressRationale());
+                assertEquals(7, read.planProgressScore());
+                assertEquals(section, read.meals());
+            }
+        }
+        var before = json.writeValueAsString(ReflectionResponse.from(reflections.find(owner, date).orElseThrow()));
+        var notificationCount = notifications.count();
+        for (var invalid : List.of(
+            new SaveReflectionRequest(base.title(), base.summary(), 7, "R".repeat(501), base.positiveSignals(),
+                base.watchouts(), base.nextActions(), section, section, base.warningReview(), true),
+            new SaveReflectionRequest(base.title(), base.summary(), 7, "R".repeat(500), base.positiveSignals(),
+                base.watchouts(), base.nextActions(), section, section, base.warningReview(), false))) {
+            assertThrows(BadRequestException.class, () -> actionNotifications.execute(owner, "Reflection saved", "/reflections",
+                () -> reflections.save(owner, date, invalid)));
+            assertEquals(before, json.writeValueAsString(ReflectionResponse.from(reflections.find(owner, date).orElseThrow())));
+            assertEquals(notificationCount, notifications.count());
+        }
     }
 
     @Test
@@ -462,13 +495,13 @@ class ReflectionSectionsPersistenceTest {
     private SaveReflectionRequest request(ReflectionSection meals, ReflectionSection workouts) {
         return new SaveReflectionRequest("Steady progress", "Review of recorded evidence.", 7, "Agreed actions are progressing.",
             List.of("Mood improved"), List.of("Sleep varies"), List.of("Keep a regular bedtime"), meals, workouts,
-            new WarningReviewEnvelope(LocalDate.now(DateTimes.USER_ZONE), List.of(), List.of()));
+            new WarningReviewEnvelope(LocalDate.now(DateTimes.USER_ZONE), List.of(), List.of()), null);
     }
 
     private SaveReflectionRequest withReview(ReflectionSection section, WarningReviewEnvelope review) {
         var base = request(section, section);
         return new SaveReflectionRequest(base.title(), base.summary(), base.planProgressScore(), base.planProgressRationale(),
-            base.positiveSignals(), base.watchouts(), base.nextActions(), base.meals(), base.workouts(), review);
+            base.positiveSignals(), base.watchouts(), base.nextActions(), base.meals(), base.workouts(), review, null);
     }
 
     private WarningAssessment assessment(LocalDate today, WarningDirection direction) {

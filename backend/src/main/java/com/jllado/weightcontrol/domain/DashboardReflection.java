@@ -54,7 +54,7 @@ public class DashboardReflection {
     @Column(name = "plan_progress_score")
     private Integer planProgressScore;
 
-    @Column(name = "plan_progress_rationale", length = 120)
+    @Column(name = "plan_progress_rationale", length = 500)
     private String planProgressRationale;
 
     @Column(name = "meals_summary", length = 200)
