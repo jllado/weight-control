@@ -17,6 +17,7 @@ spring:
     enabled: true
   servlet:
     multipart:
+      resolve-lazily: true
       max-file-size: 20MB
       max-request-size: 20MB
   mail:
