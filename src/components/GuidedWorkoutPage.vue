@@ -39,13 +39,13 @@
           </GuidedExerciseSummary>
           <small class="guided-active-help">Active time · excludes rest and pauses. Estimates are rough.</small>
           <div class="guided-exercise-times"><span v-if="session.guidedTimer" role="timer" aria-live="off" :aria-label="`${session.phaseLabel} elapsed time`">Phase {{ session.phaseElapsed }} · includes rest</span><span class="guided-exercise-time" role="timer" aria-live="off">Exercise time {{ session.exerciseElapsed }}</span><span class="guided-estimate">Estimated total {{ session.currentExerciseEstimate }}</span></div>
-          <div class="guided-rest-row"><span v-if="session.restActive" class="guided-rest-status" role="timer" aria-live="off" :aria-label="`Rest timer ${session.restTimerLabel}`">Rest · {{ session.restTimerLabel }}</span><span v-else>Rest duration: {{ session.restDuration }} sec</span><div class="guided-set-actions"><Button ref="restButton" :label="session.restActive ? 'View rest timer' : session.restPrepared ? 'Choose rest' : 'Complete set'" :icon="session.restActive || session.restPrepared ? 'pi pi-clock' : 'pi pi-check'" @click="session.openRest" /></div></div>
+          <div class="guided-rest-row"><span v-if="session.restActive" class="guided-rest-status" role="timer" aria-live="off" :aria-label="`Rest timer ${session.restTimerLabel}`">Rest · {{ session.restTimerLabel }}</span><span v-else>Rest duration: {{ session.restDuration }} sec</span><div class="guided-set-actions"><Button ref="restButton" :label="session.restActive ? 'View rest timer' : session.restPrepared ? 'Choose rest' : 'Complete set'" :icon="session.restActive || session.restPrepared ? 'pi pi-clock' : 'pi pi-check'" @click="openRest" /></div></div>
           <div class="action-group guided-move-actions" aria-label="Move on from this exercise"><Button label="Skip" icon="pi pi-ban" class="p-button-outlined" :disabled="session.restPrepared" @click="session.markExerciseSkipped" /><Button label="Remove" class="p-button-outlined" :disabled="session.restPrepared" @click="session.moveOnWithoutLogging" /></div>
           <div class="action-group guided-back-actions"><Button v-if="session.guidedWorkoutState.draft.currentStep > 0" label="Back" class="p-button-outlined" @click="session.backOneStep" /></div>
           <GuidedExerciseSummary v-if="session.nextStep" next :line="session.nextLine" :setIndex="session.nextStep.segmentIndex" :target="session.describeSegment(session.nextPlannedSegment || session.nextLine.segments[session.nextStep.segmentIndex])" :plannedTarget="!!session.nextPlannedSegment" :timeLabel="session.nextDurationBased ? 'Planned duration' : 'Estimated set time'" :timeValue="session.nextDurationBased ? session.formatElapsed(session.nextPlannedSegment.durationSeconds * 1000) : session.nextSetEstimate" />
           <details class="guided-progress-details"><summary>Exercise progress</summary><table class="guided-exercise-progress"><caption>Exercises by phase</caption><thead><tr><th scope="col">Type</th><th scope="col">Done</th><th scope="col">Now</th><th scope="col">Ahead</th></tr></thead><tbody><tr v-for="row in session.exerciseProgress" :key="row.key"><th scope="row">{{ row.label }}</th><td>{{ row.done }}</td><td>{{ row.now }}</td><td>{{ row.ahead }}</td></tr></tbody></table></details>
         </template>
-        <div v-else-if="session.restPrepared || session.restActive" class="guided-final-rest-actions"><span>Rest after the completed workout</span><Button ref="restButton" :label="session.restActive ? 'View rest timer' : 'Choose rest'" icon="pi pi-clock" @click="session.openRest" /></div>
+        <div v-else-if="session.restPrepared || session.restActive" class="guided-final-rest-actions"><span>Rest after the completed workout</span><Button ref="restButton" :label="session.restActive ? 'View rest timer' : 'Choose rest'" icon="pi pi-clock" @click="openRest" /></div>
         <div v-else class="guided-review"><h2>{{ session.timerStatus === 'Ready to complete' ? 'Ready to complete' : 'Workout complete' }}</h2><p>Review the recorded sets before saving.</p><p v-for="line in session.guidedWorkoutState.draft.workout.lines" :key="line.exerciseId">{{ line.exerciseName }} · {{ line.segments.map(session.describeSegment).join(', ') }}</p></div>
       </template>
       <section v-else class="guided-review" aria-label="Review workout">
@@ -138,6 +138,13 @@ export default {
   components: {GuidedExerciseSummary, ExercisePicture, SaunaRoundsEditor, WorkoutEditor},
   computed: {session() { return this.guidedWorkout; }},
   methods: {
+    async openRest() {
+      this.session.openRest();
+      if (!this.session.currentStep && !this.session.restDialog) {
+        await this.$nextTick();
+        this.$refs.reviewButton.$el.focus();
+      }
+    },
     restoreFocus(name) { if (this.$refs[name]) this.$refs[name].$el.focus(); },
     async closeWorkoutEdit() {
       this.session.editWorkoutDialog = false;

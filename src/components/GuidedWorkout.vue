@@ -239,6 +239,7 @@ export default {
       const completedPhase = guidedPhaseKey(this.currentLine);
       const phaseWasRunning = !!draft.timer?.runningPhase;
       if (!this.currentStep || !this.completeSet()) return;
+      if (!this.currentStep) return;
       const now = Date.now();
       this.pauseExerciseTimer(now);
       draft.preparedRest = {phase: completedPhase, phaseWasRunning};
