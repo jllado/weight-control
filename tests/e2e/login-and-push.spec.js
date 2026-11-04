@@ -8337,10 +8337,12 @@ for (const width of [320, 376, 390, 575, 640, 960, 1280]) {
         await expect(agenda).toHaveAttribute('href', '/agenda');
         await expect(agenda.locator('.p-button-label')).toBeVisible({visible: width > 575});
         await expect(page.locator('.dashboard-date-header').getByRole('button', {name: 'Agenda', exact: true})).toHaveCount(0);
-        const notesBox = await page.getByRole('link', {name: 'Coach Notes', exact: true}).boundingBox();
+        await expect(page.locator('.coach-notes-button')).toBeVisible({visible: width > 575});
+        const precedingAction = width <= 575 ? page.getByRole('button', {name: 'Pause or record', exact: true}) : page.getByRole('link', {name: 'Coach Notes', exact: true});
+        const precedingBox = await precedingAction.boundingBox();
         const agendaBox = await agenda.boundingBox();
-        expect(agendaBox.x).toBeGreaterThan(notesBox.x);
-        expect(agendaBox.y + agendaBox.height / 2).toBeCloseTo(notesBox.y + notesBox.height / 2, 0);
+        expect(agendaBox.x).toBeGreaterThan(precedingBox.x);
+        expect(agendaBox.y + agendaBox.height / 2).toBeCloseTo(precedingBox.y + precedingBox.height / 2, 0);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
         await page.route('**/api/push/agenda', route => route.fulfill({json: {date: '2026-09-08', timeZone: 'Europe/Madrid', entries: []}}));
         await agenda.hover();
@@ -14273,7 +14275,8 @@ test('nutrient trends average covered days and describe missing and estimated ev
     expect(requestedRange.get('to')).toBe('2026-08-12');
     const measuresTab = charts.getByRole('tab', {name: 'Measures', exact: true});
     await measuresTab.focus();
-    for (let index = 0; index < 6; index++) await page.keyboard.press('ArrowRight');
+    const nutritionTabIndex = await charts.getByRole('tab').evaluateAll(tabs => tabs.findIndex(tab => tab.textContent.trim() === 'Nutrition'));
+    for (let index = 0; index < nutritionTabIndex; index++) await page.keyboard.press('ArrowRight');
     const nutritionTab = charts.getByRole('tab', {name: 'Nutrition', exact: true});
     await expect(nutritionTab).toBeFocused();
     await expect(nutritionTab).toHaveAttribute('aria-selected', 'true');
@@ -14309,7 +14312,7 @@ test('nutrient trends average covered days and describe missing and estimated ev
         await expect(nutritionTab).toHaveAttribute('aria-selected', 'true');
         await navContent.evaluate(content => { content.scrollLeft = 0; content.dispatchEvent(new Event('scroll')); });
         await measuresTab.focus();
-        for (let index = 0; index < 6; index++) await page.keyboard.press('ArrowRight');
+        for (let index = 0; index < nutritionTabIndex; index++) await page.keyboard.press('ArrowRight');
         await expect(nutritionTab).toBeFocused();
         const tabBounds = await nutritionTab.evaluate(tab => {
             const container = tab.closest('.p-tabview-nav-container');
@@ -14344,7 +14347,7 @@ test('nutrient settings wait for reads and protect pending drafts with accessibl
         return route.fulfill({json: response});
     });
     await openSpaRoute(page, '/settings');
-    await expect(page.getByRole('status')).toContainText('Loading nutrient targets');
+    await expect(page.getByRole('status').filter({hasText: 'Loading nutrient targets'})).toContainText('Loading nutrient targets');
     await expect(page.getByRole('button', {name: 'Save nutrient targets'})).toHaveCount(0);
     releaseRead();
     const vitaminD = page.getByLabel('Vitamin D (µg)', {exact: true});
