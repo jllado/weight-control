@@ -10,6 +10,7 @@ import static com.jllado.weightcontrol.api.dto.PersonalRecordDtos.RecordMutation
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -39,6 +40,11 @@ public class DecisionOutcomeController {
     @PutMapping("/{id}/reason")
     public DecisionOutcomeResponse updateReason(@PathVariable Long id, @Valid @RequestBody DecisionOutcomeReasonRequest request) {
         return DecisionOutcomeResponse.from(service.updateReason(currentUserService.requireUser(), id, request.reason()));
+    }
+
+    @DeleteMapping("/{id}")
+    public void delete(@PathVariable Long id) {
+        service.delete(currentUserService.requireUser(), id);
     }
 
     @PostMapping

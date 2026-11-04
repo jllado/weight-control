@@ -1,6 +1,7 @@
 package com.jllado.weightcontrol.repository;
 
 import com.jllado.weightcontrol.domain.UrgePause;
+import com.jllado.weightcontrol.domain.DecisionOutcome;
 import com.jllado.weightcontrol.domain.User;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -11,6 +12,7 @@ import org.springframework.data.jpa.repository.Query;
 public interface UrgePauseRepository extends JpaRepository<UrgePause, Long> {
     Optional<UrgePause> findFirstByUserAndStatusInOrderByStartedAtDesc(User user, List<UrgePause.Status> statuses);
     Optional<UrgePause> findByIdAndUser(Long id, User user);
+    Optional<UrgePause> findByUserAndDecisionOutcome(User user, DecisionOutcome decisionOutcome);
     List<UrgePause> findByStatusAndNotifiedAtIsNullAndEndsAtLessThanEqual(UrgePause.Status status, OffsetDateTime now);
     long countByUser(User user);
     Optional<UrgePause> findFirstByUserOrderByStartedAtAsc(User user);

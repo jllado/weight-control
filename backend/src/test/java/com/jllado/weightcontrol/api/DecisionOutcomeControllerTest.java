@@ -8,6 +8,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jllado.weightcontrol.api.dto.DecisionOutcomeDtos.DecisionOutcomeRequest;
 import com.jllado.weightcontrol.domain.*;
 import com.jllado.weightcontrol.repository.DecisionOutcomeRepository;
+import com.jllado.weightcontrol.repository.UrgePauseRepository;
+import com.jllado.weightcontrol.repository.UserRepository;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.DecisionOutcomeService;
 import com.jllado.weightcontrol.service.PersonalRecordMutationService;
@@ -21,7 +23,9 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 class DecisionOutcomeControllerTest {
     private final DecisionOutcomeRepository repository = mock(DecisionOutcomeRepository.class);
-    private final DecisionOutcomeService service = new DecisionOutcomeService(repository);
+    private final UrgePauseRepository pauses = mock(UrgePauseRepository.class);
+    private final UserRepository users = mock(UserRepository.class);
+    private final DecisionOutcomeService service = new DecisionOutcomeService(repository, pauses, users);
     private final PersonalRecordMutationService mutation = mock(PersonalRecordMutationService.class);
     private final CurrentUserService currentUser = mock(CurrentUserService.class);
     private final User user = new User();
@@ -30,6 +34,7 @@ class DecisionOutcomeControllerTest {
     @BeforeEach void setup() {
         user.setId(1L);
         when(currentUser.requireUser()).thenReturn(user);
+        when(users.findByIdForUpdate(1L)).thenReturn(Optional.of(user));
         when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(mutation.createDecisionOutcome(eq(user), any())).thenAnswer(invocation ->
             new PersonalRecordMutationService.MutationResult<>(service.create(user, invocation.getArgument(1)), List.of()));
@@ -71,6 +76,27 @@ class DecisionOutcomeControllerTest {
                 .andExpect(jsonPath("$.reason").value(reason.isEmpty() ? null : reason));
         }
         verifyNoInteractions(mutation);
+    }
+
+    @Test void deletesOwnedWinsAndMissesWithoutAchievements() throws Exception {
+        for (var outcome : DecisionOutcomeType.values()) {
+            var entry = new DecisionOutcome(); entry.setId(7L); entry.setUser(user); entry.setOutcome(outcome);
+            when(repository.findById(7L)).thenReturn(Optional.of(entry));
+            mvc.perform(delete("/api/decision-outcomes/7")).andExpect(status().isOk()).andExpect(content().string(""));
+            verify(repository).delete(entry);
+        }
+        verifyNoInteractions(mutation);
+    }
+
+    @Test void deletionRejectsMissingAndOtherUsersEntries() throws Exception {
+        var other = new User(); other.setId(2L);
+        var entry = new DecisionOutcome(); entry.setUser(other);
+        when(repository.findById(2L)).thenReturn(Optional.of(entry));
+        for (long id : List.of(1L, 2L)) {
+            mvc.perform(delete("/api/decision-outcomes/" + id)).andExpect(status().isNotFound());
+        }
+        verify(repository, never()).delete(any());
+        verifyNoInteractions(pauses, mutation);
     }
 
     @Test void rejectsMissingAndOtherUsersEntries() throws Exception {

@@ -679,3 +679,7 @@ Continue manually transfers the same guided recording into the existing account-
 ## Selected-date dashboard evidence
 
 Daily Sleep values use the exact selected-day record, with Not recorded for missing days. Last Weight, Last Pressure and Latest Lipid Panel use the latest measurement through that date and retain its actual date, even without enough trend evidence. Body trend windows and streak durations use the selected cutoff; loaded body and sleep trends recompute on navigation. The audit retains already-dated mood, back pain, nutrition, routines, actions, workout and Coach summaries; explicit current Coach warnings, all-time records and independently selected Monthly/Year/All history charts keep their separate scopes. This is app-only selection/rendering: no health-record writes, API/schema, GPT instructions, reflection, assessment or privacy change is needed. Application deployment and read-only historical-date acceptance are sufficient.
+
+## Decision history deletion
+
+The app supports confirmed deletion of owned wins and misses. Deletion removes the live DECISIONS entry and recalculates counts, rates and streaks on subsequent reads; it preserves saved reflections and weekly snapshots. Linked 15-minute pauses retain their lifecycle, answers and timestamps with a null decision reference, and completed-action retries never recreate the deleted decision. Coach Actions, schema, instructions and privacy boundaries remain unchanged; no GPT publication is needed.
