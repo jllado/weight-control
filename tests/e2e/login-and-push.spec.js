@@ -1231,8 +1231,11 @@ async function openGuidedRest(page, guided) {
 }
 
 async function completeGuidedSetWithoutRest(page, guided) {
-    const rest = await openGuidedRest(page, guided);
-    await rest.getByRole('button', {name: 'Continue without rest', exact: true}).click();
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    const rest = page.getByRole('dialog', {name: 'Rest after this set?', exact: true});
+    const complete = guided.getByRole('heading', {name: /^(Workout complete|Ready to complete)$/});
+    await expect(rest.or(complete)).toBeVisible();
+    if (await rest.count()) await rest.getByRole('button', {name: 'Continue without rest', exact: true}).click();
 }
 
 async function delayGuidedEditorAcquisition(page) {
@@ -12696,6 +12699,12 @@ test('guided rest persists, pauses with its phase, and stays out of exercise tim
     expect(await page.evaluate(() => localStorage.getItem('guided-workout-rest-duration-v1:other@example.com'))).toBeNull();
     const otherAccount = await context.newPage();
     const otherGuided = await prepareSingleSetGuidedWorkout(otherAccount, 'other@example.com');
+    await otherGuided.getByRole('button', {name: 'Edit workout', exact: true}).click();
+    const otherEditor = otherAccount.getByRole('dialog', {name: 'Workout', exact: true});
+    await otherEditor.getByRole('button', {name: 'Expand Strength, 1 exercise', exact: true}).click();
+    await otherEditor.getByRole('button', {name: /^Expand Exercise 1:/}).click();
+    await otherEditor.getByRole('button', {name: 'Add set', exact: true}).click();
+    await otherEditor.getByRole('button', {name: 'Apply', exact: true}).click();
     const otherRest = await openGuidedRest(otherAccount, otherGuided);
     await expect(otherRest.getByLabel('Rest duration (seconds)', {exact: true})).toHaveValue('60');
     await expect(otherRest.getByLabel('Rest duration (seconds)', {exact: true})).toBeEnabled();
@@ -14592,6 +14601,45 @@ test('guided focus mode puts set actions before next and moves exercise details 
     await expect(details).toContainText(state.exercises[0].description);
 });
 
+test('guided final set shows completion without preparing rest and preserves it after reload', async ({page}, testInfo) => {
+    await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[0], [{repetitions: 10, weight: 20}])]);
+    await page.route(url => url.pathname.startsWith('/workouts'), route => route.request().resourceType() === 'document' ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')}) : route.fallback());
+    const guided = await startEstimatedPlan(page);
+    await page.clock.fastForward(3000);
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(page.getByRole('dialog', {name: /Rest/})).toHaveCount(0);
+    await expect(guided.getByRole('heading', {name: 'Workout complete', exact: true})).toBeVisible();
+    await expect(guided.getByRole('button', {name: 'Review', exact: true})).toBeFocused();
+    const readDraft = () => page.evaluate(() => JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')));
+    const completed = await readDraft();
+    expect(completed.completedSegmentKeys).toHaveLength(1);
+    expect(completed.preparedRest).toBeNull();
+    expect(completed.restTimer).toBeNull();
+    expect(completed.timer.runningPhase).toBeNull();
+    expect(completed.workout.endTime).not.toBeNull();
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 844});
+        await expect(guided.getByRole('button', {name: 'Review', exact: true})).toBeVisible();
+        expect(await guided.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        await guided.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-final-completion-${width}.png`)});
+    }
+    await page.reload();
+    await page.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
+    await expect(guided.getByRole('heading', {name: 'Workout complete', exact: true})).toBeVisible();
+    const resumed = await readDraft();
+    expect(resumed.completedSegmentKeys).toEqual(completed.completedSegmentKeys);
+    expect(resumed.timer.elapsed).toEqual(completed.timer.elapsed);
+    expect(resumed.workout.endTime).toBe(completed.workout.endTime);
+    expect(resumed.preparedRest).toBeNull();
+    await guided.getByRole('button', {name: 'Review', exact: true}).click();
+    await guided.getByRole('button', {name: 'Back to last set', exact: true}).click();
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(page.getByRole('dialog', {name: /Rest/})).toHaveCount(0);
+    expect((await readDraft()).completedSegmentKeys).toHaveLength(1);
+    await guided.getByRole('button', {name: 'Review', exact: true}).click();
+    await expect(guided.getByRole('heading', {name: 'Review workout', exact: true})).toBeVisible();
+});
+
 test('guided Complete set asks about rest, defers without duplicating work, and handles final review', async ({page}, testInfo) => {
     await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[0], [{repetitions: 10, weight: 20}, {repetitions: 8, weight: 20}])]);
     await page.route(url => url.pathname.startsWith('/workouts'), route => route.request().resourceType() === 'document' ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')}) : route.fallback());
@@ -14650,15 +14698,10 @@ test('guided Complete set asks about rest, defers without duplicating work, and 
     expect((await draft()).completedSegmentKeys).toHaveLength(1);
 
     await resumed.getByRole('button', {name: 'Complete set', exact: true}).click();
-    rest = page.getByRole('dialog', {name: 'Rest after this workout?', exact: true});
-    await expect(rest).toContainText('The workout is recorded. Closing this dialog saves the rest choice for later.');
+    await expect(page.getByRole('dialog', {name: /Rest/})).toHaveCount(0);
+    await expect(resumed.getByRole('heading', {name: 'Workout complete', exact: true})).toBeVisible();
     expect((await draft()).currentStep).toBe(2);
     expect((await draft()).completedSegmentKeys).toHaveLength(2);
-    for (const width of [375, 1280]) {
-        await page.setViewportSize({width, height: 844});
-        await rest.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-final-rest-choice-${width}.png`)});
-    }
-    await rest.getByRole('button', {name: 'Continue without rest', exact: true}).click();
     await expect(resumed.getByRole('button', {name: 'Review', exact: true})).toBeFocused();
     expect((await draft()).preparedRest).toBeNull();
     expect((await draft()).workout.endTime).not.toBeNull();
@@ -14788,18 +14831,28 @@ test('Rest keeps a paused workout phase paused', async ({page}) => {
     expect((await draft()).timer.elapsed.trainingMinutes).toBe(elapsedBefore);
     expect((await draft()).exerciseTimer.startedAt).toBeNull();
     await page.getByRole('dialog', {name: /^(Rest|Rest after this set\?|Rest after this workout\?)$/}).getByRole('button', {name: 'Continue without rest', exact: true}).click();
-    await openGuidedRest(page, guided);
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(page.getByRole('dialog', {name: /Rest/})).toHaveCount(0);
+    await expect(guided.getByRole('button', {name: 'Review', exact: true})).toBeFocused();
     expect((await draft()).timer.runningPhase).toBeNull();
-    const finalRest = page.getByRole('dialog', {name: /^(Rest|Rest after this set\?|Rest after this workout\?)$/});
-    await finalRest.getByRole('button', {name: 'Start rest', exact: true}).click();
-    expect((await draft()).timer.runningPhase).toBeNull();
-    expect((await draft()).restTimer.paused).toBe(true);
+    expect((await draft()).restTimer).toBeNull();
+    expect((await draft()).preparedRest).toBeNull();
 });
 
-test('final rest can resume without a current exercise timer', async ({page}) => {
+test('legacy final rest can resume without a current exercise timer', async ({page}) => {
     await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[0], [{repetitions: 10, weight: 20}])]);
     const guided = await startEstimatedPlan(page);
     const draft = () => page.evaluate(() => JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')));
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await page.evaluate(() => {
+        const key = 'guided-workout-v1:jllado@gmail.com';
+        const saved = JSON.parse(localStorage.getItem(key));
+        saved.preparedRest = {phase: 'trainingMinutes', phaseWasRunning: true};
+        localStorage.setItem(key, JSON.stringify(saved));
+    });
+    await page.route(url => url.pathname.startsWith('/workouts'), route => route.request().resourceType() === 'document' ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')}) : route.fallback());
+    await page.reload();
+    await page.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
     await openGuidedRest(page, guided);
     expect((await draft()).currentStep).toBe(1);
     expect((await draft()).timer.runningPhase).toBeNull();
