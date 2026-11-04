@@ -32,6 +32,17 @@ class ReflectionDtosTest {
     }
 
     @Test
+    void acceptsFiveHundredCharacterPlanRationaleButRejectsFiveHundredAndOne() {
+        for (int length : List.of(120, 121, 500)) {
+            assertTrue(validator.validate(request("Title", "Summary", 7, "R".repeat(length),
+                List.of("Positive"), List.of("Watch"), List.of("Action"))).isEmpty());
+        }
+        assertTrue(validator.validate(request("Title", "Summary", 7, "R".repeat(501),
+            List.of("Positive"), List.of("Watch"), List.of("Action"))).stream()
+            .anyMatch(error -> error.getPropertyPath().toString().equals("planProgressRationale")));
+    }
+
+    @Test
     void acceptsUnratedReflection() {
         SaveReflectionRequest request = request(
             "Steady progress",
@@ -123,7 +134,7 @@ class ReflectionDtosTest {
     private SaveReflectionRequest withSections(ReflectionSection meals, ReflectionSection workouts) {
         return new SaveReflectionRequest("Title", "Summary", null, null,
             List.of("Positive"), List.of("Watch"), List.of("Action"), meals, workouts,
-            new WarningReviewEnvelope(LocalDate.of(2026, 10, 25), List.of(), List.of()));
+            new WarningReviewEnvelope(LocalDate.of(2026, 10, 25), List.of(), List.of()), null);
     }
 
     private SaveReflectionRequest request(
@@ -145,7 +156,7 @@ class ReflectionDtosTest {
             nextActions,
             new ReflectionSection("No meal evidence recorded.", "Record meals."),
             new ReflectionSection("No workout evidence recorded.", "Review training."),
-            new WarningReviewEnvelope(LocalDate.of(2026, 10, 25), List.of(), List.of())
+            new WarningReviewEnvelope(LocalDate.of(2026, 10, 25), List.of(), List.of()), null
         );
     }
 }

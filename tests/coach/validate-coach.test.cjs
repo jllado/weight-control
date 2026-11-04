@@ -91,6 +91,13 @@ test('repository reflection import preserves daily and weekly save contracts', (
     assert.deepEqual(Object.keys(body.properties).sort(), [...new Set([...Object.keys(daily.properties), ...Object.keys(weekly.properties)])].sort());
     assert.equal(body.properties.summary.maxLength, weekly.properties.summary.maxLength);
     assert.equal(daily.properties.summary.maxLength, 200);
+    assert.equal(body.properties.planProgressRationale.maxLength, 500);
+    assert.equal(daily.properties.planProgressRationale.maxLength, 500);
+    for (const name of ['Reflection', 'RecentReflection']) {
+        assert.equal(value.components.schemas[name].properties.planProgressRationale.maxLength, 500);
+    }
+    assert.deepEqual(daily.properties.confirmed.enum, [true]);
+    assert.ok(!daily.required.includes('confirmed'));
     assert.equal(weekly.properties.summary.maxLength, 500);
     assert.equal(daily.additionalProperties, false);
     assert.equal(weekly.additionalProperties, false);

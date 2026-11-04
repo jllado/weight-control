@@ -6647,7 +6647,7 @@ for (const width of [1280, 960, 760, 640, 575, 390, 376, 320]) {
         const reflection = {
             reflectionDate: '2026-08-13', generatedAt: '2026-08-13T20:00:00Z', model: 'ChatGPT',
             title: 'Steady progress with limited evidence', summary: 'Recorded habits improved, while gaps limit comparisons.',
-            planProgressScore: 7, planProgressRationale: 'Completed the agreed strength sessions consistently.',
+            planProgressScore: 7, planProgressRationale: 'The recorded strength sessions support the agreed plan, while incomplete recovery evidence limits the assessment. '.repeat(5).slice(0, 500),
             meals: {summary: 'Logged meals included varied vegetables and protein. Portions and some macros are missing, so balance remains uncertain.', nextAction: 'Record portions and available macros at your next lunch.'},
             workouts: {summary: 'Two comparable strength sessions were recorded. Recovery cannot be assessed from these records alone.', nextAction: 'Repeat the planned session and record the completed sets.'},
             positiveSignals: ['Mood improved across recorded days.'], watchouts: ['Bedtimes still varied.'],
@@ -6656,6 +6656,7 @@ for (const width of [1280, 960, 760, 640, 575, 390, 376, 320]) {
         await mockAuthenticatedReflections(page, reflection);
         await page.setViewportSize({width, height: 1000});
         await openSpaRoute(page, '/reflections');
+        await expect(page.getByLabel('Plan progress rating')).toContainText(reflection.planProgressRationale);
         const meals = page.getByRole('region', {name: 'Meals', exact: true});
         const workouts = page.getByRole('region', {name: 'Workouts', exact: true});
         await expect(meals.getByRole('heading', {name: 'Meals', level: 3})).toBeVisible();

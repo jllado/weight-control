@@ -100,6 +100,19 @@ class ChatGptReflectionActionControllerTest {
             .content(dailyPayload("A".repeat(200))))
             .andExpect(status().isOk());
         verify(reflections).save(eq(user), eq(LocalDate.of(2026, 8, 20)), argThat(request -> request.nextActions().getFirst().length() == 200));
+        var mapper = new ObjectMapper();
+        for (String target : java.util.List.of("", "?target=DAILY")) {
+            for (int length : java.util.List.of(120, 121, 500)) {
+                var payload = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(dailyPayload("Action"));
+                payload.put("planProgressScore", 7);
+                payload.put("planProgressRationale", "R".repeat(length));
+                mvc.perform(post("/api/chatgpt-actions/reflections/2026-08-20" + target)
+                    .contentType("application/json").content(mapper.writeValueAsString(payload))).andExpect(status().isOk());
+                payload.put("confirmed", true);
+                mvc.perform(post("/api/chatgpt-actions/reflections/2026-08-20" + target)
+                    .contentType("application/json").content(mapper.writeValueAsString(payload))).andExpect(status().isOk());
+            }
+        }
         clearInvocations(notifications, events);
         mvc.perform(post("/api/chatgpt-actions/reflections/2026-08-20").contentType("application/json").content("{}"))
             .andExpect(status().isBadRequest());
@@ -141,6 +154,34 @@ class ChatGptReflectionActionControllerTest {
                     .andExpect(jsonPath("$.errors[0].message").value("size must be between 0 and 200"))
                     .andExpect(result -> org.junit.jupiter.api.Assertions.assertFalse(result.getResponse().getContentAsString().contains(rejected)));
             }
+        }
+        verifyNoInteractions(reflections, weekly, currentUser, notifications);
+    }
+
+    @Test
+    void dailyRejectsFalseConfirmationAndOversizedRationaleBeforeAnyMutation() throws Exception {
+        var reflections = mock(DashboardReflectionService.class);
+        var weekly = mock(WeeklyReflectionService.class);
+        var currentUser = mock(CurrentUserService.class);
+        var notifications = mock(GptActionNotificationService.class);
+        var mvc = MockMvcBuilders.standaloneSetup(new ChatGptReflectionActionController(
+            reflections, currentUser, notifications, weekly)).build();
+        var mapper = new ObjectMapper();
+        for (String target : java.util.List.of("", "?target=DAILY")) {
+            var payload = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(dailyPayload("Action"));
+            payload.put("confirmed", false);
+            mvc.perform(post("/api/chatgpt-actions/reflections/2026-08-20" + target)
+                .contentType("application/json").content(mapper.writeValueAsString(payload)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].field").value("confirmed"));
+            payload.put("confirmed", true);
+            payload.put("planProgressScore", 7);
+            payload.put("planProgressRationale", "R".repeat(501));
+            mvc.perform(post("/api/chatgpt-actions/reflections/2026-08-20" + target)
+                .contentType("application/json").content(mapper.writeValueAsString(payload)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].field").value("planProgressRationale"))
+                .andExpect(jsonPath("$.errors[0].message").value("size must be between 0 and 500"));
         }
         verifyNoInteractions(reflections, weekly, currentUser, notifications);
     }

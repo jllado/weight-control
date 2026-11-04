@@ -551,7 +551,7 @@ class DashboardReflectionServiceTest {
             List.of("Keep logging consistently"),
             new com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionSection("No meals recorded.", "Record meal portions."),
             new com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionSection("No workouts recorded.", "Discuss a suitable workout."),
-            new com.jllado.weightcontrol.api.dto.ReflectionDtos.WarningReviewEnvelope(java.time.LocalDate.now(com.jllado.weightcontrol.util.DateTimes.USER_ZONE), List.of(), List.of())
+            new com.jllado.weightcontrol.api.dto.ReflectionDtos.WarningReviewEnvelope(java.time.LocalDate.now(com.jllado.weightcontrol.util.DateTimes.USER_ZONE), List.of(), List.of()), null
         );
     }
 
@@ -566,7 +566,7 @@ class DashboardReflectionServiceTest {
             List.of("Keep logging consistently"),
             new com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionSection("No meals recorded.", "Record meal portions."),
             new com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionSection("No workouts recorded.", "Discuss a suitable workout."),
-            new com.jllado.weightcontrol.api.dto.ReflectionDtos.WarningReviewEnvelope(java.time.LocalDate.now(com.jllado.weightcontrol.util.DateTimes.USER_ZONE), List.of(), List.of())
+            new com.jllado.weightcontrol.api.dto.ReflectionDtos.WarningReviewEnvelope(java.time.LocalDate.now(com.jllado.weightcontrol.util.DateTimes.USER_ZONE), List.of(), List.of()), null
         );
     }
 

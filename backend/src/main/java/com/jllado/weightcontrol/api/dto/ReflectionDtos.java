@@ -54,13 +54,14 @@ public final class ReflectionDtos {
         @NotBlank @Size(max = 80) String title,
         @NotBlank @Size(max = 200) String summary,
         @Min(1) @Max(10) Integer planProgressScore,
-        @Size(max = 120) String planProgressRationale,
+        @Size(max = 500) String planProgressRationale,
         @NotNull @Size(min = 1, max = 1) List<@NotBlank @Size(max = 120) String> positiveSignals,
         @NotNull @Size(min = 1, max = 1) List<@NotBlank @Size(max = 120) String> watchouts,
         @NotNull @Size(min = 1, max = 1) List<@NotBlank @Size(max = 200) String> nextActions,
         @NotNull @Valid ReflectionSection meals,
         @NotNull @Valid ReflectionSection workouts,
-        @NotNull @Valid WarningReviewEnvelope warningReview
+        @NotNull @Valid WarningReviewEnvelope warningReview,
+        @AssertTrue(message = "Daily reflection confirmation must be true when supplied") Boolean confirmed
     ) {
         @AssertTrue(message = "Plan progress score and rationale must be provided together")
         public boolean hasCompletePlanProgressRating() {
