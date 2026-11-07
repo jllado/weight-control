@@ -5,6 +5,7 @@ import com.jllado.weightcontrol.api.dto.CoachNoteDtos.CoachNoteActionRequest;
 import com.jllado.weightcontrol.api.dto.CoachNoteDtos.CoachNoteResponse;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachContextResponse;
 import com.jllado.weightcontrol.api.dto.CoachDtos.ConfirmedRequest;
+import com.jllado.weightcontrol.api.dto.CoachDtos;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachHealthEntryResponse;
 import com.jllado.weightcontrol.api.dto.CoachDtos.HealthEntryType;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -113,6 +114,7 @@ public class ChatGptCoachActionController {
     private final CurrentUserService currentUserService;
     private final GptActionNotificationService actionNotifications;
     private final Validator validator;
+    private final com.jllado.weightcontrol.service.RoutineService routineService;
 
     public ChatGptCoachActionController(
         HealthDataContextService healthDataContextService,
@@ -136,7 +138,8 @@ public class ChatGptCoachActionController {
         ObjectMapper objectMapper,
         CurrentUserService currentUserService,
         GptActionNotificationService actionNotifications,
-        Validator validator
+        Validator validator,
+        com.jllado.weightcontrol.service.RoutineService routineService
     ) {
         this.healthDataContextService = healthDataContextService;
         this.healthConstraintService = healthConstraintService;
@@ -160,6 +163,7 @@ public class ChatGptCoachActionController {
         this.currentUserService = currentUserService;
         this.actionNotifications = actionNotifications;
         this.validator = validator;
+        this.routineService = routineService;
     }
 
     @GetMapping("/catalog")
@@ -521,6 +525,7 @@ public class ChatGptCoachActionController {
             case SICKNESS -> sicknessService.findBetween(user, from, to).stream().map(entry -> new CoachHealthEntryResponse(type, SicknessResponse.from(entry))).toList();
             case LIPID_PANEL -> lipidPanelService.findBetween(user, from, to).stream().map(entry -> new CoachHealthEntryResponse(type, LipidPanelResponse.from(entry))).toList();
             case DISH_RECIPE -> dishRecipeService.findAll(user).stream().map(entry -> new CoachHealthEntryResponse(type, entry)).toList();
+            case ROUTINE -> healthDataContextService.getCoachRoutines(user, from, to).stream().map(entry -> new CoachHealthEntryResponse(type, entry)).toList();
             case WORKOUT -> workoutService.findCoachEntries(user, from, to).stream().map(entry -> new CoachHealthEntryResponse(type, entry)).toList();
         };
     }
@@ -564,6 +569,7 @@ public class ChatGptCoachActionController {
             case SICKNESS -> createSickness(read(request, CoachSicknessRequest.class));
             case LIPID_PANEL -> createLipidPanel(read(request, CoachLipidPanelRequest.class));
             case DISH_RECIPE -> createDishRecipe(read(request, CoachRecipeRequest.class));
+            case ROUTINE -> completeRoutine(read(request, CoachDtos.CoachRoutineCheckinRequest.class));
             case WORKOUT -> createWorkout(read(request, CoachWorkoutCreateRequest.class));
         };
     }
@@ -578,8 +584,25 @@ public class ChatGptCoachActionController {
             case SICKNESS -> updateSickness(id, read(request, CoachSicknessRequest.class));
             case LIPID_PANEL -> updateLipidPanel(id, read(request, CoachLipidPanelRequest.class));
             case DISH_RECIPE -> updateDishRecipe(id, read(request, CoachRecipeRequest.class));
+            case ROUTINE -> throw new BadRequestException("Coach supports routine completion only; routine edits and undo are available in the app");
             case WORKOUT -> updateWorkout(id, read(request, CoachWorkoutUpdateRequest.class));
         };
+    }
+
+    private Object completeRoutine(CoachDtos.CoachRoutineCheckinRequest request) {
+        var user = currentUserService.requireUser();
+        var routine = routineService.requireOwned(user, request.routineId());
+        if (request.date().isAfter(LocalDate.now(com.jllado.weightcontrol.util.DateTimes.USER_ZONE))
+            || request.date().isBefore(com.jllado.weightcontrol.util.DateTimes.toLocalDate(routine.getStartDate()))) {
+            throw new BadRequestException("Routine completion date must be between its start date and today in Europe/Madrid");
+        }
+        return actionNotifications.executeIfCreated(user, "Routine completed", dashboardUrl("routines", request.date()), () -> {
+            var result = personalRecordMutationService.checkinRoutine(user, request.routineId(), com.jllado.weightcontrol.util.DateTimes.startOfDay(request.date()));
+            personalRecordMutationService.refreshRoutineDashboard(user, com.jllado.weightcontrol.util.DateTimes.startOfDay(request.date()));
+            boolean changed = result.checkin() != null;
+            return new GptActionNotificationService.CreatedResult<>(
+                new CoachDtos.CoachRoutineCheckinResponse(routine.getId(), request.date(), routine.getCadence(), true, changed), changed);
+        });
     }
 
     private Object createDishRecipe(CoachRecipeRequest request) {

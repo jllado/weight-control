@@ -630,45 +630,15 @@
                 <i v-if="is_routine_entry_missing()" class="pi pi-exclamation-circle missing-daily-entry-icon" role="img" title="Missing entry for selected date" aria-label="Missing entry for selected date" />
               </span>
             </template>
-            <Panel v-if="routines.length > 0" class="p-panel-content-without-padding" >
-              <template #header><div class="table-header"><strong>Routines ({{this.routines.length}})</strong></div></template>
-              <DataTable :value="this.routines" responsiveLayout="scroll" scrollHeight="300px"
-                         paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
-                         currentPageReportTemplate="{first} to {last} of {totalRecords}" >
-                <Column headerStyle="width: 55px" bodyStyle="padding-left: 2px; padding-right: 2px; text-align: center" >
-                  <template #body="routine">
-                    <div class="routine-checkin-action">
-                      <CompactAction v-if="isRoutineDone(routine.data)" icon="pi pi-undo" class="p-button-warning" @click="undoRoutine(routine.data)" :disabled="isRoutineActionPending(routine.data.id)" :loading="isRoutineActionPending(routine.data.id)" aria-label="Undo routine" />
-                      <CompactAction v-else icon="pi pi-plus" class="p-button-success" @click="plusRoutine(routine.data)" :disabled="(isRoutineActionPending(routine.data.id)) || (isRoutineCheckinDisabled(routine.data))" :loading="isRoutineActionPending(routine.data.id)" aria-label="Complete routine" />
-                    </div>
-                  </template>
-                </Column>
-                <Column>
-                  <template #body="routine" >
-                    <div class="routine-name-cell">
-                      <span>{{ routine.data.name }}</span>
-                      <span class="routine-best-streak">Best: {{ routine.data.best_strike }} days</span>
-                    </div>
-                  </template>
-                </Column>
-                <Column header="Streak" headerStyle="width: 40px; text-align: center" bodyStyle="text-align: center" >
-                  <template #body="routine" >
-                    <span v-bind:class="{'perfect': routine.data.strike(this.daily_status.date) >= 21}">{{ routine.data.strike(this.daily_status.date) }}</span>
-                  </template>
-                </Column>
-                <Column header="Fails" headerStyle="width: 40px; text-align: center" bodyStyle="text-align: center" >
-                  <template #body="routine" >
-                    {{ routine.data.fails(this.daily_status.date) }}
-                  </template>
-                </Column>
-                <Column headerStyle="width: 40px; text-align: center" bodyStyle="text-align: center" >
-                  <template #body="routine" >
-                    <span :class="this.get_routine_status_color(routine.data.status(this.daily_status.date))">{{ routine.data.status(this.daily_status.date) }}%</span>
-                  </template>
-                </Column>
-              </DataTable>
-            </Panel>
-            <div v-else>No routines yet.</div>
+            <TabView>
+              <TabPanel header="Daily">
+                <DashboardRoutineTable :routines="routines.filter(routine => !routine.isWeekly())" :date="daily_status.date" :pendingIds="routine_action_loading_ids" @complete="plusRoutine" @undo="undoRoutine" />
+              </TabPanel>
+              <TabPanel header="Weekly">
+                <p>Once each Saturday–Friday. Streaks and fails count weeks; % uses ended weeks in the last 31 days.</p>
+                <DashboardRoutineTable :routines="routines.filter(routine => routine.isWeekly())" :date="daily_status.date" :pendingIds="routine_action_loading_ids" @complete="plusRoutine" @undo="undoRoutine" />
+              </TabPanel>
+            </TabView>
           </TabPanel>
           <TabPanel header="Body">
             <div v-if="is_dashboard_tab_loading('body')" class="dashboard-tab-loading"><i class="pi pi-spin pi-spinner dashboard-tab-loading-icon"></i> Loading body data…</div>
@@ -1247,8 +1217,8 @@
             <div v-else>No weight or pressure trend data yet.</div>
           </TabPanel>
           <TabPanel header="Routines">
-            <div v-if="routines_chart_data">
-              <Chart type="line" :data="routines_chart_data.data" :options="routines_chart_data.options" :height="175" />
+            <div v-if="routines.length > 0">
+              <Chart v-if="routines_chart_data" type="line" :data="routines_chart_data.data" :options="routines_chart_data.options" :height="175" />
               <div class="p-mb-3">
                 <Dropdown
                     v-model="selected_routine_chart_id"
@@ -1376,7 +1346,7 @@ import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
 import {formatDuration, formatTimeOfDayFromMinutes, formatTimeInBedAverage, formatTimeInBedChange, getSleepStatus} from "@/model/Sleep";
 import {getMoodOption, getMoodPeriodOption, getMoodPeriodOrder} from "@/model/Mood";
 
-const dashboardTabIndices = {body: 2, back: 3, sleep: 4, mood: 5, calories: 6, workout: 7, coach: 9};
+const dashboardTabIndices = {routines: 1, body: 2, back: 3, sleep: 4, mood: 5, calories: 6, workout: 7, coach: 9};
 const dashboardMetrics = {weight: 'Last Weight', 'blood-pressure': 'Last Pressure', lipids: 'Latest Lipid Panel'};
 
 function dashboardDeepLink(query) {
@@ -1407,6 +1377,7 @@ import NutrientTrendCharts from './NutrientTrendCharts.vue';
 import NutrientTrendSummary from './NutrientTrendSummary.vue';
 import {formatNutritionValue, nutrientSummary} from '@/model/Dish';
 
+import DashboardRoutineTable from './DashboardRoutineTable.vue';
 import isToday from 'dayjs/plugin/isToday';
 dayjs.extend(isToday)
 
@@ -1423,7 +1394,7 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {BackPainTrendSummary, BackPainChart, DashboardActions, WeeklyCaloriePlanEditor, NutrientSummary, NutrientTrendCharts, NutrientTrendSummary, WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, SleepGoalValue, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
+  components: {DashboardRoutineTable, BackPainTrendSummary, BackPainChart, DashboardActions, WeeklyCaloriePlanEditor, NutrientSummary, NutrientTrendCharts, NutrientTrendSummary, WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, SleepGoalValue, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       pauseUi,
@@ -2124,7 +2095,7 @@ export default {
       this.routine_reminder_loading_action = 'complete';
       try {
         const mutation = await routineService.checkin(this.routine_reminder.id, new Date());
-        this.apply_routine_checkin_mutation(mutation);
+        await this.apply_routine_checkin_mutation(mutation);
         await this.load_chart_data();
         this.$toast.add({severity:'success', summary: 'Routine marked as done', life: 3000});
         this.$confetti.start();
@@ -3138,7 +3109,12 @@ export default {
     overall_progress_icon(status) {
       return status.includes('IMPROVING') ? 'pi pi-arrow-up' : status.includes('DECLINING') ? 'pi pi-arrow-down' : 'pi pi-minus';
     },
-    apply_routine_checkin_mutation(mutation, undo = false) {
+    async apply_routine_checkin_mutation(mutation, undo = false) {
+      if (mutation.routine.isWeekly()) {
+        await this.load_all_routines();
+        this.apply_dashboard(mutation.dashboard);
+        return;
+      }
       const current = this.routines.find(candidate => candidate.id === mutation.routine.id);
       const times = !mutation.changed
           ? current.times
@@ -3189,7 +3165,7 @@ export default {
       this.routine_action_loading_ids.push(routine.id);
       try {
         const mutation = await routineService.checkin(routine.id, this.get_current_date());
-        this.apply_routine_checkin_mutation(mutation);
+        await this.apply_routine_checkin_mutation(mutation);
         this.$toast.add({severity:'success', summary: 'Routine marked as done', life: 3000});
       } catch (e) {
         this.handle_error(e);
@@ -3206,8 +3182,8 @@ export default {
       this.routine_action_loading_ids.push(routine.id);
       try {
         const mutation = await routineService.undoCheckin(routine.id, this.get_current_date());
-        this.apply_routine_checkin_mutation(mutation, true);
-        this.$toast.add({severity:'success', summary: 'Routine undone', life: 3000});
+        await this.apply_routine_checkin_mutation(mutation, true);
+        this.$toast.add({severity:'success', summary: this.routines.find(item => item.id === routine.id).isDone(this.daily_status.date) ? 'Manual check-in removed; automatic completion remains' : 'Routine undone', life: 3000});
       } catch (e) {
         this.handle_error(e);
       } finally {
@@ -3464,10 +3440,12 @@ export default {
       try {
         const results = await Promise.allSettled([
           this.refresh_daily_status(),
+          this.load_all_routines(),
           this.load_dashboard_tab(this.active_dashboard_tab, true)
         ]);
         const failed = results.find(result => result.status === 'rejected');
         if (failed) throw failed.reason;
+        if (this.charts_visible) await this.load_chart_data();
         await this.render_body_status_bars();
       } catch (error) {
         this.refresh_error = 'Unable to refresh the dashboard. ' + error.message;
@@ -3633,8 +3611,10 @@ export default {
       if (this.routines.length > 0) {
         this.sync_selected_routine_chart();
         let routines_from_date = get_routines_from_date(this.chart_type, this.routines);
-        let month_routines = get_month_routines_from(routines_from_date, this.routines);
-        this.routines_chart_data = build_month_routines_chart(month_routines, this.chart_type);
+        const dailyRoutines = this.routines.filter(routine => !routine.isWeekly());
+        this.routines_chart_data = dailyRoutines.length
+            ? build_month_routines_chart(get_month_routines_from(get_routines_from_date(this.chart_type, dailyRoutines), dailyRoutines), this.chart_type)
+            : undefined;
         let selected_routine = this.get_selected_routine_chart();
         this.selected_routine_chart_data = selected_routine
             ? build_month_routine_chart(selected_routine, routines_from_date, this.chart_type)
@@ -4299,20 +4279,6 @@ class MeasureGraphData {
 </script>
 
 <style>
-.routine-checkin-action {
-  display: flex;
-  justify-content: center;
-}
-.routine-name-cell {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 0.25rem 1rem;
-}
-.routine-best-streak {
-  color: #64748b;
-  white-space: nowrap;
-}
 @media (min-width: 1024px) {
   .center {
     display: block;

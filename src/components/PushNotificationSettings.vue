@@ -14,8 +14,7 @@
       <h3>Weekly measurement schedule</h3>
       <p>Changes apply to future reminders.</p>
       <div class="weekly-reminder-times">
-        <WeeklyReminderFields idPrefix="weight-reminder" label="Weight" v-model:day="reminderDays.weight" v-model:time="reminderTimes.weight" :disabled="savingReminderSettings" />
-        <WeeklyReminderFields idPrefix="blood-pressure-reminder" label="Blood pressure" v-model:day="reminderDays.bloodPressure" v-model:time="reminderTimes.bloodPressure" :disabled="savingReminderSettings" />
+        <p>Weight and blood-pressure reminders are managed in their weekly routines under Routines.</p>
       </div>
       </SaveFields>
       <Button :label="savingReminderSettings ? 'Saving…' : 'Save reminder schedule'" icon="pi pi-check" @click="saveReminderSettings" :loading="savingReminderSettings" :aria-busy="savingReminderSettings" :disabled="savingReminderSettings" />
@@ -37,10 +36,8 @@
 
 <script>
 import pushNotificationService from '../services/PushNotificationService';
-import WeeklyReminderFields from './WeeklyReminderFields.vue';
 
 export default {
-  components: {WeeklyReminderFields},
   data() {
     return {
       status: null,

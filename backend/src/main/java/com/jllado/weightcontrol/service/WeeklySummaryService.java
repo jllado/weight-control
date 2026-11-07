@@ -19,6 +19,8 @@ import com.jllado.weightcontrol.domain.BloodPressure;
 import com.jllado.weightcontrol.domain.CoachingPlan;
 import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.Routine;
+import com.jllado.weightcontrol.domain.RoutineCadence;
+import com.jllado.weightcontrol.util.RoutinePeriods;
 import com.jllado.weightcontrol.domain.RoutineCheckin;
 import com.jllado.weightcontrol.domain.SavedWeeklySummary;
 import com.jllado.weightcontrol.domain.InAppNotification;
@@ -77,7 +79,7 @@ import org.springframework.data.domain.Sort;
 public class WeeklySummaryService {
 
     private static final int YEAR_COMPARISON_WEEKS = 52;
-    static final int SNAPSHOT_SCHEMA_VERSION = 7;
+    static final int SNAPSHOT_SCHEMA_VERSION = 8;
     private static final Logger LOG = LoggerFactory.getLogger(WeeklySummaryService.class);
 
     private final WeightRepository weightRepository;
@@ -413,6 +415,7 @@ public class WeeklySummaryService {
             .filter(routine -> !DateTimes.toLocalDate(routine.getStartDate()).isAfter(periodEnd))
             .toList();
         List<RoutineCheckin> routineCheckins = routines.stream()
+            .filter(routine -> routine.getCadence() == RoutineCadence.DAILY)
             .flatMap(routine -> routineCheckinRepository.findByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThanOrderByCheckedAtAsc(routine, dataStartTime, dataEndExclusive).stream())
             .toList();
         WeeklyMetricsCalculator.Input input = new WeeklyMetricsCalculator.Input(
@@ -452,7 +455,8 @@ public class WeeklySummaryService {
                 .map(WeeklySummaryService::personalRecordSnapshot)
                 .toList(),
             outcomeWarnings(outcomes),
-            nutritionSnapshots.capture(user, fridayDate)
+            nutritionSnapshots.capture(user, fridayDate),
+            weeklyRoutineProgress(user, periodStart, fridayDate)
         );
     }
 
@@ -528,8 +532,21 @@ public class WeeklySummaryService {
             .orElse(null);
     }
 
+    List<WeeklySummarySnapshot.WeeklyRoutineProgress> weeklyRoutineProgress(User user, LocalDate periodStart, LocalDate periodEnd) {
+        return routineRepository.findByUserOrderByStartDateAsc(user).stream()
+            .filter(routine -> routine.getCadence() == RoutineCadence.WEEKLY && !DateTimes.toLocalDate(routine.getStartDate()).isAfter(periodEnd))
+            .map(routine -> {
+                var checkinDates = routineCheckinRepository.findByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThanOrderByCheckedAtAsc(
+                    routine, DateTimes.startOfDay(periodStart), DateTimes.startOfDay(periodEnd.plusDays(1))).stream()
+                    .map(checkin -> DateTimes.toLocalDate(checkin.getCheckedAt())).distinct().sorted().toList();
+                int completed = (int) checkinDates.stream().map(date -> RoutinePeriods.start(RoutineCadence.WEEKLY, date)).distinct().count();
+                return new WeeklySummarySnapshot.WeeklyRoutineProgress(routine.getName(), completed, 1, Numbers.percentage(completed, 1), checkinDates);
+            }).toList();
+    }
+
     List<RoutineProgress> routineProgress(User user, LocalDate periodStart, LocalDate periodEnd) {
         return routineRepository.findByUserOrderByStartDateAsc(user).stream()
+            .filter(routine -> routine.getCadence() == RoutineCadence.DAILY)
             .map(routine -> {
                 LocalDate routineStart = DateTimes.toLocalDate(routine.getStartDate());
                 LocalDate eligibleStart = routineStart.isAfter(periodStart) ? routineStart : periodStart;

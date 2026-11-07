@@ -33,7 +33,7 @@ class RoutineCompletionSettingsMigrationTest {
             var tables = List.of("routine_checkins", "routine_reminders", "routine_types", "routine_automatic_evidence");
             var history = new ArrayList<List<List<String>>>();
             for (String table : tables) history.add(snapshot(connection, "select * from " + table + " order by routine_id"));
-            flyway(null).migrate();
+            flyway("106").migrate();
             assertEquals(before, snapshot(connection, routineQuery));
             for (int i = 0; i < tables.size(); i++) assertEquals(history.get(i), snapshot(connection, "select * from " + tables.get(i) + " order by routine_id"));
             try (var rows = statement.executeQuery("select automatic_trigger, automatic_completion_enabled from routines order by id")) {

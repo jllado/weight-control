@@ -16,7 +16,19 @@ public class BloodPressureService {
 
     private final BloodPressureRepository repository;
 
+    private final java.util.function.Consumer<User> reconcileRoutines;
+
     public BloodPressureService(BloodPressureRepository repository) {
+        this(repository, ignored -> { });
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public BloodPressureService(BloodPressureRepository repository, RoutineAutomationService automationService) {
+        this(repository, user -> automationService.reconcile(user));
+    }
+
+    private BloodPressureService(BloodPressureRepository repository, java.util.function.Consumer<User> reconcileRoutines) {
+        this.reconcileRoutines = reconcileRoutines;
         this.repository = repository;
     }
 
@@ -38,6 +50,7 @@ public class BloodPressureService {
         apply(bloodPressure, request);
         repository.save(bloodPressure);
         recalculateAround(bloodPressure);
+        reconcileRoutines.accept(user);
         return bloodPressure;
     }
 
@@ -46,6 +59,7 @@ public class BloodPressureService {
         apply(bloodPressure, request);
         repository.save(bloodPressure);
         recalculateAround(bloodPressure);
+        reconcileRoutines.accept(user);
         return bloodPressure;
     }
 
@@ -54,6 +68,7 @@ public class BloodPressureService {
         var next = repository.findFirstByUserAndMeasuredAtGreaterThanOrderByMeasuredAtAsc(user, bloodPressure.getMeasuredAt());
         repository.delete(bloodPressure);
         next.ifPresent(this::recalculateAround);
+        reconcileRoutines.accept(user);
     }
 
     public BloodPressure getLastOrNull(User user) {

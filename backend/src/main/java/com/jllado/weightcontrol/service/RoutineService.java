@@ -2,14 +2,19 @@ package com.jllado.weightcontrol.service;
 
 import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineRequest;
 import com.jllado.weightcontrol.domain.Routine;
+import com.jllado.weightcontrol.domain.RoutineCadence;
+import com.jllado.weightcontrol.api.dto.RoutineDtos.WeeklyReminderRequest;
+import com.jllado.weightcontrol.util.RoutinePeriods;
 import com.jllado.weightcontrol.domain.RoutineAutomaticTrigger;
 import com.jllado.weightcontrol.domain.RoutineCheckin;
 import com.jllado.weightcontrol.domain.RoutineReminder;
+import com.jllado.weightcontrol.domain.RoutineType;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
 import com.jllado.weightcontrol.repository.RoutineRepository;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.transaction.Transactional;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
@@ -58,13 +63,40 @@ public class RoutineService {
     public Routine create(User user, RoutineRequest request) {
         Routine routine = new Routine();
         routine.setUser(user);
-        routine.setStartDate(DateTimes.startOfDay(user.getDashboardAnchorDate() == null ? LocalDate.now(DateTimes.USER_ZONE) : user.getDashboardAnchorDate()));
+        routine.setCadence(request.cadence() == null ? RoutineCadence.DAILY : request.cadence());
+        LocalDate today = LocalDate.now(DateTimes.USER_ZONE);
+        routine.setStartDate(DateTimes.startOfDay(routine.getCadence() == RoutineCadence.WEEKLY ? RoutinePeriods.start(routine.getCadence(), today)
+            : user.getDashboardAnchorDate() == null ? today : user.getDashboardAnchorDate()));
         routine.setCurrentStrike(0);
         routine.setBestStrike(0);
         routine.setLastTimeDate(null);
         apply(routine, request);
         Routine saved = repository.save(routine);
         return saved;
+    }
+
+    public void initializeMeasurementRoutines(User user) {
+        createMeasurementRoutine(user, "Check weight", RoutineType.WEIGHT,
+            RoutineAutomaticTrigger.WEIGHT_MEASUREMENT, user.getWeightReminderDay(), user.getWeightReminderTime());
+        createMeasurementRoutine(user, "Check blood pressure", RoutineType.BLOOD_PRESSURE,
+            RoutineAutomaticTrigger.BLOOD_PRESSURE_MEASUREMENT, user.getBloodPressureReminderDay(), user.getBloodPressureReminderTime());
+    }
+
+    private void createMeasurementRoutine(User user, String name, RoutineType type,
+        RoutineAutomaticTrigger trigger, DayOfWeek day, LocalTime time) {
+        Routine routine = new Routine();
+        routine.setUser(user);
+        routine.setName(name);
+        routine.setCadence(RoutineCadence.WEEKLY);
+        routine.setTypes(Set.of(type));
+        routine.setStartDate(DateTimes.startOfDay(RoutinePeriods.start(RoutineCadence.WEEKLY, LocalDate.now(DateTimes.USER_ZONE))));
+        routine.setCurrentStrike(0);
+        routine.setBestStrike(0);
+        routine.setPersonalRecordsEnabled(false);
+        routine.setAutomaticTrigger(trigger);
+        routine.setAutomaticCompletionEnabled(true);
+        applyWeeklyReminders(routine, List.of(new WeeklyReminderRequest(day, time)));
+        repository.save(routine);
     }
 
     public Routine update(User user, Long id, RoutineRequest request) {
@@ -88,6 +120,9 @@ public class RoutineService {
         Routine routine = requireOwnedForUpdate(user, id);
         int previousBestStreak = routine.getBestStrike();
         LocalDate checkedDate = DateTimes.toLocalDate(checkedAt);
+        if (routine.getCadence() == RoutineCadence.WEEKLY && checkedDate.isBefore(DateTimes.toLocalDate(routine.getStartDate()))) {
+            throw new BadRequestException("Routine check-in cannot precede its start week");
+        }
         OffsetDateTime dayStart = DateTimes.startOfDay(checkedDate);
         OffsetDateTime nextDayStart = DateTimes.startOfDay(checkedDate.plusDays(1));
         if (checkinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(routine, dayStart, nextDayStart)) {
@@ -132,7 +167,7 @@ public class RoutineService {
             throw new BadRequestException("Routine reminder is not active");
         }
         ZonedDateTime nextReminderAt = now.plusMinutes(minutes);
-        OffsetDateTime storedReminderAt = nextReminderAt.toLocalDate().equals(date) ? nextReminderAt.toOffsetDateTime() : null;
+        OffsetDateTime storedReminderAt = routine.getCadence() == RoutineCadence.WEEKLY || nextReminderAt.toLocalDate().equals(date) ? nextReminderAt.toOffsetDateTime() : null;
         reminder.setReminderSnoozedUntil(storedReminderAt);
         repository.save(routine);
         inAppNotificationService.snoozeRoutineReminder(reminder, date, storedReminderAt);
@@ -141,11 +176,27 @@ public class RoutineService {
 
     public Routine undoCheckin(User user, Long id, OffsetDateTime checkedAt) {
         Routine routine = requireOwned(user, id);
-        RoutineCheckin checkin = checkinRepository.findByRoutineAndCheckedAt(routine, checkedAt)
-            .orElseThrow(() -> new BadRequestException("Routine check-in not found for that timestamp"));
-        checkinRepository.delete(checkin);
+        if (routine.getCadence() == RoutineCadence.DAILY) {
+            RoutineCheckin checkin = checkinRepository.findByRoutineAndCheckedAt(routine, checkedAt)
+                .orElseThrow(() -> new BadRequestException("Routine check-in not found for that timestamp"));
+            checkinRepository.delete(checkin);
+            rebuildSummary(routine);
+            if (routine.isAutomaticCompletionEnabled()) automationService.reconcile(user);
+            return repository.save(routine);
+        }
+        LocalDate date = DateTimes.toLocalDate(checkedAt);
+        List<RoutineCheckin> selected = checkinRepository.findByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThanOrderByCheckedAtAsc(
+            routine, DateTimes.startOfDay(RoutinePeriods.start(routine.getCadence(), date)), DateTimes.startOfDay(date.plusDays(1)));
+        for (RoutineCheckin checkin : selected) {
+            if (!checkin.isManualCompletion()) continue;
+            if (automationService.hasEvidence(routine, DateTimes.toLocalDate(checkin.getCheckedAt()))) {
+                checkin.setManualCompletion(false);
+                checkinRepository.save(checkin);
+            } else {
+                checkinRepository.delete(checkin);
+            }
+        }
         rebuildSummary(routine);
-        if (routine.isAutomaticCompletionEnabled()) automationService.reconcile(user);
         return repository.save(routine);
     }
 
@@ -160,7 +211,7 @@ public class RoutineService {
         RoutineReminder reminder = routine.getReminders().stream().filter(candidate -> candidate.getId().equals(reminderId)).findFirst()
             .orElseThrow(() -> new NotFoundException("Routine reminder not found"));
         LocalTime normalizedTime = time.truncatedTo(ChronoUnit.MINUTES);
-        if (routine.getReminders().stream().anyMatch(candidate -> !candidate.getId().equals(reminderId) && candidate.getReminderTime().equals(normalizedTime))) {
+        if (routine.getReminders().stream().anyMatch(candidate -> !candidate.getId().equals(reminderId) && candidate.getReminderTime().equals(normalizedTime) && candidate.getDay() == reminder.getDay())) {
             throw new BadRequestException("Routine reminder times must be unique");
         }
         reminder.setReminderTime(normalizedTime);
@@ -180,6 +231,9 @@ public class RoutineService {
     }
 
     private void apply(Routine routine, RoutineRequest request) {
+        if (request.cadence() != null && request.cadence() != routine.getCadence()) {
+            throw new BadRequestException("A routine's cadence cannot be changed");
+        }
         if (request.automaticTrigger() != null && request.automaticTrigger() != routine.getAutomaticTrigger()) {
             throw new BadRequestException("A routine's automatic completion rule cannot be changed");
         }
@@ -190,7 +244,14 @@ public class RoutineService {
         routine.setTypes(request.types());
         routine.setPersonalRecordsEnabled(request.personalRecordsEnabled());
         if (request.automaticCompletionEnabled() != null) routine.setAutomaticCompletionEnabled(request.automaticCompletionEnabled());
-        applyReminders(routine, request.reminderTimes());
+        if (routine.getCadence() == RoutineCadence.WEEKLY) {
+            if (request.reminderTimes() != null && !request.reminderTimes().isEmpty()) throw new BadRequestException("Weekly reminders require a weekday and time");
+            applyWeeklyReminders(routine, request.weeklyReminders() == null ? List.of() : request.weeklyReminders());
+        } else {
+            if (request.reminderTimes() == null) throw new BadRequestException("Daily reminder times are required");
+            if (request.weeklyReminders() != null && !request.weeklyReminders().isEmpty()) throw new BadRequestException("Daily reminders cannot have weekdays");
+            applyReminders(routine, request.reminderTimes());
+        }
     }
 
     private void applyReminders(Routine routine, List<LocalTime> reminderTimes) {
@@ -217,10 +278,25 @@ public class RoutineService {
             });
     }
 
+    private void applyWeeklyReminders(Routine routine, List<WeeklyReminderRequest> requests) {
+        var pairs = requests.stream().map(entry -> new WeeklyReminderRequest(entry.day(), entry.time().truncatedTo(ChronoUnit.MINUTES)))
+            .sorted(java.util.Comparator.comparing(WeeklyReminderRequest::day).thenComparing(WeeklyReminderRequest::time)).toList();
+        if (new LinkedHashSet<>(pairs).size() != pairs.size()) throw new BadRequestException("Routine reminder weekday/time pairs must be unique");
+        routine.getReminders().removeIf(reminder -> !pairs.contains(new WeeklyReminderRequest(reminder.getDay(), reminder.getReminderTime())));
+        for (var pair : pairs) {
+            if (routine.getReminders().stream().anyMatch(reminder -> reminder.getDay() == pair.day() && reminder.getReminderTime().equals(pair.time()))) continue;
+            RoutineReminder reminder = new RoutineReminder();
+            reminder.setRoutine(routine);
+            reminder.setDay(pair.day());
+            reminder.setReminderTime(pair.time());
+            routine.getReminders().add(reminder);
+        }
+    }
+
     private boolean isCompleted(Routine routine, LocalDate date) {
         return checkinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
             routine,
-            DateTimes.startOfDay(date),
+            DateTimes.startOfDay(RoutinePeriods.start(routine.getCadence(), date)),
             DateTimes.startOfDay(date.plusDays(1))
         );
     }
@@ -239,8 +315,12 @@ public class RoutineService {
     }
 
     private static void applyCheckinSummary(Routine routine, OffsetDateTime checkedAt) {
-        LocalDate checkinDate = DateTimes.toLocalDate(checkedAt);
-        if (routine.getLastTimeDate() != null && ChronoUnit.DAYS.between(DateTimes.toLocalDate(routine.getLastTimeDate()), checkinDate) > 1) {
+        LocalDate checkinDate = RoutinePeriods.start(routine.getCadence(), DateTimes.toLocalDate(checkedAt));
+        if (routine.getCadence() == RoutineCadence.WEEKLY && routine.getLastTimeDate() != null && RoutinePeriods.start(routine.getCadence(), DateTimes.toLocalDate(routine.getLastTimeDate())).equals(checkinDate)) {
+            routine.setLastTimeDate(checkedAt);
+            return;
+        }
+        if (routine.getLastTimeDate() != null && ChronoUnit.DAYS.between(RoutinePeriods.start(routine.getCadence(), DateTimes.toLocalDate(routine.getLastTimeDate())), checkinDate) > (routine.getCadence() == RoutineCadence.WEEKLY ? 7 : 1)) {
             routine.setCurrentStrike(0);
         }
         routine.setCurrentStrike(routine.getCurrentStrike() + 1);

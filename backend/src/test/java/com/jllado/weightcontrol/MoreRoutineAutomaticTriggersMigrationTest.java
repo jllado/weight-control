@@ -37,7 +37,7 @@ class MoreRoutineAutomaticTriggersMigrationTest {
             for (String table : historyTables) history.add(snapshot(connection, "select * from " + table + " order by routine_id"));
             var preassigned = snapshot(connection, "select id, automatic_trigger, automatic_completion_enabled from routines where automatic_trigger <> 'NONE' order by id");
 
-            flyway(null).migrate();
+            flyway("107").migrate();
 
             assertEquals(identity, snapshot(connection, identityQuery));
             for (int i = 0; i < historyTables.size(); i++) assertEquals(history.get(i), snapshot(connection, "select * from " + historyTables.get(i) + " order by routine_id"), historyTables.get(i));

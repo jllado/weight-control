@@ -61,6 +61,20 @@ class DailyStatusSnapshotServiceTest {
     }
 
     @Test
+    void weeklyRoutinesNeverEnterDailyDenominatorsOrScores() {
+        User user = new User(); LocalDate date = LocalDate.of(2026, 10, 28);
+        Routine weekly = new Routine(); weekly.setId(1L); weekly.setCadence(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY);
+        weekly.setStartDate(DateTimes.startOfDay(date.minusWeeks(3)));
+        weekly.setTypes(java.util.Set.of(com.jllado.weightcontrol.domain.RoutineType.WEIGHT));
+        when(routineRepository.findByUserOrderByStartDateAsc(user)).thenReturn(List.of(weekly));
+        var result = service.getReadOnly(user, date);
+        assertEquals(0, result.getTotalRoutines()); assertEquals(0, result.getRoutinesDone());
+        assertEquals(0, result.getTotalWeightRoutines());
+        verify(routineCheckinRepository, never()).findRoutineIdsWithCheckinsBetween(anySet(), any(), any());
+        verify(routineCheckinRepository, never()).countCheckinsByRoutineIdsBetween(anySet(), any(), any());
+    }
+
+    @Test
     void readOnlyExistingDayPreservesStoredSnapshot() {
         User user = new User();
         LocalDate date = LocalDate.of(2026, 6, 10);

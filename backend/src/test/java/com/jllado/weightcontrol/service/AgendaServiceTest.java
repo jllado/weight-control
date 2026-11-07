@@ -81,7 +81,7 @@ class AgendaServiceTest {
 
         assertEquals(saturday, agenda.date());
         assertEquals("Europe/Madrid", agenda.timeZone());
-        assertEquals(List.of("Weight reminder", "Blood pressure reminder", "Vitamin D", "Back pain check-in", "Mood check-in", "Walk", "Back pain check-in", "Mood check-in", "Back pain check-in", "Mood check-in"),
+        assertEquals(List.of("Vitamin D", "Back pain check-in", "Mood check-in", "Walk", "Back pain check-in", "Mood check-in", "Back pain check-in", "Mood check-in"),
             agenda.entries().stream().map(entry -> entry.title()).toList());
         assertEquals("1 tablet", agenda.entries().stream().filter(entry -> entry.title().equals("Vitamin D")).findFirst().orElseThrow().details());
     }
@@ -132,8 +132,6 @@ class AgendaServiceTest {
             .thenAnswer(invocation -> invocation.getArgument(2) == MoodPeriod.MORNING);
         when(backPainEpisodeRepository.existsByUserAndEpisodeDateAndPeriod(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
             .thenAnswer(invocation -> invocation.getArgument(2) == MoodPeriod.MIDDAY);
-        when(weightRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(user, DateTimes.startOfDay(saturday), DateTimes.startOfDay(saturday.plusDays(1)))).thenReturn(true);
-        when(bloodPressureRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(user, DateTimes.startOfDay(saturday), DateTimes.startOfDay(saturday.plusDays(1)))).thenReturn(true);
         when(routineCheckinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any())).thenReturn(true);
         when(medicationDoseRepository.findByMedicationAndScheduledAt(medication, DateTimes.startOfDay(saturday).plusHours(7))).thenReturn(Optional.of(missedDose));
 
@@ -142,8 +140,8 @@ class AgendaServiceTest {
         assertEquals(AgendaEntryStatus.COMPLETED, agenda.entries().stream().filter(entry -> entry.type().name().equals("MOOD") && entry.details().equals("Morning")).findFirst().orElseThrow().status());
         assertEquals(AgendaEntryStatus.RECORDED, agenda.entries().stream().filter(entry -> entry.type().name().equals("BACK_PAIN") && entry.details().equals("Midday")).findFirst().orElseThrow().status());
         assertEquals(AgendaEntryStatus.NO_ISSUE, agenda.entries().stream().filter(entry -> entry.type().name().equals("BACK_PAIN") && entry.details().equals("Morning")).findFirst().orElseThrow().status());
-        assertEquals(AgendaEntryStatus.COMPLETED, agenda.entries().stream().filter(entry -> entry.title().equals("Weight reminder")).findFirst().orElseThrow().status());
-        assertEquals(AgendaEntryStatus.COMPLETED, agenda.entries().stream().filter(entry -> entry.title().equals("Blood pressure reminder")).findFirst().orElseThrow().status());
+        assertEquals(0, agenda.entries().stream().filter(entry -> entry.type().name().equals("WEIGHT")).count());
+        assertEquals(0, agenda.entries().stream().filter(entry -> entry.type().name().equals("BLOOD_PRESSURE")).count());
         assertEquals(AgendaEntryStatus.COMPLETED, agenda.entries().stream().filter(entry -> entry.title().equals("Walk")).findFirst().orElseThrow().status());
         assertEquals(AgendaEntryStatus.MISSED, agenda.entries().stream().filter(entry -> entry.title().equals("Vitamin D")).findFirst().orElseThrow().status());
     }
@@ -155,16 +153,23 @@ class AgendaServiceTest {
         user.setBloodPressureReminderDay(java.time.DayOfWeek.FRIDAY);
         user.setWeightReminderTime(LocalTime.of(8, 0));
         LocalDate monday = LocalDate.of(2026, 10, 5);
-        when(weightRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(user, DateTimes.startOfDay(monday), DateTimes.startOfDay(monday.plusDays(1)))).thenReturn(true);
+        Routine weight = routine("Check weight", LocalTime.of(8, 0), monday.minusDays(2));
+        weight.setCadence(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY);
+        weight.getReminders().iterator().next().setDay(java.time.DayOfWeek.MONDAY);
+        Routine pressure = routine("Check blood pressure", LocalTime.of(5, 15), monday.minusDays(2));
+        pressure.setCadence(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY);
+        pressure.getReminders().iterator().next().setDay(java.time.DayOfWeek.FRIDAY);
+        when(routineRepository.findByUserOrderByStartDateAsc(user)).thenReturn(List.of(weight, pressure));
+        when(routineCheckinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(weight, DateTimes.startOfDay(monday.minusDays(2)), DateTimes.startOfDay(monday.plusDays(1)))).thenReturn(true);
 
         var mondayEntries = service.agenda(user, monday).entries();
         assertEquals(7, mondayEntries.size());
-        assertEquals("Weight reminder", mondayEntries.get(2).title());
+        assertEquals("Check weight", mondayEntries.get(2).title());
         assertEquals(LocalTime.of(8, 0), mondayEntries.get(2).scheduledTime());
         assertEquals(AgendaEntryStatus.COMPLETED, mondayEntries.get(2).status());
         var fridayEntries = service.agenda(user, monday.plusDays(4)).entries();
         assertEquals(7, fridayEntries.size());
-        assertEquals("Blood pressure reminder", fridayEntries.getFirst().title());
+        assertEquals("Check blood pressure", fridayEntries.getFirst().title());
         assertEquals(AgendaEntryStatus.PENDING, fridayEntries.getFirst().status());
         assertEquals(6, service.agenda(user, monday.plusDays(5)).entries().size());
     }

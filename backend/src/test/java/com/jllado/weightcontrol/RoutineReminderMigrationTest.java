@@ -26,7 +26,7 @@ class RoutineReminderMigrationTest {
             statement.executeUpdate("insert into in_app_notifications (user_id, type, routine_id, reminder_date, title, message, available_at, deduplication_key) values (1, 'ROUTINE', 2, '2026-08-20', 'Routine reminder', 'Walking', '2026-08-20 07:30:00', 'ROUTINE:2:2026-08-20')");
         }
 
-        flyway(null).migrate();
+        flyway("34").migrate();
 
         try (var connection = DATABASE.createConnection(""); var statement = connection.createStatement()) {
             try (var reminder = statement.executeQuery("select id, routine_id, reminder_time, reminder_snoozed_until from routine_reminders")) {

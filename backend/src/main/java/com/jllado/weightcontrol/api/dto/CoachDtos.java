@@ -328,8 +328,13 @@ public final class CoachDtos {
         SICKNESS,
         LIPID_PANEL,
         DISH_RECIPE,
-        WORKOUT
+        WORKOUT,
+        ROUTINE
     }
+
+    public record CoachRoutineCheckinRequest(@AssertTrue boolean confirmed, @NotNull @jakarta.validation.constraints.Positive Long routineId, @NotNull LocalDate date) {}
+
+    public record CoachRoutineCheckinResponse(Long routineId, LocalDate date, com.jllado.weightcontrol.domain.RoutineCadence cadence, boolean completed, boolean changed) {}
 
     public record CoachHealthEntryResponse(HealthEntryType type, Object entry) {
     }
@@ -342,7 +347,8 @@ public final class CoachDtos {
     public record BehaviorContext(
         List<CoachDailyStatusData> dailyStatuses,
         List<CoachRoutineData> routines,
-        List<PauseSessionData> urgePauses
+        List<PauseSessionData> urgePauses,
+        List<CoachRoutineData> weeklyRoutines
     ) {
     }
 
@@ -370,10 +376,13 @@ public final class CoachDtos {
     }
 
     public record CoachRoutineData(
+        Long id,
+        com.jllado.weightcontrol.domain.RoutineCadence cadence,
         String name,
         LocalDate startDate,
         List<String> types,
-        List<LocalDate> checkinDates
+        List<LocalDate> checkinDates,
+        List<LocalDate> completedWeekStarts
     ) {
     }
 

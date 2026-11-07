@@ -70,6 +70,7 @@ public class PersonalRecordCalculator {
 
     private void addRoutineObservations(Map<BaseSeries, List<Observation>> observations, List<RoutineSource> sources) {
         for (RoutineSource sourceData : sources) {
+            if (sourceData.routine().getCadence() == RoutineCadence.WEEKLY) continue;
             BehaviorSubject subject = new BehaviorSubject("ROUTINE", sourceData.routine().getId(), sourceData.routine().getName());
             int currentStreak = 0;
             int bestStreak = 0;

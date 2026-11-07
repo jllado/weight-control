@@ -18,6 +18,8 @@ import com.jllado.weightcontrol.domain.HealthConstraint;
 import com.jllado.weightcontrol.domain.LipidPanel;
 import com.jllado.weightcontrol.domain.Mood;
 import com.jllado.weightcontrol.domain.Routine;
+import com.jllado.weightcontrol.domain.RoutineCadence;
+import com.jllado.weightcontrol.util.RoutinePeriods;
 import com.jllado.weightcontrol.domain.RoutineCheckin;
 import com.jllado.weightcontrol.domain.Sickness;
 import com.jllado.weightcontrol.domain.Sleep;
@@ -521,7 +523,7 @@ public class HealthDataContextService {
             .findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(
                 user,
                 DateTimes.startOfDay(from),
-                DateTimes.startOfDay(to).plusDays(1)
+                DateTimes.startOfDay(to.plusDays(1))
             ).stream()
             .map(this::toCoachBodyMeasurementData)
             .toList();
@@ -533,7 +535,7 @@ public class HealthDataContextService {
             .findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(
                 user,
                 DateTimes.startOfDay(from),
-                DateTimes.startOfDay(to).plusDays(1)
+                DateTimes.startOfDay(to.plusDays(1))
             ).stream()
             .map(this::toBloodPressureData)
             .toList();
@@ -615,11 +617,17 @@ public class HealthDataContextService {
             .findByUserAndStatusDateBetweenOrderByStatusDateAsc(user, from, to).stream()
             .map(status -> toCoachDailyStatusData(status, user.getLastCompletedDashboardDate()))
             .toList();
-        List<CoachDtos.CoachRoutineData> routines = routineRepository.findByUserOrderByStartDateAsc(user).stream()
+        List<CoachDtos.CoachRoutineData> routines = getCoachRoutines(user, from, to);
+        return new CoachDtos.BehaviorContext(statuses,
+            routines.stream().filter(routine -> routine.cadence() == RoutineCadence.DAILY).toList(),
+            urgePauseService.context(user, from, to),
+            routines.stream().filter(routine -> routine.cadence() == RoutineCadence.WEEKLY).toList());
+    }
+
+    public List<CoachDtos.CoachRoutineData> getCoachRoutines(User user, LocalDate from, LocalDate to) {
+        return routineRepository.findByUserOrderByStartDateAsc(user).stream()
             .filter(routine -> !DateTimes.toLocalDate(routine.getStartDate()).isAfter(to))
-            .map(routine -> toCoachRoutineData(routine, from, to))
-            .toList();
-        return new CoachDtos.BehaviorContext(statuses, routines, urgePauseService.context(user, from, to));
+            .map(routine -> toCoachRoutineData(routine, from, to)).toList();
     }
 
     private CoachDtos.HealthEventsContext healthEventsContext(User user, LocalDate from, LocalDate to) {
@@ -688,7 +696,7 @@ public class HealthDataContextService {
         LocalDate baselineEnd = detailedStart.minusDays(1);
         LocalDate dataStart = DateTimes.startOfDashboardWeek(selectedDate).minusWeeks(YEAR_COMPARISON_WEEKS);
         OffsetDateTime dataStartTime = DateTimes.startOfDay(dataStart);
-        OffsetDateTime selectedEndExclusive = DateTimes.startOfDay(selectedDate).plusDays(1);
+        OffsetDateTime selectedEndExclusive = DateTimes.startOfDay(selectedDate.plusDays(1));
 
         List<DailyStatus> statuses = dailyStatusRepository.findByUserAndStatusDateBetweenOrderByStatusDateAsc(user, dataStart, selectedDate);
         List<Weight> weights = weightRepository.findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(user, dataStartTime, selectedEndExclusive);
@@ -710,7 +718,7 @@ public class HealthDataContextService {
             Function.identity(),
             routine -> routineCheckinRepository.findByRoutineAndCheckedAtBetweenOrderByCheckedAtAsc(routine, dataStartTime, selectedEndExclusive)
         ));
-        List<RoutineCheckin> routineCheckins = checkins.values().stream().flatMap(List::stream).toList();
+        List<RoutineCheckin> routineCheckins = checkins.entrySet().stream().filter(entry -> entry.getKey().getCadence() == RoutineCadence.DAILY).flatMap(entry -> entry.getValue().stream()).toList();
         WeeklyMetricsCalculator.Input weeklyMetricsInput = new WeeklyMetricsCalculator.Input(
             statuses,
             weights,
@@ -737,7 +745,7 @@ public class HealthDataContextService {
                 .orElse(null),
             recentReflections,
             detailed(statuses, DailyStatus::getStatusDate, detailedStart).stream().map(this::toDailyStatusData).toList(),
-            routines.stream().map(routine -> toRoutineData(routine, checkins.get(routine), detailedStart)).toList(),
+            routines.stream().filter(routine -> routine.getCadence() == RoutineCadence.DAILY).map(routine -> toRoutineData(routine, checkins.get(routine), detailedStart)).toList(),
             detailed(weights, weight -> DateTimes.toLocalDate(weight.getMeasuredAt()), detailedStart).stream().map(this::toWeightData).toList(),
             detailed(bloodPressures, bloodPressure -> DateTimes.toLocalDate(bloodPressure.getMeasuredAt()), detailedStart).stream().map(this::toBloodPressureData).toList(),
             detailed(moods, Mood::getMoodDate, detailedStart).stream().map(this::toMoodData).toList(),
@@ -750,7 +758,8 @@ public class HealthDataContextService {
             toWeekProgress(weeklyMetricsCalculator.progress(user, selectedDate, weeklyMetricsInput)),
             weeklyMetricsCalculator.baselineWeeks(user, contextStart, baselineEnd, weeklyMetricsInput).stream()
                 .map(this::toWeeklySummary)
-                .toList()
+                .toList(),
+            routines.stream().filter(routine -> routine.getCadence() == RoutineCadence.WEEKLY).map(routine -> toCoachRoutineData(routine, detailedStart, selectedDate)).toList()
         );
     }
 
@@ -1098,16 +1107,19 @@ public class HealthDataContextService {
         List<LocalDate> checkinDates = routineCheckinRepository
             .findByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThanOrderByCheckedAtAsc(
                 routine,
-                DateTimes.startOfDay(from),
-                DateTimes.startOfDay(to).plusDays(1)
+                DateTimes.startOfDay(RoutinePeriods.start(routine.getCadence(), from)),
+                DateTimes.startOfDay(to.plusDays(1))
             ).stream()
             .map(checkin -> DateTimes.toLocalDate(checkin.getCheckedAt()))
             .toList();
         return new CoachDtos.CoachRoutineData(
+            routine.getId(),
+            routine.getCadence(),
             routine.getName(),
             DateTimes.toLocalDate(routine.getStartDate()),
             routine.getTypes().stream().map(Enum::name).toList(),
-            checkinDates
+            checkinDates,
+            routine.getCadence() == RoutineCadence.WEEKLY ? checkinDates.stream().map(date -> RoutinePeriods.start(RoutineCadence.WEEKLY, date)).distinct().sorted().toList() : List.of()
         );
     }
 

@@ -70,6 +70,7 @@ public class DailyStatusSnapshotService {
         Weight weight = weightRepository.findFirstByUserAndMeasuredAtLessThanEqualOrderByMeasuredAtDesc(user, dayStart.plusDays(1)).orElse(null);
         BloodPressure bloodPressure = bloodPressureRepository.findFirstByUserAndMeasuredAtLessThanEqualOrderByMeasuredAtDesc(user, dayStart.plusDays(1)).orElse(null);
         List<Routine> routines = routineRepository.findByUserOrderByStartDateAsc(user).stream()
+            .filter(routine -> routine.getCadence() == RoutineCadence.DAILY)
             .filter(routine -> !DateTimes.toLocalDate(routine.getStartDate()).isAfter(date))
             .toList();
         Set<Long> routineIds = routines.stream().map(Routine::getId).collect(Collectors.toSet());

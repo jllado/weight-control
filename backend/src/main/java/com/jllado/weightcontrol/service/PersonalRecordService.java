@@ -277,7 +277,7 @@ public class PersonalRecordService {
     }
 
     public List<RecordAchievementResponse> routineMilestoneAchievement(User user, RoutineService.RoutineCheckinResult result) {
-        if (!result.routine().getPersonalRecordsEnabled() || result.checkin() == null || result.routine().getBestStrike() <= result.previousBestStreak() || !RoutineStreakMilestones.isMilestone(result.routine().getBestStrike())) {
+        if (result.routine().getCadence() == RoutineCadence.WEEKLY || !result.routine().getPersonalRecordsEnabled() || result.checkin() == null || result.routine().getBestStrike() <= result.previousBestStreak() || !RoutineStreakMilestones.isMilestone(result.routine().getBestStrike())) {
             return List.of();
         }
         PersonalRecordMode mode = overrides(user).getOrDefault(PersonalRecordCatalogMetric.ROUTINE_BEST_STREAK, PersonalRecordCatalogMetric.ROUTINE_BEST_STREAK.getDefaultMode());

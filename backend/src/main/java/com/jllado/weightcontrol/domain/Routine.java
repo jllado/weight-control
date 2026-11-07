@@ -40,6 +40,10 @@ public class Routine {
     @Column(name = "automatic_trigger", nullable = false, length = 40)
     private RoutineAutomaticTrigger automaticTrigger = RoutineAutomaticTrigger.NONE;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 6)
+    private RoutineCadence cadence = RoutineCadence.DAILY;
+
     @Column(name = "automatic_completion_enabled", nullable = false)
     private boolean automaticCompletionEnabled;
 

@@ -2,13 +2,16 @@ package com.jllado.weightcontrol.api.dto;
 
 import com.jllado.weightcontrol.api.dto.DashboardDtos.DashboardResponse;
 import com.jllado.weightcontrol.domain.Routine;
+import com.jllado.weightcontrol.domain.RoutineCadence;
 import com.jllado.weightcontrol.domain.RoutineAutomaticTrigger;
 import com.jllado.weightcontrol.domain.RoutineReminder;
 import com.jllado.weightcontrol.domain.RoutineType;
 import com.jllado.weightcontrol.util.DateTimes;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.Comparator;
@@ -23,23 +26,31 @@ public final class RoutineDtos {
     public record RoutineRequest(
         @NotBlank String name,
         @NotEmpty Set<RoutineType> types,
-        @NotNull List<@NotNull LocalTime> reminderTimes,
+        List<@NotNull LocalTime> reminderTimes,
         @NotNull Boolean personalRecordsEnabled,
         RoutineAutomaticTrigger automaticTrigger,
-        Boolean automaticCompletionEnabled
+        Boolean automaticCompletionEnabled,
+        RoutineCadence cadence,
+        List<@NotNull @Valid WeeklyReminderRequest> weeklyReminders
     ) {
         public RoutineRequest(String name, Set<RoutineType> types, List<LocalTime> reminderTimes, Boolean personalRecordsEnabled) {
-            this(name, types, reminderTimes, personalRecordsEnabled, null, null);
+            this(name, types, reminderTimes, personalRecordsEnabled, null, null, null, null);
         }
 
         public RoutineRequest(String name, Set<RoutineType> types, List<LocalTime> reminderTimes, Boolean personalRecordsEnabled, RoutineAutomaticTrigger automaticTrigger) {
-            this(name, types, reminderTimes, personalRecordsEnabled, automaticTrigger, null);
+            this(name, types, reminderTimes, personalRecordsEnabled, automaticTrigger, null, null, null);
+        }
+
+        public RoutineRequest(String name, Set<RoutineType> types, List<LocalTime> reminderTimes, Boolean personalRecordsEnabled, RoutineAutomaticTrigger automaticTrigger, Boolean automaticCompletionEnabled) {
+            this(name, types, reminderTimes, personalRecordsEnabled, automaticTrigger, automaticCompletionEnabled, null, null);
         }
     }
 
-    public record RoutineReminderResponse(Long id, LocalTime time) {
+    public record WeeklyReminderRequest(@NotNull DayOfWeek day, @NotNull LocalTime time) { }
+
+    public record RoutineReminderResponse(Long id, LocalTime time, DayOfWeek day) {
         public static RoutineReminderResponse from(RoutineReminder reminder) {
-            return new RoutineReminderResponse(reminder.getId(), reminder.getReminderTime());
+            return new RoutineReminderResponse(reminder.getId(), reminder.getReminderTime(), reminder.getDay());
         }
     }
 
@@ -69,7 +80,8 @@ public final class RoutineDtos {
         Set<RoutineType> types,
         RoutineAutomaticTrigger automaticTrigger,
         boolean automaticCompletionEnabled,
-        List<OffsetDateTime> times
+        List<OffsetDateTime> times,
+        RoutineCadence cadence
     ) {
         public static RoutineResponse from(Routine routine, List<OffsetDateTime> times) {
             RoutineSummaryResponse summary = RoutineSummaryResponse.from(routine);
@@ -87,7 +99,8 @@ public final class RoutineDtos {
                 summary.types(),
                 summary.automaticTrigger(),
                 summary.automaticCompletionEnabled(),
-                times
+                times,
+                summary.cadence()
             );
         }
     }
@@ -105,7 +118,8 @@ public final class RoutineDtos {
         Boolean personalRecordsEnabled,
         Set<RoutineType> types,
         RoutineAutomaticTrigger automaticTrigger,
-        boolean automaticCompletionEnabled
+        boolean automaticCompletionEnabled,
+        RoutineCadence cadence
     ) {
         public static RoutineSummaryResponse from(Routine routine) {
             return new RoutineSummaryResponse(
@@ -116,7 +130,7 @@ public final class RoutineDtos {
                 routine.getLastTimeDate(),
                 routine.getName(),
                 routine.getReminders().stream()
-                    .sorted(Comparator.comparing(RoutineReminder::getReminderTime))
+                    .sorted(Comparator.comparing(RoutineReminder::getDay, Comparator.nullsFirst(Comparator.naturalOrder())).thenComparing(RoutineReminder::getReminderTime))
                     .map(RoutineReminderResponse::from)
                     .toList(),
                 routine.getCurrentStrike(),
@@ -124,7 +138,8 @@ public final class RoutineDtos {
                 routine.getPersonalRecordsEnabled(),
                 routine.getTypes(),
                 routine.getAutomaticTrigger(),
-                routine.isAutomaticCompletionEnabled()
+                routine.isAutomaticCompletionEnabled(),
+                routine.getCadence()
             );
         }
     }

@@ -24,6 +24,7 @@ import com.jllado.weightcontrol.repository.RoutineReminderRepository;
 import com.jllado.weightcontrol.repository.UserRepository;
 import com.jllado.weightcontrol.repository.WeightRepository;
 import com.jllado.weightcontrol.util.DateTimes;
+import com.jllado.weightcontrol.util.RoutinePeriods;
 import jakarta.transaction.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -59,8 +60,6 @@ public class PushNotificationService {
     private final RoutineCheckinRepository checkinRepository;
     private final MoodRepository moodRepository;
     private final BackPainEpisodeRepository backPainEpisodeRepository;
-    private final WeightRepository weightRepository;
-    private final BloodPressureRepository bloodPressureRepository;
     private final UserRepository userRepository;
     private final InAppNotificationService inAppNotificationService;
     private final PushGateway gateway;
@@ -86,8 +85,6 @@ public class PushNotificationService {
         this.checkinRepository = checkinRepository;
         this.moodRepository = moodRepository;
         this.backPainEpisodeRepository = backPainEpisodeRepository;
-        this.weightRepository = weightRepository;
-        this.bloodPressureRepository = bloodPressureRepository;
         this.userRepository = userRepository;
         this.inAppNotificationService = inAppNotificationService;
         this.gateway = gateway;
@@ -208,7 +205,6 @@ public class PushNotificationService {
     public void sendDailyCheckInReminders() {
         ZonedDateTime now = ZonedDateTime.now(DateTimes.USER_ZONE);
         sendDailyCheckInReminders(now.toLocalDate(), now.toLocalTime());
-        sendWeeklyMeasurementReminders(now.toLocalDate(), now.toLocalTime());
     }
 
     @Scheduled(cron = "0 * * * * *", zone = "Europe/Madrid")
@@ -247,26 +243,6 @@ public class PushNotificationService {
         }
     }
 
-    void sendWeeklyMeasurementReminders(LocalDate date, LocalTime time) {
-        LocalTime reminderTime = time.truncatedTo(ChronoUnit.MINUTES);
-        OffsetDateTime startOfDay = DateTimes.startOfDay(date);
-        OffsetDateTime endOfDay = DateTimes.startOfDay(date.plusDays(1));
-        OffsetDateTime availableAt = ZonedDateTime.of(date, reminderTime, DateTimes.USER_ZONE).toOffsetDateTime();
-        Map<Long, List<PushSubscription>> subscriptionsByUser = enabledSubscriptionsByUser();
-        for (User user : userRepository.findAll()) {
-            if (date.getDayOfWeek() == user.getWeightReminderDay() && reminderTime.equals(user.getWeightReminderTime())
-                && !weightRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(user, startOfDay, endOfDay)) {
-                var notification = inAppNotificationService.recordWeightReminder(user, date, availableAt);
-                deliverReminder(subscriptionsByUser.get(user.getId()), weightPayload(date, notification.getId()));
-            }
-            if (date.getDayOfWeek() == user.getBloodPressureReminderDay() && reminderTime.equals(user.getBloodPressureReminderTime())
-                && !bloodPressureRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(user, startOfDay, endOfDay)) {
-                var notification = inAppNotificationService.recordBloodPressureReminder(user, date, availableAt);
-                deliverReminder(subscriptionsByUser.get(user.getId()), bloodPressurePayload(date, notification.getId()));
-            }
-        }
-    }
-
     void sendRoutineReminders(LocalDate date, LocalTime time) {
         sendRoutineReminders(ZonedDateTime.of(date, time, DateTimes.USER_ZONE));
     }
@@ -276,6 +252,7 @@ public class PushNotificationService {
         LocalTime time = now.toLocalTime().truncatedTo(ChronoUnit.MINUTES);
         Map<Long, List<PushSubscription>> subscriptionsByUser = enabledSubscriptionsByUser();
         for (RoutineReminder reminder : routineReminderRepository.findByReminderTime(time)) {
+            if (reminder.getDay() != null && reminder.getDay() != date.getDayOfWeek()) continue;
             clearSnooze(reminder);
             deliverRoutineReminder(reminder, date, now.toOffsetDateTime(), subscriptionsByUser);
         }
@@ -311,7 +288,7 @@ public class PushNotificationService {
     private boolean isCompleted(Routine routine, LocalDate date) {
         return checkinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
             routine,
-            DateTimes.startOfDay(date),
+            DateTimes.startOfDay(RoutinePeriods.start(routine.getCadence(), date)),
             DateTimes.startOfDay(date.plusDays(1))
         );
     }
@@ -382,16 +359,6 @@ public class PushNotificationService {
         String label = periodLabel(period);
         String url = "/?checkInReminder=back&checkInPeriod=" + period + "&checkInReminderDate=" + date + "&notificationId=" + notificationId;
         return serialize(new PushPayload(label + " back reminder", "Record how your back feels, including no pain.", url, "back-reminder-" + period, snoozeUrl(notificationId), dismissUrl(notificationId), notificationId));
-    }
-
-    private String weightPayload(LocalDate date, Long notificationId) {
-        String url = "/?measurementReminder=weight&measurementReminderDate=" + date + "&notificationId=" + notificationId;
-        return serialize(new PushPayload("Weight reminder", "Record your weight.", url, "weight-reminder", snoozeUrl(notificationId), dismissUrl(notificationId), notificationId));
-    }
-
-    private String bloodPressurePayload(LocalDate date, Long notificationId) {
-        String url = "/?measurementReminder=blood-pressure&measurementReminderDate=" + date + "&notificationId=" + notificationId;
-        return serialize(new PushPayload("Blood pressure reminder", "Record your blood pressure.", url, "blood-pressure-reminder", snoozeUrl(notificationId), dismissUrl(notificationId), notificationId));
     }
 
     private String snoozeUrl(Long notificationId) {

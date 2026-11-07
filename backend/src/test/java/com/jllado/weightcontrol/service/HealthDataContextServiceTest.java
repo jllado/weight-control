@@ -195,6 +195,54 @@ class HealthDataContextServiceTest {
         org.mockito.Mockito.lenient().when(personalRecordService.coachAvailability(org.mockito.ArgumentMatchers.any())).thenReturn(new PersonalRecordService.CoachRecordAvailability(0, null, null));
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"2026-03-29", "2026-10-25"})
+    void routineLookupUsesNextMadridMidnightAcrossDst(String value) {
+        User user = user();
+        LocalDate cutoff = LocalDate.parse(value);
+        var routine = new com.jllado.weightcontrol.domain.Routine();
+        routine.setId(91L);
+        routine.setName("Check weight");
+        routine.setCadence(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY);
+        var weekStart = com.jllado.weightcontrol.util.RoutinePeriods.start(routine.getCadence(), cutoff);
+        routine.setStartDate(com.jllado.weightcontrol.util.DateTimes.startOfDay(weekStart));
+        routine.setTypes(Set.of(com.jllado.weightcontrol.domain.RoutineType.WEIGHT));
+        when(routineRepository.findByUserOrderByStartDateAsc(user)).thenReturn(List.of(routine));
+        service.getCoachRoutines(user, cutoff, cutoff);
+        verify(routineCheckinRepository).findByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThanOrderByCheckedAtAsc(
+            routine, com.jllado.weightcontrol.util.DateTimes.startOfDay(weekStart), com.jllado.weightcontrol.util.DateTimes.startOfDay(cutoff.plusDays(1)));
+    }
+
+    @Test
+    void routineLookupKeepsOwnedCadenceActualDatesAndWeeklyDeduplication() {
+        User user = user();
+        var from = LocalDate.of(2026, 8, 8);
+        var to = LocalDate.of(2026, 8, 12);
+        var routine = new com.jllado.weightcontrol.domain.Routine();
+        routine.setId(91L);
+        routine.setName("Check weight");
+        routine.setCadence(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY);
+        routine.setStartDate(com.jllado.weightcontrol.util.DateTimes.startOfDay(from));
+        routine.setTypes(Set.of(com.jllado.weightcontrol.domain.RoutineType.WEIGHT));
+        var first = new com.jllado.weightcontrol.domain.RoutineCheckin();
+        first.setCheckedAt(com.jllado.weightcontrol.util.DateTimes.startOfDay(from));
+        var second = new com.jllado.weightcontrol.domain.RoutineCheckin();
+        second.setCheckedAt(com.jllado.weightcontrol.util.DateTimes.startOfDay(to));
+        when(routineRepository.findByUserOrderByStartDateAsc(user)).thenReturn(List.of(routine));
+        when(routineCheckinRepository.findByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThanOrderByCheckedAtAsc(
+            routine, com.jllado.weightcontrol.util.DateTimes.startOfDay(from), com.jllado.weightcontrol.util.DateTimes.startOfDay(to.plusDays(1))))
+            .thenReturn(List.of(first, second));
+        var result = service.getCoachRoutines(user, from, to).getFirst();
+        assertEquals(91L, result.id());
+        assertEquals(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY, result.cadence());
+        assertEquals(List.of(from, to), result.checkinDates());
+        assertEquals(List.of(from), result.completedWeekStarts());
+        var context = (com.jllado.weightcontrol.api.dto.CoachDtos.BehaviorContext) service.getHealthContext(user, from, to,
+            Set.of(CoachDomain.BEHAVIOR), OffsetDateTime.parse("2026-08-16T10:00:00+02:00")).data().get(CoachDomain.BEHAVIOR);
+        assertEquals(List.of(), context.routines());
+        assertEquals(List.of(result), context.weeklyRoutines());
+    }
+
     @Test
     void emptyReusableCatalogsRemainScopedAndDoNotLoadConsumption() {
         User user = user();

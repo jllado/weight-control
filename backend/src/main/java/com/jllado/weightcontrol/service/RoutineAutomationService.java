@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.service;
 import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
 import com.jllado.weightcontrol.domain.ExerciseType;
 import com.jllado.weightcontrol.domain.Routine;
+import com.jllado.weightcontrol.domain.RoutineCadence;
 import com.jllado.weightcontrol.domain.RoutineAutomaticEvidence;
 import com.jllado.weightcontrol.domain.RoutineCheckin;
 import com.jllado.weightcontrol.domain.User;
@@ -12,12 +13,16 @@ import com.jllado.weightcontrol.repository.RoutineAutomaticEvidenceRepository;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
 import com.jllado.weightcontrol.repository.RoutineRepository;
 import com.jllado.weightcontrol.repository.SleepRepository;
+import com.jllado.weightcontrol.repository.WeightRepository;
+import com.jllado.weightcontrol.repository.BloodPressureRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.jllado.weightcontrol.repository.WorkoutRepository;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.transaction.Transactional;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -42,6 +47,10 @@ public class RoutineAutomationService {
     private final FastingPeriodRepository fastingPeriodRepository;
     private final SleepRepository sleepRepository;
 
+    private final WeightRepository weightRepository;
+    private final BloodPressureRepository bloodPressureRepository;
+
+    @Autowired
     public RoutineAutomationService(
         RoutineRepository routineRepository,
         RoutineAutomaticEvidenceRepository evidenceRepository,
@@ -49,7 +58,9 @@ public class RoutineAutomationService {
         MealRepository mealRepository,
         WorkoutRepository workoutRepository,
         FastingPeriodRepository fastingPeriodRepository,
-        SleepRepository sleepRepository
+        SleepRepository sleepRepository,
+        WeightRepository weightRepository,
+        BloodPressureRepository bloodPressureRepository
     ) {
         this.routineRepository = routineRepository;
         this.evidenceRepository = evidenceRepository;
@@ -58,6 +69,17 @@ public class RoutineAutomationService {
         this.workoutRepository = workoutRepository;
         this.fastingPeriodRepository = fastingPeriodRepository;
         this.sleepRepository = sleepRepository;
+        this.weightRepository = weightRepository;
+        this.bloodPressureRepository = bloodPressureRepository;
+    }
+
+    public RoutineAutomationService(RoutineRepository routines, RoutineAutomaticEvidenceRepository evidence, RoutineCheckinRepository checkins,
+        MealRepository meals, WorkoutRepository workouts, FastingPeriodRepository fasts, SleepRepository sleeps) {
+        this(routines, evidence, checkins, meals, workouts, fasts, sleeps, null, null);
+    }
+
+    public boolean hasEvidence(Routine routine, LocalDate date) {
+        return evidenceRepository.findByRoutine(routine).stream().anyMatch(evidence -> evidence.getEventDate().equals(date));
     }
 
     public void reconcile(User user) {
@@ -74,9 +96,28 @@ public class RoutineAutomationService {
             .toList();
         for (Routine routine : routines) {
             Map<Source, LocalDate> expected = new HashMap<>();
+            Map<LocalDate, OffsetDateTime> measurementTimes = new HashMap<>();
             LocalDate startDate = DateTimes.toLocalDate(routine.getStartDate());
             switch (routine.getAutomaticTrigger()) {
                 case NONE -> { }
+                case WEIGHT_MEASUREMENT -> {
+                    var readings = weightRepository.findByUserOrderByMeasuredAtDesc(user);
+                    backdateMeasurementStart(routine, readings.stream().map(weight -> DateTimes.toLocalDate(weight.getMeasuredAt())).toList());
+                    readings.forEach(weight -> {
+                        LocalDate date = DateTimes.toLocalDate(weight.getMeasuredAt());
+                        expected.put(new Source("WEIGHT", weight.getId().toString()), date);
+                        measurementTimes.merge(date, weight.getMeasuredAt(), (first, next) -> first.isBefore(next) ? first : next);
+                    });
+                }
+                case BLOOD_PRESSURE_MEASUREMENT -> {
+                    var readings = bloodPressureRepository.findByUserOrderByMeasuredAtDesc(user);
+                    backdateMeasurementStart(routine, readings.stream().map(pressure -> DateTimes.toLocalDate(pressure.getMeasuredAt())).toList());
+                    readings.forEach(pressure -> {
+                        LocalDate date = DateTimes.toLocalDate(pressure.getMeasuredAt());
+                        expected.put(new Source("BLOOD_PRESSURE", pressure.getId().toString()), date);
+                        measurementTimes.merge(date, pressure.getMeasuredAt(), (first, next) -> first.isBefore(next) ? first : next);
+                    });
+                }
                 case FRUIT_MEAL -> meals.stream()
                     .filter(meal -> meal.getDishes().stream().anyMatch(dish -> dish.isFruit()))
                     .filter(meal -> !meal.getMealDate().isBefore(startDate))
@@ -124,11 +165,18 @@ public class RoutineAutomationService {
                     .filter(workout -> !workout.getWorkoutDate().isBefore(startDate))
                     .forEach(workout -> expected.put(new Source(WORKOUT, workout.getId().toString()), workout.getWorkoutDate()));
             }
-            reconcile(routine, expected);
+            reconcile(routine, expected, measurementTimes);
         }
     }
 
-    private void reconcile(Routine routine, Map<Source, LocalDate> expected) {
+    private void backdateMeasurementStart(Routine routine, List<LocalDate> dates) {
+        if (routine.getCadence() != RoutineCadence.WEEKLY) return;
+        dates.stream().min(LocalDate::compareTo).map(DateTimes::startOfDashboardWeek)
+            .filter(start -> start.isBefore(DateTimes.toLocalDate(routine.getStartDate())))
+            .ifPresent(start -> routine.setStartDate(DateTimes.startOfDay(start)));
+    }
+
+    private void reconcile(Routine routine, Map<Source, LocalDate> expected, Map<LocalDate, OffsetDateTime> measurementTimes) {
         Map<Source, RoutineAutomaticEvidence> existing = new HashMap<>();
         for (RoutineAutomaticEvidence evidence : evidenceRepository.findByRoutine(routine)) {
             existing.put(new Source(evidence.getSourceKind(), evidence.getSourceKey()), evidence);
@@ -164,7 +212,7 @@ public class RoutineAutomationService {
             if (checkedDates.add(date)) {
                 RoutineCheckin checkin = new RoutineCheckin();
                 checkin.setRoutine(routine);
-                checkin.setCheckedAt(DateTimes.startOfDay(date));
+                checkin.setCheckedAt(measurementTimes.getOrDefault(date, DateTimes.startOfDay(date)));
                 checkin.setManualCompletion(false);
                 checkinRepository.save(checkin);
                 clearReminderSnoozes(routine);

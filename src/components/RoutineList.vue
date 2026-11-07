@@ -25,6 +25,7 @@
               <InputText v-model="filterModel.value" type="text" @input="filterCallback()" class="p-column-filter" placeholder="Search" />
             </template>
           </Column>
+          <Column header="Cadence"><template #body="routine">{{ routine.data.isWeekly() ? 'Weekly' : 'Daily' }}</template></Column>
           <Column header="Type" headerStyle="width: 250px" >
             <template #body="routine" >
               {{ routine.data.typeValues() }}
@@ -37,17 +38,17 @@
           </Column>
           <Column header="Times" headerStyle="width: 111px" >
             <template #body="routine" >
-              {{ routine.data.times.length }}
+              {{ routine.data.completionCount() }}
             </template>
           </Column>
           <Column header="Streak" headerStyle="width: 111px" >
             <template #body="routine" >
-              {{ routine.data.current_strike }}
+              {{ routine.data.strike() }} {{ routine.data.isWeekly() ? 'weeks' : 'days' }}
             </template>
           </Column>
           <Column header="Best Streak" headerStyle="width: 111px" >
             <template #body="routine" >
-              {{ routine.data.best_strike }}
+              {{ routine.data.bestStreak() }} {{ routine.data.isWeekly() ? 'weeks' : 'days' }}
             </template>
           </Column>
           <Column header="Last Date" headerStyle="width: 111px" >
@@ -92,6 +93,12 @@
         </span>
         <span class="error">{{ vv.name?.$errors[0]?.$message }}</span>
       </div>
+      <div class="p-pb-5 routine-reminder-field">
+        <label id="routine-cadence-label" for="routine-cadence">Cadence</label>
+        <Dropdown inputId="routine-cadence" aria-labelledby="routine-cadence-label" v-model="fform.cadence" :options="[{label: 'Daily', value: 'DAILY'}, {label: 'Weekly', value: 'WEEKLY'}]" optionLabel="label" optionValue="value" :disabled="!!routine?.id" />
+        <small v-if="fform.cadence === 'WEEKLY'">Once each Saturday–Friday, starting this week.</small>
+        <small v-if="routine?.id">Cadence is fixed when the routine is created.</small>
+      </div>
       <div class="p-flex-row p-pb-5">
         <MultiSelect v-model="vv.types.$model" :options="types()" optionLabel="name" placeholder="Select types" class="w-full" />
         <span class="error">{{ vv.types?.$errors[0]?.$message }}</span>
@@ -100,21 +107,29 @@
         <Checkbox inputId="routine-automatic-completion" aria-label="Complete automatically" :pt="{hiddenInput: {'aria-describedby': 'routine-automatic-description routine-automatic-preservation'}}" v-model="fform.automatic_completion_enabled" :binary="true" />
         <div>
           <label for="routine-automatic-completion">Complete automatically</label>
-          <small id="routine-automatic-description">Completes once per day when you log {{ automatic_completion_description }}.</small>
+          <small id="routine-automatic-description">Completes once per {{ fform.cadence === 'WEEKLY' ? 'week' : 'day' }} when you log {{ automatic_completion_description }}.</small>
           <small id="routine-automatic-preservation">Turning this off keeps existing check-ins.</small>
         </div>
       </div>
       <div class="p-pb-5 routine-reminder-field">
-        <label>Reminder times</label>
+        <label>Reminders</label>
+        <template v-if="fform.cadence === 'DAILY'">
         <div v-for="(reminderTime, index) in fform.reminder_times" :key="index" class="routine-reminder-row">
           <Calendar :id="`routine-reminder-time-${index}`" v-model="fform.reminder_times[index]" :timeOnly="true" hourFormat="24" :stepMinute="5" :manualInput="false" showIcon class="routine-reminder-input" />
           <CompactAction icon="pi pi-trash" :aria-label="`Remove reminder ${index + 1}`" @click="remove_reminder_time(index)" destructive />
         </div>
+        </template>
+        <template v-else>
+          <div v-for="(reminder, index) in fform.weekly_reminders" :key="index" class="routine-reminder-row">
+            <WeeklyReminderFields :idPrefix="`routine-weekly-${index}`" :label="`Reminder ${index + 1}`" v-model:day="reminder.day" v-model:time="reminder.time" />
+            <CompactAction icon="pi pi-trash" :aria-label="`Remove reminder ${index + 1}`" @click="fform.weekly_reminders.splice(index, 1)" destructive />
+          </div>
+        </template>
         <Button label="Add reminder" icon="pi pi-plus" class="p-button-outlined" @click="add_reminder_time" />
-        <span v-if="has_duplicate_reminder_times()" class="error">Reminder times must be unique.</span>
+        <span v-if="has_duplicate_reminder_times()" class="error">Each reminder must have a unique day and time.</span>
         <small>Europe/Madrid time. Leave the list empty to disable this routine's reminders.</small>
       </div>
-      <div class="p-pb-5 routine-checkbox-setting">
+      <div v-if="fform.cadence === 'DAILY'" class="p-pb-5 routine-checkbox-setting">
         <Checkbox inputId="routine-personal-records" aria-label="Track streak milestones as personal records" v-model="fform.personal_records_enabled" :binary="true" />
         <div>
           <label for="routine-personal-records">Track streak milestones as personal records</label>
@@ -139,11 +154,12 @@ import { reactive, toRef, ref } from "vue";
 import { required } from "@vuelidate/validators";
 import { useVuelidate } from "@vuelidate/core";
 import { FilterMatchMode } from 'primevue/api';
+import WeeklyReminderFields from './WeeklyReminderFields.vue';
 import RoutineAnalyticsCard from '@/components/RoutineAnalyticsCard.vue';
 
 
 export default {
-  components: {RoutineAnalyticsCard},
+  components: {RoutineAnalyticsCard, WeeklyReminderFields},
   computed: {
     automatic_completion_description() {
       return RoutineAutomaticTriggerDescriptions[this.fform.automatic_trigger];
@@ -172,6 +188,8 @@ export default {
       name: null,
       types: null,
       reminder_times: [],
+      weekly_reminders: [],
+      cadence: 'DAILY',
       personal_records_enabled: true,
       automatic_trigger: RoutineAutomaticTrigger.NONE,
       automatic_completion_enabled: false
@@ -244,6 +262,8 @@ export default {
       this.routine = Object.assign({}, routine);
       this.vv.name.$model = this.routine.name;
       this.vv.types.$model = this.routine.types;
+      this.fform.cadence = this.routine.cadence;
+      this.fform.weekly_reminders = this.routine.reminders.filter(reminder => reminder.day).map(reminder => ({day: reminder.day, time: this.parse_reminder_time(reminder.time)}));
       this.fform.reminder_times = this.routine.reminders.map(reminder => this.parse_reminder_time(reminder.time));
       this.fform.personal_records_enabled = this.routine.personal_records_enabled;
       this.fform.automatic_trigger = this.routine.automatic_trigger;
@@ -251,7 +271,10 @@ export default {
       this.display_edit_modal = true;
     },
     create() {
+      this.clear();
       this.fform.reminder_times = [];
+      this.fform.weekly_reminders = [];
+      this.fform.cadence = 'DAILY';
       this.fform.automatic_trigger = RoutineAutomaticTrigger.NONE;
       this.fform.automatic_completion_enabled = false;
       this.routine = {
@@ -272,6 +295,8 @@ export default {
       this.vv.name.$model = null;
       this.vv.types.$model = null;
       this.fform.reminder_times = [];
+      this.fform.weekly_reminders = [];
+      this.fform.cadence = 'DAILY';
       this.fform.personal_records_enabled = true;
       this.fform.automatic_trigger = RoutineAutomaticTrigger.NONE;
       this.fform.automatic_completion_enabled = false;
@@ -284,7 +309,7 @@ export default {
       return reminder_time?.slice(0, 5) || '—';
     },
     format_reminder_times(reminders) {
-      return reminders.length ? reminders.map(reminder => this.format_reminder_time(reminder.time)).join(', ') : '—';
+      return reminders.length ? reminders.map(reminder => `${reminder.day ? reminder.day.charAt(0) + reminder.day.slice(1).toLowerCase() + ' ' : ''}${this.format_reminder_time(reminder.time)}`).join(', ') : '—';
     },
     parse_reminder_time(reminder_time) {
       if (!reminder_time) {
@@ -301,13 +326,16 @@ export default {
     add_reminder_time() {
       const reminderTime = new Date();
       reminderTime.setHours(8, 0, 0, 0);
-      this.fform.reminder_times.push(reminderTime);
+      if (this.fform.cadence === 'WEEKLY') this.fform.weekly_reminders.push({day: 'SATURDAY', time: reminderTime});
+      else this.fform.reminder_times.push(reminderTime);
     },
     remove_reminder_time(index) {
       this.fform.reminder_times.splice(index, 1);
     },
     has_duplicate_reminder_times() {
-      const reminderTimes = this.fform.reminder_times.map(this.serialize_reminder_time);
+      const reminderTimes = this.fform.cadence === 'WEEKLY'
+          ? this.fform.weekly_reminders.map(reminder => `${reminder.day} ${this.serialize_reminder_time(reminder.time)}`)
+          : this.fform.reminder_times.map(this.serialize_reminder_time);
       return new Set(reminderTimes).size !== reminderTimes.length;
     },
     async save() {
@@ -320,8 +348,10 @@ export default {
         }
         let routine_state = this.routine;
         let user = this.state.user.mail;
-        const reminder_times = this.fform.reminder_times.map(this.serialize_reminder_time).sort();
-        await service.save(build_routine(this.vv, reminder_times, this.fform.personal_records_enabled, this.fform.automatic_trigger, this.fform.automatic_completion_enabled, user, routine_state))
+        const reminders = this.fform.cadence === 'WEEKLY'
+            ? this.fform.weekly_reminders.map(reminder => ({day: reminder.day, time: this.serialize_reminder_time(reminder.time)}))
+            : this.fform.reminder_times.map(time => ({time: this.serialize_reminder_time(time)}));
+        await service.save(build_routine(this.vv, reminders, this.fform.cadence, this.fform.cadence === 'DAILY' && this.fform.personal_records_enabled, this.fform.automatic_trigger, this.fform.automatic_completion_enabled, user, routine_state))
             .then(async () => {
               this.$toast.add({severity:'success', summary: 'Routine saved', life: 3000});
               this.close_edit();
@@ -335,13 +365,14 @@ export default {
       } finally {
         this.saving = false;
       }
-      function build_routine(vv, reminder_times, personal_records_enabled, automatic_trigger, automatic_completion_enabled, user, routine_state) {
+      function build_routine(vv, reminders, cadence, personal_records_enabled, automatic_trigger, automatic_completion_enabled, user, routine_state) {
         let routine = new Routine()
         routine.id = routine_state.id;
         routine.user = user;
         routine.start_date = routine_state.start_date;
         routine.name = vv.name.$model;
-        routine.reminders = reminder_times.map(time => ({time}));
+        routine.reminders = reminders;
+        routine.cadence = cadence;
         routine.types = vv.types.$model;
         routine.times = routine_state.times;
         routine.current_strike = routine_state.current_strike;

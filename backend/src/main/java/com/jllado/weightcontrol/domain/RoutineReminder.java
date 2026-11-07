@@ -11,12 +11,15 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalTime;
+import java.time.DayOfWeek;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
 import java.time.OffsetDateTime;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Table(name = "routine_reminders", uniqueConstraints = @UniqueConstraint(columnNames = {"routine_id", "reminder_time"}))
+@Table(name = "routine_reminders", uniqueConstraints = @UniqueConstraint(columnNames = {"routine_id", "reminder_day", "reminder_time"}))
 @Getter
 @Setter
 public class RoutineReminder {
@@ -31,6 +34,10 @@ public class RoutineReminder {
 
     @Column(name = "reminder_time", nullable = false)
     private LocalTime reminderTime;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reminder_day", length = 9)
+    private DayOfWeek day;
 
     @Column(name = "reminder_snoozed_until")
     private OffsetDateTime reminderSnoozedUntil;

@@ -2,6 +2,8 @@ package com.jllado.weightcontrol.domain;
 
 public enum RoutineAutomaticTrigger {
     NONE,
+    WEIGHT_MEASUREMENT,
+    BLOOD_PRESSURE_MEASUREMENT,
     FAST_OVER_12_HOURS,
     FRUIT_MEAL,
     CARDIO_WORKOUT,

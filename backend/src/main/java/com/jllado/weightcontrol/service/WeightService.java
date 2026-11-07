@@ -25,7 +25,19 @@ public class WeightService {
     private final DailyStatusRepository dailyStatusRepository;
     private final PhotoStorageService photoStorageService;
 
+    private final java.util.function.Consumer<User> reconcileRoutines;
+
     public WeightService(WeightRepository weightRepository, DailyStatusRepository dailyStatusRepository, PhotoStorageService photoStorageService) {
+        this(weightRepository, dailyStatusRepository, photoStorageService, ignored -> { });
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public WeightService(WeightRepository weightRepository, DailyStatusRepository dailyStatusRepository, PhotoStorageService photoStorageService, RoutineAutomationService automationService) {
+        this(weightRepository, dailyStatusRepository, photoStorageService, user -> automationService.reconcile(user));
+    }
+
+    private WeightService(WeightRepository weightRepository, DailyStatusRepository dailyStatusRepository, PhotoStorageService photoStorageService, java.util.function.Consumer<User> reconcileRoutines) {
+        this.reconcileRoutines = reconcileRoutines;
         this.weightRepository = weightRepository;
         this.dailyStatusRepository = dailyStatusRepository;
         this.photoStorageService = photoStorageService;
@@ -49,6 +61,7 @@ public class WeightService {
         apply(weight, request);
         weightRepository.save(weight);
         recalculateAround(weight);
+        reconcileRoutines.accept(user);
         return weight;
     }
 
@@ -57,6 +70,7 @@ public class WeightService {
         apply(weight, request);
         weightRepository.save(weight);
         recalculateAround(weight);
+        reconcileRoutines.accept(user);
         return weight;
     }
 
@@ -72,6 +86,7 @@ public class WeightService {
         }
         weightRepository.delete(weight);
         next.ifPresent(this::recalculateAround);
+        reconcileRoutines.accept(user);
     }
 
     public Weight uploadPhoto(User user, Long id, String side, MultipartFile file) throws IOException {

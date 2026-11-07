@@ -140,7 +140,7 @@ public class WeeklySummaryEmailViewFactory {
                     percentage(routine.percentage())
                 ))
                 .toList(),
-            rowsWithWorkoutActivity(cards, current, previous, yearAgo),
+            withWeeklyRoutines(rowsWithWorkoutActivity(cards, current, previous, yearAgo), snapshot),
             snapshot.warnings(),
             outcomes,
             reflection == null ? null : reflectionView(reflection),
@@ -149,6 +149,16 @@ public class WeeklySummaryEmailViewFactory {
                 reflection == null ? null : com.jllado.weightcontrol.api.dto.WeeklyReflectionDtos.WeeklyReflectionResponse.from(reflection),
                 reflection == null ? null : "weekly:" + reflection.getId())
         );
+    }
+
+    private List<CardRow> withWeeklyRoutines(List<CardRow> rows, WeeklySummarySnapshot snapshot) {
+        if (snapshot.weeklyRoutines() == null) return rows; // Older immutable snapshots did not capture weekly routines.
+        var result = new ArrayList<>(rows);
+        snapshot.weeklyRoutines().forEach(routine -> result.add(new CardRow(
+            new MetricCard(routine.name(), routine.completedWeeks() + "/" + routine.eligibleWeeks() + " weeks · " + percentage(routine.percentage()),
+                "Saturday–Friday · Recorded dates: " + (routine.checkinDates().isEmpty() ? "None" : routine.checkinDates().toString()),
+                unknownComparison("last week"), unknownComparison("52 weeks ago")), null, "Weekly routines")));
+        return result;
     }
 
     private String summaryUrl(String appUrl, java.time.LocalDate fridayDate) {

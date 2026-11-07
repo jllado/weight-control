@@ -43,11 +43,92 @@ class RoutineAutomationPersistenceTest {
     @Autowired ExerciseService exercises;
     @Autowired FastingPeriodService fasts;
     @Autowired SleepService sleeps;
+    @Autowired WeightService weights;
+    @Autowired BloodPressureService pressures;
     @Autowired UserRepository users;
     @Autowired RoutineCheckinRepository checkins;
     @Autowired JdbcTemplate jdbc;
+    @Autowired InAppNotificationService inbox;
+    @Autowired com.jllado.weightcontrol.repository.InAppNotificationRepository notifications;
 
     private static final LocalDate DAY = LocalDate.of(2026, 8, 12);
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    void rescheduledWeeklyNotificationsResolveAfterLaterManualOrMetricEvidenceWithoutFutureLeakage(boolean manual) {
+        User owner = user("weekly-rescheduled-evidence-" + manual);
+        Routine routine = weeklyRoutine(owner, RoutineAutomaticTrigger.WEIGHT_MEASUREMENT);
+        LocalDate monday = DAY.minusDays(2);
+        var reminder = new RoutineReminder(); reminder.setRoutine(routine); reminder.setDay(java.time.DayOfWeek.SATURDAY); reminder.setReminderTime(LocalTime.of(5, 0));
+        routine.getReminders().add(reminder); routine = routineRepository.saveAndFlush(routine);
+        reminder = routine.getReminders().iterator().next();
+        var notification = inbox.recordRoutineReminder(reminder, monday, DateTimes.startOfDay(monday).plusHours(8));
+        notification.setRescheduled(true); notification.setRescheduleDelivered(true); notifications.saveAndFlush(notification);
+        if (manual) routines.checkin(owner, routine.getId(), DateTimes.startOfDay(DAY).plusHours(8));
+        else weights.create(owner, weightRequest(DAY));
+        // The saved Wednesday evidence must not hide the reminder when read as of Monday.
+        assertEquals(List.of(notification.getId()), inbox.findPending(owner, monday.atTime(12, 0).atZone(DateTimes.USER_ZONE)).stream().map(InAppNotification::getId).toList());
+        assertTrue(inbox.findPending(owner, DAY.atTime(12, 0).atZone(DateTimes.USER_ZONE)).isEmpty());
+    }
+
+    @Test void newlyBackdatedMetricExtendsOnlyItsAssignedWeeklyStartAndKeepsOtherHistory() {
+        User owner = user("weekly-backdated-first-metric");
+        routines.initializeMeasurementRoutines(owner);
+        Routine routine = routines.findAll(owner).stream().filter(candidate -> candidate.getAutomaticTrigger() == RoutineAutomaticTrigger.WEIGHT_MEASUREMENT).findFirst().orElseThrow();
+        var reading = weights.create(owner, weightRequest(DAY));
+        assertEquals(DateTimes.startOfDashboardWeek(DAY), DateTimes.toLocalDate(routines.requireOwned(owner, routine.getId()).getStartDate()));
+        assertDates(routine, DAY);
+        weights.delete(owner, reading.getId());
+        assertDates(routine);
+        assertEquals(DateTimes.startOfDashboardWeek(DAY), DateTimes.toLocalDate(routines.requireOwned(owner, routine.getId()).getStartDate()));
+        Routine pressure = routines.findAll(owner).stream().filter(candidate -> candidate.getAutomaticTrigger() == RoutineAutomaticTrigger.BLOOD_PRESSURE_MEASUREMENT).findFirst().orElseThrow();
+        assertEquals(DateTimes.startOfDashboardWeek(LocalDate.now(DateTimes.USER_ZONE)), DateTimes.toLocalDate(pressure.getStartDate()));
+    }
+
+    @Test void measurementMutationsReconcileActualDatesPreserveManualAndPausedEvidenceAndKeepDailyScoresSeparate() {
+        User owner = user("weekly-metric-mutations");
+        Routine weight = weeklyRoutine(owner, RoutineAutomaticTrigger.WEIGHT_MEASUREMENT);
+        Routine pressure = weeklyRoutine(owner, RoutineAutomaticTrigger.BLOOD_PRESSURE_MEASUREMENT);
+        var reading = weights.create(owner, weightRequest(DAY));
+        assertEquals(reading.getMeasuredAt().toInstant(), checkins.findByRoutineOrderByCheckedAtAsc(weight).getFirst().getCheckedAt().toInstant());
+        var second = weights.create(owner, weightRequest(DAY.plusDays(1)));
+        pressures.create(owner, new com.jllado.weightcontrol.api.dto.BloodPressureDtos.BloodPressureRequest(DateTimes.startOfDay(DAY), 120, 80));
+        assertDates(weight, DAY, DAY.plusDays(1));
+        assertSummary(owner, weight, 1, 1, DAY.plusDays(1));
+        assertDates(pressure, DAY);
+        assertEvidence(weight, "WEIGHT", reading.getId().toString(), DAY);
+        routines.checkin(owner, weight.getId(), DateTimes.startOfDay(DAY).plusHours(12));
+        weights.update(owner, reading.getId(), weightRequest(DAY.plusDays(3)));
+        assertDates(weight, DAY, DAY.plusDays(1), DAY.plusDays(3));
+        assertSummary(owner, weight, 2, 2, DAY.plusDays(3));
+        weights.delete(owner, second.getId());
+        assertDates(weight, DAY, DAY.plusDays(3));
+        var saved = routines.requireOwned(owner, weight.getId());
+        routines.update(owner, weight.getId(), new RoutineRequest(saved.getName(), saved.getTypes(), null, false,
+            saved.getAutomaticTrigger(), false, RoutineCadence.WEEKLY, List.of()));
+        // Undo removes manual evidence only, even when automation is paused.
+        routines.checkin(owner, weight.getId(), DateTimes.startOfDay(DAY.plusDays(3)).plusHours(12));
+        routines.undoCheckin(owner, weight.getId(), DateTimes.startOfDay(DAY.plusDays(4)));
+        assertDates(weight, DAY, DAY.plusDays(3));
+        weights.delete(owner, reading.getId());
+        assertDates(weight, DAY, DAY.plusDays(3));
+        routines.update(owner, weight.getId(), new RoutineRequest(saved.getName(), saved.getTypes(), null, false,
+            saved.getAutomaticTrigger(), true, RoutineCadence.WEEKLY, List.of()));
+        assertDates(weight, DAY);
+        assertDates(pressure, DAY);
+        assertThrows(NotFoundException.class, () -> weights.update(user("other-weekly-owner"), reading.getId(), weightRequest(DAY)));
+    }
+
+    private Routine weeklyRoutine(User owner, RoutineAutomaticTrigger trigger) {
+        var routine = routines.create(owner, new RoutineRequest(trigger.name(), Set.of(RoutineType.WEIGHT), null, false, null, null, RoutineCadence.WEEKLY, List.of()));
+        routine.setStartDate(DateTimes.startOfDay(DateTimes.startOfDashboardWeek(DAY)));
+        routine.setAutomaticTrigger(trigger); routine.setAutomaticCompletionEnabled(true);
+        return routineRepository.saveAndFlush(routine);
+    }
+
+    private com.jllado.weightcontrol.api.dto.WeightDtos.WeightRequest weightRequest(LocalDate date) {
+        return new com.jllado.weightcontrol.api.dto.WeightDtos.WeightRequest(DateTimes.startOfDay(date).plusHours(8), BigDecimal.valueOf(80), BigDecimal.valueOf(15), BigDecimal.valueOf(60));
+    }
 
     @Test void sleepMutationsReconcileBothRulesUsingRecordedDatesAndPreserveManualCompletion() {
         var owner = user("sleep-mutations");
@@ -370,9 +451,16 @@ class RoutineAutomationPersistenceTest {
     @org.junit.jupiter.params.provider.EnumSource(value = RoutineAutomaticTrigger.class, names = "NONE", mode = org.junit.jupiter.params.provider.EnumSource.Mode.EXCLUDE)
     void everyAssignedRuleRetainsAutomaticHistoryWhenItsSourceIsDeletedWhilePaused(RoutineAutomaticTrigger trigger) {
         var owner = user("paused-" + trigger);
-        var routine = routine(owner, trigger);
+        boolean measurement = trigger == RoutineAutomaticTrigger.WEIGHT_MEASUREMENT || trigger == RoutineAutomaticTrigger.BLOOD_PRESSURE_MEASUREMENT;
+        var routine = measurement ? weeklyRoutine(owner, trigger) : routine(owner, trigger);
         Runnable deleteSource;
-        if (trigger == RoutineAutomaticTrigger.FRUIT_MEAL || trigger == RoutineAutomaticTrigger.KIWI_MEAL) {
+        if (trigger == RoutineAutomaticTrigger.WEIGHT_MEASUREMENT) {
+            var source = weights.create(owner, weightRequest(DAY));
+            deleteSource = () -> weights.delete(owner, source.getId());
+        } else if (trigger == RoutineAutomaticTrigger.BLOOD_PRESSURE_MEASUREMENT) {
+            var source = pressures.create(owner, new com.jllado.weightcontrol.api.dto.BloodPressureDtos.BloodPressureRequest(DateTimes.startOfDay(DAY), 120, 80));
+            deleteSource = () -> pressures.delete(owner, source.getId());
+        } else if (trigger == RoutineAutomaticTrigger.FRUIT_MEAL || trigger == RoutineAutomaticTrigger.KIWI_MEAL) {
             var source = meals.create(owner, trigger == RoutineAutomaticTrigger.KIWI_MEAL ? meal(DAY, "Kiwi", false) : meal(DAY, true));
             deleteSource = () -> meals.delete(owner, source.getId());
         } else if (trigger == RoutineAutomaticTrigger.SLEEP_BED_AT_LEAST_7_HOURS || trigger == RoutineAutomaticTrigger.WAKE_BEFORE_7) {
@@ -410,7 +498,7 @@ class RoutineAutomationPersistenceTest {
 
     private void toggle(User owner, Routine routine, boolean enabled) {
         var saved = routines.requireOwned(owner, routine.getId());
-        routines.update(owner, routine.getId(), new RoutineRequest(saved.getName(), saved.getTypes(), saved.getReminders().stream().map(RoutineReminder::getReminderTime).toList(), saved.getPersonalRecordsEnabled(), saved.getAutomaticTrigger(), enabled));
+        routines.update(owner, routine.getId(), new RoutineRequest(saved.getName(), saved.getTypes(), saved.getCadence() == RoutineCadence.DAILY ? saved.getReminders().stream().map(RoutineReminder::getReminderTime).toList() : null, saved.getPersonalRecordsEnabled(), saved.getAutomaticTrigger(), enabled, saved.getCadence(), saved.getCadence() == RoutineCadence.WEEKLY ? List.of() : null));
     }
 
     private User user(String name) {

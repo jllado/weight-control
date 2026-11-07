@@ -1,6 +1,7 @@
 package com.jllado.weightcontrol.repository;
 
 import com.jllado.weightcontrol.domain.Routine;
+import com.jllado.weightcontrol.domain.RoutineAutomaticTrigger;
 import com.jllado.weightcontrol.domain.RoutineCheckin;
 import com.jllado.weightcontrol.domain.User;
 import java.time.OffsetDateTime;
@@ -18,6 +19,8 @@ public interface RoutineCheckinRepository extends JpaRepository<RoutineCheckin, 
     long countByRoutineAndCheckedAtBetween(Routine routine, OffsetDateTime start, OffsetDateTime end);
     boolean existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(Routine routine, OffsetDateTime start, OffsetDateTime end);
     boolean existsByRoutineAndCheckedAt(Routine routine, OffsetDateTime checkedAt);
+    boolean existsByRoutineUserAndRoutineAutomaticTriggerAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
+        User user, RoutineAutomaticTrigger trigger, OffsetDateTime startInclusive, OffsetDateTime endExclusive);
     Optional<RoutineCheckin> findByRoutineAndCheckedAt(Routine routine, OffsetDateTime checkedAt);
     Optional<RoutineCheckin> findFirstByRoutineOrderByCheckedAtDesc(Routine routine);
     Optional<RoutineCheckin> findFirstByRoutineUserOrderByCheckedAtAsc(User user);

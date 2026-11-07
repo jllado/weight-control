@@ -1,5 +1,5 @@
 <template>
-  <article class="routine-analytics-card">
+  <article class="routine-analytics-card" :class="{'routine-analytics-weekly': routine.isWeekly()}">
     <header class="routine-card-header">
       <div>
         <h2>{{ routine.name }}</h2>
@@ -12,22 +12,22 @@
 
     <div class="routine-metrics">
       <div class="routine-metric">
-        <span class="routine-metric-value">{{ routine.times.length }}</span>
+        <span class="routine-metric-value">{{ routine.completionCount(today.toDate()) }}</span>
         <span class="routine-metric-label">Completions</span>
       </div>
       <div class="routine-metric">
         <span class="routine-metric-value">{{ current_streak }}</span>
-        <span class="routine-metric-label">Current streak</span>
+        <span class="routine-metric-label">Current streak ({{ routine.isWeekly() ? 'weeks' : 'days' }})</span>
       </div>
       <div class="routine-metric">
-        <span class="routine-metric-value">{{ routine.best_strike }}</span>
-        <span class="routine-metric-label">Best streak</span>
+        <span class="routine-metric-value">{{ routine.bestStreak(today.toDate()) }}</span>
+        <span class="routine-metric-label">Best streak ({{ routine.isWeekly() ? 'weeks' : 'days' }})</span>
       </div>
     </div>
 
-    <section class="routine-heatmap-section" aria-label="Daily completion heatmap">
+    <section class="routine-heatmap-section" :aria-label="routine.isWeekly() ? 'Weekly completion heatmap' : 'Daily completion heatmap'">
       <div class="routine-section-header">
-        <strong>Daily completion</strong>
+        <strong>{{ routine.isWeekly() ? 'Weekly completion (Saturday–Friday)' : 'Daily completion' }}</strong>
         <span>{{ heatmap_range }}</span>
       </div>
       <div class="routine-heatmap-scroll">
@@ -36,7 +36,8 @@
           <div class="routine-heatmap-months" :style="heatmap_grid_style">
             <span v-for="month in heatmap_months" :key="month.key" class="routine-heatmap-month" :style="month.style">{{ month.label }}</span>
           </div>
-          <div class="routine-heatmap-weekdays" aria-hidden="true">
+          <div v-if="routine.isWeekly()" aria-hidden="true">Week</div>
+          <div v-else class="routine-heatmap-weekdays" aria-hidden="true">
             <span>Mon</span>
             <span></span>
             <span>Wed</span>
@@ -61,6 +62,7 @@
       </div>
       <div class="routine-heatmap-legend" aria-hidden="true">
         <span><i class="routine-heatmap-day routine-heatmap-day-inactive"></i>Not started</span>
+        <span v-if="routine.isWeekly()"><i class="routine-heatmap-day routine-heatmap-day-pending"></i>Pending</span>
         <span><i class="routine-heatmap-day routine-heatmap-day-missed"></i>Missed</span>
         <span><i class="routine-heatmap-day routine-heatmap-day-completed"></i>Completed</span>
       </div>
@@ -93,10 +95,10 @@ export default {
       return this.today.subtract(11, 'month').startOf('month');
     },
     grid_start() {
-      return this.window_start.subtract((this.window_start.day() + 6) % 7, 'day');
+      return this.window_start.subtract((this.window_start.day() + (this.routine.isWeekly() ? 1 : 6)) % 7, 'day');
     },
     grid_end() {
-      return this.today.add(6 - ((this.today.day() + 6) % 7), 'day');
+      return this.today.add(6 - ((this.today.day() + (this.routine.isWeekly() ? 1 : 6)) % 7), 'day');
     },
     heatmap_week_count() {
       return this.grid_end.diff(this.grid_start, 'week') + 1;
@@ -145,9 +147,9 @@ export default {
           key: date.format('YYYY-MM-DD'),
           status,
           today: date.isSame(this.today, 'day'),
-          label: status === 'outside' ? '' : `${date.format('D MMMM YYYY')}: ${this.format_day_status(status)}`
+          label: status === 'outside' ? '' : `${date.format('D MMMM YYYY')}${this.routine.isWeekly() ? ' – ' + date.add(6, 'day').format('D MMMM YYYY') : ''}: ${this.format_day_status(status)}`
         });
-        date = date.add(1, 'day');
+        date = date.add(this.routine.isWeekly() ? 7 : 1, 'day');
       }
       return days;
     },
@@ -159,7 +161,9 @@ export default {
       let completion = [];
       while (!month.isAfter(this.today, 'month')) {
         const month_end = month.endOf('month');
-        if (month_end.isBefore(this.routine_start, 'day')) {
+        if (this.routine.isWeekly()) {
+          completion.push({label: month.format('MMM YYYY'), percentage: this.routine.month_percentage(month.toDate(), this.today.toDate()) ?? null});
+        } else if (month_end.isBefore(this.routine_start, 'day')) {
           completion.push({label: month.format('MMM YYYY'), percentage: null});
         } else {
           const active_start = this.routine_start.isAfter(month, 'day') ? this.routine_start : month;
@@ -234,6 +238,12 @@ export default {
   },
   methods: {
     get_day_status(date) {
+      if (this.routine.isWeekly()) {
+        if (date.add(6, 'day').isBefore(this.window_start, 'day')) return 'outside';
+        if (date.isBefore(this.routine_start, 'day')) return 'inactive';
+        if (this.routine.completedWeeks(this.today.toDate()).has(date.format('YYYY-MM-DD'))) return 'completed';
+        return date.add(6, 'day').isBefore(this.today, 'day') ? 'missed' : 'pending';
+      }
       if (date.isBefore(this.window_start, 'day') || date.isAfter(this.today, 'day')) {
         return 'outside';
       }
@@ -245,6 +255,7 @@ export default {
     format_day_status(status) {
       return {
         inactive: 'Routine not started',
+        pending: 'Pending',
         missed: 'Missed',
         completed: 'Completed'
       }[status];
@@ -257,6 +268,8 @@ export default {
 </script>
 
 <style scoped>
+.routine-analytics-weekly .routine-heatmap-grid {grid-template-rows: 0.625rem;}
+.routine-heatmap-day-pending {background: #fef3c7;}
 .routine-analytics-card {
   min-width: 0;
   padding: 1.25rem;

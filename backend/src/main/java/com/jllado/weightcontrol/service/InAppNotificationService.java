@@ -18,6 +18,9 @@ import com.jllado.weightcontrol.repository.MoodRepository;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
 import com.jllado.weightcontrol.repository.WeightRepository;
 import com.jllado.weightcontrol.util.DateTimes;
+import com.jllado.weightcontrol.util.RoutinePeriods;
+import com.jllado.weightcontrol.domain.RoutineCadence;
+import com.jllado.weightcontrol.domain.RoutineAutomaticTrigger;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -66,8 +69,7 @@ public class InAppNotificationService {
             throw new BadRequestException("Notification cannot be rescheduled");
         }
         LocalDate reminderDate = notification.getReminderDate();
-        if (notification.getType() != InAppNotificationType.WEIGHT && notification.getType() != InAppNotificationType.BLOOD_PRESSURE
-            && !date.equals(reminderDate)) {
+        if (!isMeasurement(notification) && !date.equals(reminderDate)) {
             throw new BadRequestException("Only measurement reminders can change date");
         }
         OffsetDateTime requestedAt = ZonedDateTime.of(date, time, DateTimes.USER_ZONE).toOffsetDateTime();
@@ -93,7 +95,7 @@ public class InAppNotificationService {
         if ((!measurement && notification.getType() != InAppNotificationType.MOOD && notification.getType() != InAppNotificationType.BACK)
             || notification.getDismissedAt() != null || notification.getAvailableAt().isAfter(now.toOffsetDateTime())
             || (!notification.getReminderDate().equals(now.toLocalDate()) && !(measurement && notification.isRescheduled()))
-            || !isIncomplete(notification)) {
+            || !isIncomplete(notification, now.toLocalDate())) {
             throw new BadRequestException("Reminder is not active");
         }
         ZonedDateTime target = now.plusMinutes(minutes);
@@ -129,7 +131,7 @@ public class InAppNotificationService {
     public List<InAppNotification> findDueRescheduled(OffsetDateTime now) {
         return repository.findByRescheduledTrueAndRescheduleDeliveredFalseAndDismissedAtIsNullAndAvailableAtLessThanEqual(now).stream()
             .filter(notification -> {
-                if ((isMeasurement(notification) || notification.getReminderDate().equals(DateTimes.toLocalDate(now))) && isIncomplete(notification)) return true;
+                if ((isMeasurement(notification) || notification.getReminderDate().equals(DateTimes.toLocalDate(now))) && isIncomplete(notification, DateTimes.toLocalDate(now))) return true;
                 notification.setRescheduleDelivered(true);
                 return false;
             })
@@ -155,7 +157,11 @@ public class InAppNotificationService {
             default -> LocalDate.parse(notification.getDeduplicationKey().substring(notification.getDeduplicationKey().lastIndexOf(':') + 1));
         };
         return switch (notification.getType()) {
-            case ROUTINE -> ZonedDateTime.of(date.plusDays(1), notification.getRoutineReminder().getReminderTime(), DateTimes.USER_ZONE).toOffsetDateTime();
+            case ROUTINE -> {
+                var reminder = notification.getRoutineReminder();
+                LocalDate nextDate = reminder.getDay() == null ? date.plusDays(1) : date.with(java.time.temporal.TemporalAdjusters.next(reminder.getDay()));
+                yield ZonedDateTime.of(nextDate, reminder.getReminderTime(), DateTimes.USER_ZONE).toOffsetDateTime();
+            }
             case MEDICATION -> {
                 var medication = notification.getMedicationDose().getMedication();
                 long days = medication.getRepeatUnit() == MedicationRepeatUnit.DAY ? medication.getRepeatEvery() : medication.getRepeatEvery() * 7L;
@@ -190,12 +196,16 @@ public class InAppNotificationService {
             ).stream()
             .filter(notification -> notification.getReminderDate().equals(now.toLocalDate()) || isMeasurement(notification)
                 || !isReminder(notification.getType()))
-            .filter(this::isIncomplete)
+            .filter(notification -> isIncomplete(notification, now.toLocalDate()))
             .toList();
     }
 
     private boolean isMeasurement(InAppNotification notification) {
-        return notification.getType() == InAppNotificationType.WEIGHT || notification.getType() == InAppNotificationType.BLOOD_PRESSURE;
+        return notification.getType() == InAppNotificationType.WEIGHT || notification.getType() == InAppNotificationType.BLOOD_PRESSURE
+            || (notification.getType() == InAppNotificationType.ROUTINE && switch (notification.getRoutineReminder().getRoutine().getAutomaticTrigger()) {
+                case WEIGHT_MEASUREMENT, BLOOD_PRESSURE_MEASUREMENT -> true;
+                default -> false;
+            });
     }
 
     public InAppNotification recordRoutineReminder(RoutineReminder reminder, LocalDate date, OffsetDateTime availableAt) {
@@ -451,7 +461,11 @@ public class InAppNotificationService {
             reminder.getRoutine().getUser(),
             routineKey(reminder.getId(), date)
         ).ifPresent(notification -> {
-            notification.setAvailableAt(nextReminderAt == null ? DateTimes.startOfDay(date.plusDays(1)) : nextReminderAt);
+            if (nextReminderAt != null && reminder.getRoutine().getCadence() == RoutineCadence.WEEKLY) {
+                schedule(notification, nextReminderAt);
+            } else {
+                notification.setAvailableAt(nextReminderAt == null ? DateTimes.startOfDay(date.plusDays(1)) : nextReminderAt);
+            }
             repository.save(notification);
         });
     }
@@ -515,13 +529,19 @@ public class InAppNotificationService {
         return repository.save(notification);
     }
 
-    private boolean isIncomplete(InAppNotification notification) {
+    private boolean isIncomplete(InAppNotification notification, LocalDate cutoff) {
         return switch (notification.getType()) {
-            case ROUTINE -> !routineCheckinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
-                notification.getRoutineReminder().getRoutine(),
-                DateTimes.startOfDay(notification.getReminderDate()),
-                DateTimes.startOfDay(notification.getReminderDate().plusDays(1))
-            );
+            case ROUTINE -> {
+                var routine = notification.getRoutineReminder().getRoutine();
+                LocalDate date = notification.getReminderDate();
+                LocalDate end = date;
+                if (routine.getCadence() == RoutineCadence.WEEKLY) {
+                    LocalDate friday = RoutinePeriods.end(RoutineCadence.WEEKLY, date);
+                    end = friday.isBefore(cutoff) ? friday : cutoff;
+                }
+                yield !routineCheckinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
+                    routine, DateTimes.startOfDay(RoutinePeriods.start(routine.getCadence(), date)), DateTimes.startOfDay(end.plusDays(1)));
+            }
             case MEDICATION -> true;
             case MOOD -> !moodRepository.existsByUserAndMoodDateAndPeriod(
                 notification.getUser(),
@@ -535,16 +555,23 @@ public class InAppNotificationService {
             );
             case WEIGHT -> !weightRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(
                 notification.getUser(),
-                DateTimes.startOfDay(notification.getReminderDate()),
-                DateTimes.startOfDay(notification.getReminderDate().plusDays(1))
-            );
+                DateTimes.startOfDay(RoutinePeriods.start(RoutineCadence.WEEKLY, notification.getReminderDate())),
+                DateTimes.startOfDay(RoutinePeriods.nextStart(RoutineCadence.WEEKLY, notification.getReminderDate()))
+            ) && !hasLegacyMeasurementRoutineCompletion(notification, RoutineAutomaticTrigger.WEIGHT_MEASUREMENT);
             case BLOOD_PRESSURE -> !bloodPressureRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(
                 notification.getUser(),
-                DateTimes.startOfDay(notification.getReminderDate()),
-                DateTimes.startOfDay(notification.getReminderDate().plusDays(1))
-            );
+                DateTimes.startOfDay(RoutinePeriods.start(RoutineCadence.WEEKLY, notification.getReminderDate())),
+                DateTimes.startOfDay(RoutinePeriods.nextStart(RoutineCadence.WEEKLY, notification.getReminderDate()))
+            ) && !hasLegacyMeasurementRoutineCompletion(notification, RoutineAutomaticTrigger.BLOOD_PRESSURE_MEASUREMENT);
             case PERSONAL_RECORD, APP_UPDATE, GPT_ACTION, URGE_PAUSE, WEEKLY_SUMMARY -> true;
         };
+    }
+
+    private boolean hasLegacyMeasurementRoutineCompletion(InAppNotification notification, RoutineAutomaticTrigger trigger) {
+        return routineCheckinRepository.existsByRoutineUserAndRoutineAutomaticTriggerAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
+            notification.getUser(), trigger,
+            DateTimes.startOfDay(RoutinePeriods.start(RoutineCadence.WEEKLY, notification.getReminderDate())),
+            DateTimes.startOfDay(RoutinePeriods.nextStart(RoutineCadence.WEEKLY, notification.getReminderDate())));
     }
 
     private String routineKey(Long reminderId, LocalDate date) {

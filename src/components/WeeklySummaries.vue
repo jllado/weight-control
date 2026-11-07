@@ -222,6 +222,18 @@
           <p v-else class="empty-note">No active routine opportunities this week.</p>
         </details>
 
+        <details v-if="detail.snapshot.weeklyRoutines" class="detail-section">
+          <summary class="detail-section-summary"><span class="weekly-kicker">Weekly routines</span><strong>Saturday–Friday opportunities</strong></summary>
+          <div v-if="detail.snapshot.weeklyRoutines.length" class="routine-list">
+            <div v-for="routine in detail.snapshot.weeklyRoutines" :key="routine.name" class="routine-item">
+              <strong>{{ routine.name }}</strong>
+              <span>{{ routine.completedWeeks }}/{{ routine.eligibleWeeks }} weeks · {{ Number(routine.percentage).toFixed(0) }}%</span>
+              <span v-if="routine.checkinDates.length">Recorded {{ routine.checkinDates.map(format_date).join(', ') }}</span>
+            </div>
+          </div>
+          <p v-else class="empty-note">No active weekly routines.</p>
+        </details>
+
         <details class="detail-section">
           <summary class="detail-section-summary"><span class="weekly-kicker">Goal context</span><strong>Plan evidence</strong></summary>
           <p v-if="detail.snapshot.goalEvidence.available">{{ detail.snapshot.goalEvidence.goal }}<span v-if="detail.snapshot.goalEvidence.startDate"> · Started {{ format_date(detail.snapshot.goalEvidence.startDate) }}</span><span v-if="detail.snapshot.goalEvidence.reviewDate"> · Review {{ format_date(detail.snapshot.goalEvidence.reviewDate) }}</span></p>

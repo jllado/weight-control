@@ -250,7 +250,7 @@ class WeeklySummaryServiceTest {
             .filter(card -> card.label().equals("Back pain"))
             .findFirst().orElseThrow();
 
-        assertEquals(7, snapshot.schemaVersion());
+        assertEquals(8, snapshot.schemaVersion());
         assertTrue(saved.getSnapshotJson().contains("\"subjectLabel\":\"Goblet squat\""));
         assertEquals(List.of("Heaviest load — Goblet squat", "Highest weight", "Longest routine streak — Evening stretch"),
             new WeeklySummaryEmailViewFactory().create(user, snapshot, null, "https://weight.example").records().stream()
@@ -650,6 +650,32 @@ class WeeklySummaryServiceTest {
         assertEquals(friday.plusDays(1), outcomes.bloodPressure().measuredDate());
         assertEquals(120, outcomes.bloodPressure().systolic());
         assertEquals(80, outcomes.bloodPressure().diastolic());
+    }
+
+    @Test
+    void weeklyReportEvidenceDeduplicatesWeeksAndKeepsActualDates() {
+        User user = user();
+        LocalDate start = LocalDate.of(2026, 8, 8);
+        Routine weekly = routine(user, start, "Check weight");
+        weekly.setCadence(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY);
+        when(routineRepository.findByUserOrderByStartDateAsc(user)).thenReturn(List.of(weekly));
+        when(routineCheckinRepository.findByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThanOrderByCheckedAtAsc(eq(weekly), any(), any()))
+            .thenReturn(List.of(checkin(weekly, start, 8), checkin(weekly, start.plusDays(2), 9)));
+        var result = service(properties(true)).weeklyRoutineProgress(user, start, start.plusDays(6)).getFirst();
+        assertEquals(1, result.completedWeeks());
+        assertEquals(1, result.eligibleWeeks());
+        assertEquals(new BigDecimal("100.00"), result.percentage());
+        assertEquals(List.of(start, start.plusDays(2)), result.checkinDates());
+    }
+
+    @Test
+    void weeklyRoutinesDoNotEnterDailyReportOpportunities() {
+        User user = user();
+        LocalDate start = LocalDate.of(2026, 8, 8);
+        Routine weekly = routine(user, start, "Check weight");
+        weekly.setCadence(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY);
+        when(routineRepository.findByUserOrderByStartDateAsc(user)).thenReturn(List.of(weekly));
+        assertEquals(List.of(), service(properties(true)).routineProgress(user, start, start.plusDays(6)));
     }
 
     @Test

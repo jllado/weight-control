@@ -209,8 +209,8 @@ class InAppNotificationServiceTest {
         when(repository.findByIdAndUser(62L, user)).thenReturn(Optional.empty());
         when(weightRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(
             user,
-            DateTimes.startOfDay(date),
-            DateTimes.startOfDay(date.plusDays(1))
+            DateTimes.startOfDay(com.jllado.weightcontrol.util.RoutinePeriods.start(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY, date)),
+            DateTimes.startOfDay(com.jllado.weightcontrol.util.RoutinePeriods.nextStart(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY, date))
         )).thenReturn(true);
 
         assertThrows(BadRequestException.class, () -> service.snooze(user, 60L, 15, now));
@@ -441,8 +441,8 @@ class InAppNotificationServiceTest {
         when(moodRepository.existsByUserAndMoodDateAndPeriod(user, date, MoodPeriod.MIDDAY)).thenReturn(true);
         when(weightRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(
             user,
-            DateTimes.startOfDay(date),
-            DateTimes.startOfDay(date.plusDays(1))
+            DateTimes.startOfDay(com.jllado.weightcontrol.util.RoutinePeriods.start(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY, date)),
+            DateTimes.startOfDay(com.jllado.weightcontrol.util.RoutinePeriods.nextStart(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY, date))
         )).thenReturn(true);
 
         List<InAppNotification> pending = service.findPending(user, now);
@@ -456,9 +456,51 @@ class InAppNotificationServiceTest {
         verify(backPainEpisodeRepository).existsByUserAndEpisodeDateAndPeriod(user, date, MoodPeriod.MIDDAY);
         verify(bloodPressureRepository).existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(
             user,
-            DateTimes.startOfDay(date),
-            DateTimes.startOfDay(date.plusDays(1))
+            DateTimes.startOfDay(com.jllado.weightcontrol.util.RoutinePeriods.start(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY, date)),
+            DateTimes.startOfDay(com.jllado.weightcontrol.util.RoutinePeriods.nextStart(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY, date))
         );
+    }
+
+    @Test
+    void rescheduledWeeklyRoutineNotificationUsesItsTargetWeekThroughTheCurrentDate() {
+        User owner = user(1L); LocalDate saturday = LocalDate.of(2026, 10, 24);
+        LocalDate monday = saturday.plusDays(2); LocalDate tuesday = saturday.plusDays(3);
+        Routine routine = routine(2L, owner);
+        routine.setCadence(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY);
+        routine.setAutomaticTrigger(com.jllado.weightcontrol.domain.RoutineAutomaticTrigger.WEIGHT_MEASUREMENT);
+        var notification = routineNotification(3L, owner, reminder(4L, routine), monday, DateTimes.startOfDay(monday));
+        notification.setRescheduled(true); notification.setRescheduleDelivered(true);
+        when(repository.findPending(org.mockito.ArgumentMatchers.eq(owner), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anySet()))
+            .thenReturn(List.of(notification));
+        when(routineCheckinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
+            org.mockito.ArgumentMatchers.eq(routine), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+            .thenAnswer(call -> !DateTimes.startOfDay(tuesday).isBefore(call.getArgument(1, OffsetDateTime.class))
+                && DateTimes.startOfDay(tuesday).isBefore(call.getArgument(2, OffsetDateTime.class)));
+        assertEquals(List.of(notification), service.findPending(owner, monday.atTime(12, 0).atZone(DateTimes.USER_ZONE)));
+        assertEquals(List.of(), service.findPending(owner, tuesday.atTime(12, 0).atZone(DateTimes.USER_ZONE)));
+        verify(routineCheckinRepository).existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
+            routine, DateTimes.startOfDay(saturday), DateTimes.startOfDay(monday.plusDays(1)));
+        verify(routineCheckinRepository).existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
+            routine, DateTimes.startOfDay(saturday), DateTimes.startOfDay(tuesday.plusDays(1)));
+        // Once that week is closed, a later read must still stop at its Saturday boundary.
+        service.findPending(owner, saturday.plusWeeks(1).atTime(12, 0).atZone(DateTimes.USER_ZONE));
+        verify(routineCheckinRepository).existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
+            routine, DateTimes.startOfDay(saturday), DateTimes.startOfDay(saturday.plusWeeks(1)));
+    }
+
+    @Test
+    void oldMeasurementNotificationsAreSuppressedByOwnedManualWeeklyCompletions() {
+        User owner = user(1L); LocalDate date = LocalDate.of(2026, 10, 28);
+        ZonedDateTime now = date.atTime(12, 0).atZone(DateTimes.USER_ZONE);
+        var weight = notification(1L, owner, InAppNotificationType.WEIGHT, date, now.minusHours(1).toOffsetDateTime());
+        var pressure = notification(2L, owner, InAppNotificationType.BLOOD_PRESSURE, date, now.minusHours(1).toOffsetDateTime());
+        when(repository.findPending(org.mockito.ArgumentMatchers.eq(owner), org.mockito.ArgumentMatchers.eq(date), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anySet()))
+            .thenReturn(List.of(weight, pressure));
+        for (var trigger : List.of(com.jllado.weightcontrol.domain.RoutineAutomaticTrigger.WEIGHT_MEASUREMENT, com.jllado.weightcontrol.domain.RoutineAutomaticTrigger.BLOOD_PRESSURE_MEASUREMENT)) {
+            when(routineCheckinRepository.existsByRoutineUserAndRoutineAutomaticTriggerAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(owner, trigger,
+                DateTimes.startOfDay(LocalDate.of(2026,10,24)), DateTimes.startOfDay(LocalDate.of(2026,10,31)))).thenReturn(true);
+        }
+        assertEquals(List.of(), service.findPending(owner, now));
     }
 
     @Test

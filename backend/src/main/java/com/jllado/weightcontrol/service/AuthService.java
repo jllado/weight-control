@@ -35,18 +35,32 @@ public class AuthService {
     private final SessionCookieService sessionCookieService;
     private final GoogleIdTokenVerifier verifier;
 
+    private final java.util.function.Consumer<User> initializeRoutines;
+
+    @org.springframework.beans.factory.annotation.Autowired
     public AuthService(
         UserRepository userRepository,
         JwtSessionService jwtSessionService,
         SessionCookieService sessionCookieService,
-        GoogleIdTokenVerifier verifier
+        GoogleIdTokenVerifier verifier,
+        RoutineService routineService
     ) {
+        this(userRepository, jwtSessionService, sessionCookieService, verifier, routineService::initializeMeasurementRoutines);
+    }
+
+    public AuthService(UserRepository userRepository, JwtSessionService jwtSessionService, SessionCookieService sessionCookieService, GoogleIdTokenVerifier verifier) {
+        this(userRepository, jwtSessionService, sessionCookieService, verifier, ignored -> { });
+    }
+
+    private AuthService(UserRepository userRepository, JwtSessionService jwtSessionService, SessionCookieService sessionCookieService, GoogleIdTokenVerifier verifier, java.util.function.Consumer<User> initializeRoutines) {
+        this.initializeRoutines = initializeRoutines;
         this.userRepository = userRepository;
         this.jwtSessionService = jwtSessionService;
         this.sessionCookieService = sessionCookieService;
         this.verifier = verifier;
     }
 
+    @jakarta.transaction.Transactional
     public User loginWithGoogle(String credential, HttpServletResponse response) {
         GoogleIdToken idToken;
         try {
@@ -91,7 +105,9 @@ public class AuthService {
             throw new BadRequestException("Google account does not match imported user");
         }
         user.setDisplayName(name);
+        boolean newAccount = user.getId() == null;
         user = userRepository.save(user);
+        if (newAccount) initializeRoutines.accept(user);
 
         String token = jwtSessionService.createToken(new AuthenticatedUser(user.getId(), user.getEmail()));
         sessionCookieService.writeSessionCookie(response, token);

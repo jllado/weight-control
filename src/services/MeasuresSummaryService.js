@@ -6,7 +6,7 @@ export const TREND_WINDOW_DAYS = 30;
 export default {
 
     get_month_average_routines_percentage_for(date, routines) {
-        let month_percentages = routines.map(r => r.month_percentage(date)).filter(p => p !== undefined);
+        let month_percentages = routines.filter(r => r.cadence !== 'WEEKLY').map(r => r.month_percentage(date)).filter(p => p !== undefined);
         if (month_percentages.length === 0) {
             return undefined;
         }

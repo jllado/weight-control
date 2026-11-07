@@ -151,6 +151,7 @@ class ChatGptCoachActionControllerTest {
 
     @Mock private com.jllado.weightcontrol.service.WorkoutPlanService workoutPlans;
     private GptActionNotificationService actionNotifications;
+    @Mock private com.jllado.weightcontrol.service.RoutineService routineService;
     private MockMvc mockMvc;
     private User user;
 
@@ -188,7 +189,8 @@ class ChatGptCoachActionControllerTest {
             objectMapper,
             currentUserService,
             actionNotifications,
-            Validation.buildDefaultValidatorFactory().getValidator()
+            Validation.buildDefaultValidatorFactory().getValidator(),
+            routineService
         );
         mockMvc = MockMvcBuilders.standaloneSetup(controller, new ChatGptWorkoutPlanActionController(workoutPlans, currentUserService, actionNotifications))
             .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
@@ -382,8 +384,74 @@ class ChatGptCoachActionControllerTest {
     }
 
     @ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(com.jllado.weightcontrol.domain.RoutineCadence.class)
+    void confirmedRoutineCompletionUsesOwnedDateAndDoesNotRepeatNotification(com.jllado.weightcontrol.domain.RoutineCadence cadence) throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        var routine = new com.jllado.weightcontrol.domain.Routine();
+        routine.setId(91L);
+        routine.setUser(user);
+        routine.setName("Check routine");
+        routine.setCadence(cadence);
+        routine.setStartDate(com.jllado.weightcontrol.util.DateTimes.startOfDay(LocalDate.of(2026, 8, 8)));
+        var at = com.jllado.weightcontrol.util.DateTimes.startOfDay(LocalDate.of(2026, 8, 12));
+        var checkin = new com.jllado.weightcontrol.domain.RoutineCheckin();
+        checkin.setRoutine(routine);
+        checkin.setCheckedAt(at);
+        when(routineService.requireOwned(user, 91L)).thenReturn(routine);
+        when(personalRecordMutationService.checkinRoutine(user, 91L, at)).thenReturn(
+            new PersonalRecordMutationService.RoutineCheckinMutationResult(routine, checkin, List.of()),
+            new PersonalRecordMutationService.RoutineCheckinMutationResult(routine, null, List.of()));
+        String request = "{\"confirmed\":true,\"routineId\":91,\"date\":\"2026-08-12\"}";
+        mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/ROUTINE").contentType("application/json").content(request))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.entry.routineId").value(91))
+            .andExpect(jsonPath("$.entry.cadence").value(cadence.name())).andExpect(jsonPath("$.entry.changed").value(true));
+        mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/ROUTINE").contentType("application/json").content(request))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.entry.changed").value(false));
+        verify(notifications, org.mockito.Mockito.times(1)).recordGptAction(eq(user), eq("Routine completed"), eq("/?tab=routines&date=2026-08-12"));
+        verify(personalRecordMutationService, org.mockito.Mockito.times(2)).refreshRoutineDashboard(user, at);
+    }
+
+    @Test
+    void routineWriteRequiresConfirmationOwnedIdAndValidDateAndRejectsCrud() throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        String path = "/api/chatgpt-actions/coach/health-entries/ROUTINE";
+        for (String body : List.of("{}", "{\"confirmed\":false}", "{\"confirmed\":true}", "{\"confirmed\":true,\"routineId\":0,\"date\":\"2026-08-12\"}")) {
+            mockMvc.perform(post(path).contentType("application/json").content(body)).andExpect(status().isBadRequest());
+        }
+        verifyNoInteractions(routineService, personalRecordMutationService);
+        when(routineService.requireOwned(user, 99L)).thenThrow(new com.jllado.weightcontrol.service.NotFoundException("Routine not found"));
+        mockMvc.perform(post(path).contentType("application/json").content("{\"confirmed\":true,\"routineId\":99,\"date\":\"2026-08-12\"}"))
+            .andExpect(status().isNotFound());
+        var routine = new com.jllado.weightcontrol.domain.Routine();
+        routine.setStartDate(com.jllado.weightcontrol.util.DateTimes.startOfDay(LocalDate.of(2026, 8, 8)));
+        when(routineService.requireOwned(user, 91L)).thenReturn(routine);
+        for (String date : List.of("2026-08-07", LocalDate.now(com.jllado.weightcontrol.util.DateTimes.USER_ZONE).plusDays(1).toString())) {
+            mockMvc.perform(post(path).contentType("application/json").content("{\"confirmed\":true,\"routineId\":91,\"date\":\"" + date + "\"}"))
+                .andExpect(status().isBadRequest());
+        }
+        mockMvc.perform(put(path + "/91").contentType("application/json").content("{\"confirmed\":true}"))
+            .andExpect(status().isBadRequest());
+        verifyNoInteractions(personalRecordMutationService);
+    }
+
+    @Test
+    void routineLookupUsesExistingTypedAction() throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        var from = LocalDate.of(2026, 8, 8);
+        var to = LocalDate.of(2026, 8, 14);
+        var routine = new com.jllado.weightcontrol.api.dto.CoachDtos.CoachRoutineData(91L,
+            com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY, "Check weight", from, List.of("WEIGHT"), List.of(from), List.of(from));
+        when(healthDataContextService.getCoachRoutines(user, from, to)).thenReturn(List.of(routine));
+        mockMvc.perform(get("/api/chatgpt-actions/coach/health-entries/ROUTINE")
+                .param("from", "2026-08-08").param("to", "2026-08-14"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$[0].entry.id").value(91))
+            .andExpect(jsonPath("$[0].entry.cadence").value("WEEKLY"))
+            .andExpect(jsonPath("$[0].entry.checkinDates[0]").value("2026-08-08"));
+    }
+
+    @ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(strings = {
-        "WEIGHT", "BLOOD_PRESSURE", "MOOD", "SLEEP", "BACK_PAIN_EPISODE", "SICKNESS", "LIPID_PANEL", "WORKOUT"
+        "WEIGHT", "BLOOD_PRESSURE", "MOOD", "SLEEP", "BACK_PAIN_EPISODE", "SICKNESS", "LIPID_PANEL", "WORKOUT", "ROUTINE"
     })
     void genericDatedLookupStillRequiresBothDates(String type) throws Exception {
         String path = "/api/chatgpt-actions/coach/health-entries/" + type;

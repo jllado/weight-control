@@ -41,7 +41,8 @@ public final class HealthDataContextDtos {
         List<DecisionData> decisions,
         DecisionSummaryData decisionSummary,
         WeekProgress weekProgress,
-        List<WeeklySummary> baselineWeeks
+        List<WeeklySummary> baselineWeeks,
+        List<CoachDtos.CoachRoutineData> weeklyRoutines
     ) {
     }
 

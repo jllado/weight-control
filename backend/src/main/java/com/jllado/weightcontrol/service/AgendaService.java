@@ -18,6 +18,7 @@ import com.jllado.weightcontrol.repository.RoutineRepository;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
 import com.jllado.weightcontrol.repository.WeightRepository;
 import com.jllado.weightcontrol.util.DateTimes;
+import com.jllado.weightcontrol.util.RoutinePeriods;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZonedDateTime;
@@ -73,22 +74,14 @@ public class AgendaService {
             entries.add(new AgendaEntryResponse(time, AgendaEntryType.BACK_PAIN, "Back pain check-in", periodName,
                 backPainEpisodeRepository.existsByUserAndEpisodeDateAndPeriod(user, date, period) ? AgendaEntryStatus.RECORDED : AgendaEntryStatus.NO_ISSUE, null, null, null));
         }
-        if (date.getDayOfWeek() == user.getWeightReminderDay()) {
-            entries.add(new AgendaEntryResponse(user.getWeightReminderTime(), AgendaEntryType.WEIGHT, "Weight reminder", null,
-                hasWeight(user, date) ? AgendaEntryStatus.COMPLETED : AgendaEntryStatus.PENDING, null, null, null));
-        }
-        if (date.getDayOfWeek() == user.getBloodPressureReminderDay()) {
-            entries.add(new AgendaEntryResponse(user.getBloodPressureReminderTime(), AgendaEntryType.BLOOD_PRESSURE, "Blood pressure reminder", null,
-                hasBloodPressure(user, date) ? AgendaEntryStatus.COMPLETED : AgendaEntryStatus.PENDING, null, null, null));
-        }
         routineRepository.findByUserOrderByStartDateAsc(user).stream()
             .filter(routine -> !DateTimes.toLocalDate(routine.getStartDate()).isAfter(date))
-            .flatMap(routine -> routine.getReminders().stream().findFirst().stream().map(reminder -> new AgendaEntryResponse(
+            .flatMap(routine -> routine.getReminders().stream().filter(reminder -> reminder.getDay() == null || reminder.getDay() == date.getDayOfWeek()).limit(routine.getCadence() == com.jllado.weightcontrol.domain.RoutineCadence.DAILY ? 1 : Long.MAX_VALUE).map(reminder -> new AgendaEntryResponse(
                 reminder.getReminderTime(), AgendaEntryType.ROUTINE, routine.getName(), routine.getTypes().stream()
                     .map(type -> type.name().replace('_', ' '))
                     .collect(Collectors.joining(", ")),
                 routineCheckinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
-                    routine, DateTimes.startOfDay(date), DateTimes.startOfDay(date.plusDays(1))
+                    routine, DateTimes.startOfDay(RoutinePeriods.start(routine.getCadence(), date)), DateTimes.startOfDay(date.plusDays(1))
                 ) ? AgendaEntryStatus.COMPLETED : AgendaEntryStatus.PENDING, routine.getId(), reminder.getId(), null
             )))
             .forEach(entries::add);

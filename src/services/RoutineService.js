@@ -7,6 +7,7 @@ import {normalizeDashboard} from './DashboardService';
 function toRoutine(data) {
     return new Routine({
         id: data.id,
+        cadence: data.cadence,
         start_date: data.startDate,
         last_time_date: data.lastTimeDate,
         name: data.name,
@@ -26,7 +27,7 @@ export default {
         return (await get('/routines')).map(toRoutine).sort((r1, r2) => r2.strike() - r1.strike());
     },
     async save(routine) {
-        const payload = {name: routine.name, types: routine.typeNames(), reminderTimes: routine.reminders.map(reminder => reminder.time), personalRecordsEnabled: routine.personal_records_enabled, automaticTrigger: routine.automatic_trigger, automaticCompletionEnabled: routine.automatic_completion_enabled};
+        const payload = {name: routine.name, types: routine.typeNames(), cadence: routine.cadence, reminderTimes: routine.isWeekly() ? [] : routine.reminders.map(reminder => reminder.time), weeklyReminders: routine.isWeekly() ? routine.reminders.map(({day, time}) => ({day, time})) : [], personalRecordsEnabled: routine.personal_records_enabled, automaticTrigger: routine.automatic_trigger, automaticCompletionEnabled: routine.automatic_completion_enabled};
         const data = routine.id
             ? await put(`/routines/${routine.id}`, payload)
             : await post('/routines', payload);

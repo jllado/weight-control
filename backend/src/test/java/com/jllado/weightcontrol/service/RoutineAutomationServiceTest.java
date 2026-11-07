@@ -53,6 +53,8 @@ class RoutineAutomationServiceTest {
     @Mock private WorkoutRepository workoutRepository;
     @Mock private FastingPeriodRepository fastingPeriodRepository;
     @Mock private SleepRepository sleepRepository;
+    @Mock private com.jllado.weightcontrol.repository.WeightRepository weightRepository;
+    @Mock private com.jllado.weightcontrol.repository.BloodPressureRepository bloodPressureRepository;
     @InjectMocks private RoutineAutomationService service;
 
     @ParameterizedTest

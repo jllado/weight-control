@@ -654,7 +654,7 @@ paths:
     get:
       operationId: getHealthEntries
       summary: List editable health entries by type
-      description: Returns owned editable entries with IDs. DISH_RECIPE needs no dates; all other types require an inclusive range of at most 90 days. WORKOUT includes every recorded session, complete lines, actual and planned sauna rounds, and an updateToken. Read before updates.
+      description: Owned IDs; DISH_RECIPE no dates, others inclusive ≤90d. WORKOUT full sessions/sauna/updateToken. ROUTINE lists daily/weekly routines and actual check-in dates through cutoff; weekly periods Sat–Fri Madrid. Read before writes.
       parameters:
         - name: entryType
           in: path
@@ -682,7 +682,7 @@ paths:
     post:
       operationId: createHealthEntry
       summary: Create a confirmed health entry
-      description: Creates the exact confirmed entry. DISH_RECIPE saves a reusable dish, not a meal. WORKOUT requires a new UUID recordingKey, complete session and actual sauna rounds; exact retries do not repeat side effects, and changed same-key payloads conflict. Re-fetch after success. No progress photo writes.
+      description: Exact confirmation. ROUTINE completes owned routineId on date YYYY-MM-DD; retries idempotent; no CRUD/undo. DISH_RECIPE saves recipe, not meal. WORKOUT full session/actual sauna, UUID recordingKey; exact retries idempotent, changed same-key conflicts. Re-fetch. No photo writes.
       x-openai-isConsequential: true
       parameters:
         - name: entryType
@@ -710,7 +710,7 @@ paths:
     put:
       operationId: updateHealthEntry
       summary: Replace a confirmed health entry
-      description: For DISH_RECIPE, preserve the ordered recipe. For WORKOUT, read the full owned record and updateToken; confirm and send a full replacement preserving unchanged detail. A successful workout edit removes its date assessment. Re-fetch after success.
+      description: ROUTINE not supported (completion via create only). DISH_RECIPE preserves ordered recipe. WORKOUT read full owned record/updateToken; confirm full replacement, preserve unchanged detail; successful edit removes date assessment. Re-fetch.
       x-openai-isConsequential: true
       parameters:
         - name: entryType
@@ -2513,7 +2513,12 @@ components:
         - dailyStatuses
         - routines
         - urgePauses
+        - weeklyRoutines
       properties:
+        weeklyRoutines:
+          type: array
+          description: Weekly evidence, separate from daily routines and daily performance scores.
+          items: {$ref: "#/components/schemas/CoachRoutine"}
         dailyStatuses:
           type: array
           items:
@@ -2607,11 +2612,20 @@ components:
       type: object
       additionalProperties: false
       required:
+        - id
+        - cadence
+        - completedWeekStarts
         - name
         - startDate
         - types
         - checkinDates
       properties:
+        id: {type: integer, format: int64}
+        cadence: {type: string, enum: [DAILY, WEEKLY]}
+        completedWeekStarts:
+          type: array
+          description: Distinct Saturday dates for weekly evidence; daily routines return an empty list. Actual checkinDates retain the requested cutoff; weekly reads include evidence since the first requested week began.
+          items: {type: string, format: date}
         name:
           type: string
         startDate:
@@ -3234,6 +3248,10 @@ components:
         - weekProgress
         - baselineWeeks
       properties:
+        weeklyRoutines:
+          type: array
+          description: Weekly evidence through the selected date, excluded from daily routine counts.
+          items: {$ref: "#/components/schemas/CoachRoutine"}
         selectedDate:
           type: string
           format: date
@@ -4665,6 +4683,18 @@ components:
       type: object
       required: [schemaVersion, periodStart, fridayDate, progress, outcomes, routines, goalEvidence, personalRecords, warnings]
       properties:
+        weeklyRoutines:
+          type: [array, "null"]
+          description: Separate weekly evidence in schema 8+; absent/null in immutable older snapshots.
+          items:
+            type: object
+            required: [name, completedWeeks, eligibleWeeks, percentage, checkinDates]
+            properties:
+              name: {type: string}
+              completedWeeks: {type: integer}
+              eligibleWeeks: {type: integer}
+              percentage: {type: number}
+              checkinDates: {type: array, items: {type: string, format: date}}
         schemaVersion: {type: integer}
         nutrition:
           description: Frozen intake, coverage and dated allocations for all comparison periods. Targets are current settings captured at save, not historical goals; never replace this evidence with live reads.
@@ -5011,7 +5041,7 @@ components:
       enum: [COLD, FLU, COVID, FEVER, SORE_THROAT, COUGH, SINUS_CONGESTION, ALLERGIES, HEADACHE, MIGRAINE, STOMACHACHE, NAUSEA, DIARRHEA, CONSTIPATION, ACID_REFLUX, FATIGUE, DIZZINESS, LOWER_BACK_PAIN, MIDDLE_BACK_PAIN, UPPER_BACK_PAIN, NECK_PAIN, MUSCLE_SORENESS, JOINT_PAIN, INJURY, CRAMPS, TOOTHACHE, EARACHE, EYE_IRRITATION, SKIN_RASH, GENERAL_DISCOMFORT]
     HealthEntryType:
       type: string
-      enum: [WEIGHT, BLOOD_PRESSURE, MOOD, SLEEP, BACK_PAIN_EPISODE, SICKNESS, LIPID_PANEL, DISH_RECIPE, WORKOUT]
+      enum: [WEIGHT, BLOOD_PRESSURE, MOOD, SLEEP, BACK_PAIN_EPISODE, SICKNESS, LIPID_PANEL, DISH_RECIPE, WORKOUT, ROUTINE]
     CoachHealthEntry:
       type: object
       required: [type, entry]
@@ -5028,6 +5058,17 @@ components:
             - $ref: "#/components/schemas/LipidPanelEntry"
             - $ref: "#/components/schemas/CoachDishRecipeEntry"
             - $ref: "#/components/schemas/CoachWorkoutEntry"
+            - $ref: "#/components/schemas/CoachRoutine"
+            - $ref: "#/components/schemas/CoachRoutineCompletion"
+    CoachRoutineCompletion:
+      type: object
+      required: [routineId, date, cadence, completed, changed]
+      properties:
+        routineId: {type: integer, format: int64}
+        date: {type: string, format: date}
+        cadence: {type: string, enum: [DAILY, WEEKLY]}
+        completed: {type: boolean}
+        changed: {type: boolean, description: False for an already saved manual completion on the same date.}
     CoachWorkoutEntry:
       type: object
       additionalProperties: false
@@ -5163,9 +5204,10 @@ components:
         fiberEstimated: {type: [boolean, "null"]}
     CoachHealthEntryWrite:
       type: object
-      description: Send every field required by the selected path type. DISH_RECIPE uses the nested full recipe. WORKOUT uses nested workout; create requires its UUID recordingKey, and update requires the current updateToken beside workout. All writes require confirmed=true. WEIGHT date accepts YYYY-MM-DD at the start of that date in Europe/Madrid, or an ISO-8601 offset timestamp; other types use their documented date/date-time formats. BACK_PAIN_EPISODE update omits date because it cannot change. BACK_PAIN_EPISODE severity NONE requires null region and side and must be the only entry for its date and period; other severities require a location.
+      description: Send every field required by the selected path type. ROUTINE requires routineId and date YYYY-MM-DD; it completes an existing routine, not a new definition. DISH_RECIPE uses the nested full recipe. WORKOUT uses nested workout; create requires its UUID recordingKey, and update requires the current updateToken beside workout. All writes require confirmed=true. WEIGHT date accepts YYYY-MM-DD at the start of that date in Europe/Madrid, or an ISO-8601 offset timestamp; other types use their documented date/date-time formats. BACK_PAIN_EPISODE update omits date because it cannot change. BACK_PAIN_EPISODE severity NONE requires null region and side and must be the only entry for its date and period; other severities require a location.
       required: [confirmed]
       properties:
+        routineId: {type: integer, format: int64, minimum: 1, description: ROUTINE create only; get the owned ID first, confirm name/cadence/date, send date YYYY-MM-DD in Madrid. Date must be between routine start and today. No routine CRUD or undo.}
         recipe: { $ref: "#/components/schemas/CoachDishRecipeWrite" }
         workout: {$ref: "#/components/schemas/CoachWorkoutWrite"}
         updateToken: {type: integer, format: int64, minimum: 0, description: Required only for WORKOUT update; use the latest editable read token.}

@@ -46,6 +46,7 @@ class AuthServiceTest {
     @Mock
     private SessionCookieService sessionCookieService;
 
+    @Mock private RoutineService routineService;
     private AuthService service;
 
     @BeforeEach
@@ -58,7 +59,7 @@ class AuthServiceTest {
             new AppProperties.Push(false, "", "", "mailto:test@example.com", ""),
             new AppProperties.WeeklySummary(false, "", "", "", "")
         );
-        service = new AuthService(userRepository, jwtSessionService, sessionCookieService, verifier);
+        service = new AuthService(userRepository, jwtSessionService, sessionCookieService, verifier, routineService);
     }
 
     @Test
@@ -96,6 +97,7 @@ class AuthServiceTest {
         User user = service.loginWithGoogle("credential", response);
 
         assertEquals(savedUser, user);
+        verify(routineService).initializeMeasurementRoutines(savedUser);
 
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(userCaptor.capture());
