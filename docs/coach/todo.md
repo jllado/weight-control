@@ -857,3 +857,10 @@ The app supports confirmed deletion of owned wins and misses. Deletion removes t
 ## Reliable daily reflection saves
 
 Daily plan-progress rationales allow 500 characters in storage and the API; Coach drafts aim for 400. DAILY accepts optional `confirmed:true` and rejects false, while older callers may omit it; WEEKLY still requires true. Keep exact proposal confirmation, paired score/rationale validation, other compact limits and atomic current warning review. Deploy the widened column and backend before publishing the matching 30-Action schema and instructions. Verify 500/501 boundaries, omitted/true/false confirmation, preserved history, mobile/desktop wrapping and an explicitly authorized existing-reflection update through the published Coach with independent readback.
+
+## Complete meal proposals without estimate opt-in
+
+- [x] Require automatic research and defensible comparable-food estimates before a complete, validated meal proposal; preserve source, reference, confirmation and nutrient contracts.
+- [x] Keep the instruction change within 8,000 characters and the existing 30 Actions; update the matching plan and acceptance criteria.
+- [ ] Publish and independently verify exact saved/live instructions with unchanged schema, privacy and authentication.
+- [ ] Verify fresh read-only Instant and Medium drafts for the clarified reported dinner, catalog nutrient gaps, new foods and genuine portion ambiguity; record evidence separately from persistence coverage.

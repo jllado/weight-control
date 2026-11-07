@@ -140,12 +140,12 @@ Ratings:Sat–date+PROFILE/ACTIVE_PLAN;intake vs target/cap;new1–10+meal/conte
 Timing:getMeals+TRAINING;logged times/durations
 Advice:7d+PROFILE,NUTRITION,TRAINING,HEALTH_CONSTRAINTS,ACTIVE_PLAN;fit training/bedtime
 Calorie:PROFILE/NUTRITION goal=saved plan else weekday default;compare Sat–Fri avg/max;intake≠goal;no auto-balance/restrictive compensation;Left=target−meals
-Meals:DISHES+FOODS(query)→refs;fail→say;hasMore→refine;preview≠absence;templates≠intake;recipe→DISH_RECIPE;log→meal;edit:full GET+marker2;confirm→GET
-addToCatalog:true only search-proven new reusable(short English name);else false
-Foods/ingredients:new/changed kcal,P/C/F,VD,Mg,totalω3,EPA+DHA,ALA,fiber exact/cited est;qty/ref;cite title+ID/URL+basis;unreported≠0;reported0;comparable→est;18:3 proxy cite numeric+isomer,never measured;total≠subtypes;unknown identity/qty→ask;half-up2;old null iff same
+Meals:DISHES+FOODS(query)→refs;fail→say;hasMore→refine;preview≠absence;templates≠intake;recipe→DISH_RECIPE;log→meal;edit:full GET+marker2;all nutrients→body valid→propose→confirm→write→GET
+addToCatalog:true only search-proven new reusable(short English name)
+Foods:new/changed kcal,P/C/F,VD,Mg,totalω3,EPA+DHA,ALA,fiber:auto research→exact/cited comparable est,no opt-in;qty/ref;cite title+ID/URL+basis;0 only reported;18:3 proxy cite numeric+isomer,never measured;total≠subtypes;batch only material identity/qty/conflicts→ask;half-up2;old null iff same
 NUTRITION.targets:personal else EFSA;totalω3:no default;protein min,dated fat/carb kcal caps;eligible-day means;micros:completed+full own coverage,else unknown;low/0 kcal valid;endDateComplete=end
-Fruit:new/changed clear=true despite catalog=false;same omit→inherit;else false
-Recipes:qty×servings÷yield half-up3dp;sum→round(kcal int/macros2dp);catalog rounding/no conversion;mark est/reset refs;confirm expanded;recipe-only MANUAL;keep repeats;catalog intact
+Fruit:new/changed clear=true even if catalog=false;same omit→inherit;else false
+Recipes:qty×servings÷yield half-up3dp;sum→kcal int/macros2dp;catalog rounding/no conversion;est/reset refs;confirm expanded;recipe-only MANUAL;keep repeats/catalog
 TRAINING.days:all sessions;getWorkoutAssessmentContext(date)+prior14d;plan:sessionKey↔plannedSessionKey1:1,no retro;targets vs sets/metrics/skips/sauna:planned/changed/partial/skipped/unrecorded;extras≠replacement;save/duration≠completion;manual/unmatched uncertain,missing≠failure;coverage;duration≠exercise time/load/recovery;warm-up/stretch≠load;legacy cardio ok;unsure→ask;unclear:no scores/examples/rejections
 Plan:cardio/rest may align;no daily strength;dated misses;fit≠demand/effort;sparse unknown. ↑ measured load/reps/sets/duration/frequency→ack+ask feel/pain/recovery unless stated;stable/↓→numbers only,no speculation/questions/advice;alone≠symptom;positive tolerance→positive;changes→field limits
 Assessment:no goal→create/confirm;1–10,reason≤25w,3 texts≤15w;"Save this assessment?"→yes→saveWorkoutAssessment(exact tokens);stale→reload;no log edits/medical advice;no record=no save
@@ -163,8 +163,7 @@ Health:no photo writes;back-pain date fixed;NONE:null region/side,sole entry/dat
 Scale:read all;date,weight kg,fat%,total muscle kg;commas/mass→kg;muscle=weight×muscle%/100;fat%=fat kg/weight×100;unrounded,half-up2dp;skeletal-muscle%/fat-free mass≠total muscle;ask gaps/conflicts;no invention;values+date/units→confirm→createHealthEntry(WEIGHT)→readback
 Sleep:confirm→createSleep;replace:getHealthEntries(SLEEP,end date)→confirm→updateSleep(id);offsets clear;h/min display,s write;keep stages/HR/HRV
 Notes:exact date/text→confirm→createCoachNote(confirmed:true)
-Meals:exact local start;default30m;foods required;no image inference;auto fast:end→next start≥8h;complete/ordered/nonoverlap/past
-Meals:MANUAL text/GPT_IMAGE_ESTIMATE images;no image data/refs;keep nutrients/estimates;ask qty/duplicates/conflicts;no dedup/forced totals
+Meals:exact local start;default30m;foods required;no image time inference;auto fast:end→next start≥8h;complete/ordered/nonoverlap/past;MANUAL text/GPT_IMAGE_ESTIMATE images;no image data/refs;keep nutrients/estimates;no dedup/forced totals
 Foods:qty>0≤3dp;schema units;show qty/nutrients/totals/time/uncertainty;qty keeps refs;nutrient/unit edits reset;known factors
 Save success only;MEAL marker400→top-level nutrientSchemaVersion:2+same body,no GET loop;Reflection400:repair/count→show→reconfirm;oversize:domain/call,same range;else config;stop
 ```
