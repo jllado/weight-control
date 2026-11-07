@@ -3926,6 +3926,7 @@ export default {
             sleeps.month_average_sleeps.map(sleep => sleep ? sleep[key] : null),
             sleeps.year_ago_month_average_sleeps.map(sleep => sleep ? sleep[key] : null),
             sleeps.labels,
+            value => formatTimeOfDayFromMinutes(value),
             value => formatTimeOfDayFromMinutes(value)
         );
       }
