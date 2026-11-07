@@ -46,6 +46,7 @@ class WeeklySummaryMailSenderTest {
         String html = htmlContent(message);
         String text = plainText(message);
         for (String body : List.of(html, text)) {
+            assertTrue(!body.contains("Hello, Owner"));
             assertTrue(body.contains("Body-fat goal met") || body.contains("Above body-fat goal"));
             assertTrue(body.contains("Weekly routines"));
             assertTrue(body.contains("≈"));

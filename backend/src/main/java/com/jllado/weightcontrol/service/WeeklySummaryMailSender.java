@@ -73,7 +73,6 @@ public class WeeklySummaryMailSender {
         StringBuilder text = new StringBuilder()
             .append("Weight Control weekly summary\n")
             .append(view.dateRange()).append("\n\n")
-            .append("Hello, ").append(view.displayName()).append(".\n\n")
             .append("Routine completion: ").append(routines.value()).append("\n")
             .append(routines.completed()).append(" of ").append(routines.opportunities())
             .append(" daily routine opportunities completed\n")
