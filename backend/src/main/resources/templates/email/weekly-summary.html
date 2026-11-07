@@ -1,72 +1,107 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weight Control weekly summary</title>
 <style>
-body { margin:0; background:#f4f6f8; color:#21313c; font-family:Arial,sans-serif; }
+body { margin:0; }
 table { border-collapse:collapse; }
-.comparison--improved { color:#39745a; } .comparison--worsened { color:#b04137; } .comparison--unknown { color:#63717b; }
-@media(max-width:480px) { .email-cell { padding:12px !important; } .metric-column { display:block; width:100% !important; box-sizing:border-box; } }
+a { color:#317db6; }
+@media(max-width:520px) {
+  .email-cell { padding:20px 16px !important; }
+  .metric-column { display:block !important; width:100% !important; box-sizing:border-box; padding:5px 0 !important; }
+  .data-cell { padding:10px 5px !important; }
+  .hero-value { font-size:40px !important; }
+}
 </style></head>
-<body>
-<table role="presentation" width="100%"><tr><td align="center">
-<table role="presentation" width="100%" style="max-width:640px;background:white">
-<tr><td class="email-cell" style="padding:24px">
-<img src="cid:weight-control-logo" alt="Weight Control" width="76">
-<h1 style="font-size:24px">Your weekly summary</h1>
-<p th:text="${summary.dateRange}">Dates</p><p th:text="|Hello, ${summary.displayName}.|">Hello.</p>
+<body bgcolor="#dce7ef" style="margin:0;background:#dce7ef;color:#19364a;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;">
+<table role="presentation" width="100%" bgcolor="#dce7ef" style="background:#dce7ef;"><tr><td align="center">
+<table role="presentation" width="100%" bgcolor="#f0f5f9" style="max-width:720px;background:#f0f5f9;table-layout:fixed;" th:with="v=${summary.visualSummary}">
+<tr><td class="email-cell" bgcolor="#183d58" style="padding:28px;background:#183d58;color:#ffffff;">
+<img src="cid:weight-control-logo" alt="Weight Control" width="64" height="64" style="display:block;border:0;">
+<font color="#ffffff">
+<h1 style="margin:16px 0 6px;font-size:26px;line-height:1.25;">Your weekly summary</h1>
+<p style="margin:0;color:#dce7ef;" th:text="${summary.dateRange}">Reporting week</p>
+</font>
 </td></tr>
-<tr th:if="${summary.presentation != null}"><td class="email-cell" style="padding:0 24px 16px">
-<h2 style="font-size:20px">Your week at a glance</h2>
-<table role="presentation" width="100%">
-<tr th:each="index : ${#numbers.sequence(0,3,2)}">
-<td th:each="column : ${#numbers.sequence(0,1)}" th:with="highlight=${summary.presentation.highlights[index+column]}" width="50%" style="padding:4px;vertical-align:top">
-<div style="padding:12px;border:1px solid #dedede;border-radius:4px">
-<div style="font-size:13px;color:#63717b" th:text="${highlight.label}">Metric</div>
-<strong style="display:block;margin:8px 0;font-size:22px" th:text="${highlight.value}">Value</strong>
-<div style="font-size:12px;color:#63717b" th:text="${highlight.comparison}">Comparison</div>
-<div style="height:5px;background:#edf1f5;margin-top:10px"><div style="height:5px;background:#3b83bd" th:style="|height:5px;background:#3b83bd;width:${highlight.currentWidth}%|"></div></div>
-<div style="height:5px;background:#edf1f5;margin:4px 0"><div style="height:5px;background:#aab7c4" th:style="|height:5px;background:#aab7c4;width:${highlight.previousWidth}%|"></div></div>
-<small th:text="${highlight.coverage}">Coverage</small>
-</div></td></tr></table><p style="font-size:12px;color:#63717b">Blue: this week · Grey: previous week</p>
-</td></tr>
-<tr th:if="${summary.presentation != null and !summary.presentation.recommendations.isEmpty()}"><td class="email-cell" style="padding:0 24px 16px">
-<h2 style="font-size:20px">Next steps</h2>
-<div th:each="action : ${summary.presentation.recommendations}" style="padding:14px 0;border-bottom:1px solid #dedede">
-<strong th:text="${action.wording}">Action</strong>
-<p style="font-size:12px;color:#63717b" th:text="${#strings.listJoin(action.provenance, ', ')}">Source</p>
-<a th:href="${summary.actionUrl(action.sourceKey)}" style="display:inline-block;padding:8px 12px;border:1px solid #3b83bd;color:#245b83;text-decoration:none;border-radius:4px">Activate in app ↗</a>
-</div></td></tr>
-<tr><td class="email-cell" style="padding:0 24px 16px">
-<h2 style="font-size:20px">Personal records</h2>
-<p th:if="${summary.presentation != null}" th:text="${summary.presentation.highlights[4].value}">New records</p>
-<p th:if="${summary.records.isEmpty()}">No new records this week</p>
-<p th:each="record : ${summary.records}"><strong th:text="${record.label}">Record</strong><span th:text="| · ${record.value} · ${record.date}|">Value</span></p>
-</td></tr>
-<tr><td class="email-cell" style="padding:0 24px 16px">
-<h2 style="font-size:20px">Detailed measurements</h2>
-<th:block th:if="${summary.presentation != null}"><p th:each="period : ${summary.presentation.periods}" style="font-size:12px;color:#63717b" th:text="${period}">Period</p></th:block>
-<h3>Routine completion</h3>
-<p><strong th:text="${summary.headlineValue}">Percentage</strong><span th:text="| · ${summary.headlineDetail}|">Evidence</span></p>
-<p><span class="comparison" th:classappend="${summary.previousRoutineComparison.cssClass}" th:text="${summary.previousRoutineComparison.displayText}">Previous</span><br><span class="comparison" th:classappend="${summary.yearAgoRoutineComparison.cssClass}" th:text="${summary.yearAgoRoutineComparison.displayText}">Year ago</span></p>
-<table role="presentation" width="100%"><tr><td th:each="day : ${summary.days}" style="text-align:center;font-size:12px"><span th:text="${day.label}">Day</span><br><strong th:text="${day.value}">Value</strong></td></tr></table>
-<div th:each="row : ${summary.cardRows}">
-<h3 th:if="${row.section != null}" th:text="${row.section}">Section</h3>
-<table role="presentation" width="100%"><tr>
-<td th:each="card : ${row.right == null ? {row.left} : {row.left,row.right}}" class="metric-column" width="50%" style="vertical-align:top;padding:12px 4px">
-<strong th:text="${card.label}">Metric</strong><p th:text="${card.value}">Value</p><p style="font-size:13px;color:#63717b" th:text="${card.detail}">Detail</p>
-<p style="font-size:12px"><span class="comparison" th:classappend="${card.previousComparison.cssClass}" th:text="${card.previousComparison.displayText}">Previous</span><br><span class="comparison" th:classappend="${card.yearAgoComparison.cssClass}" th:text="${card.yearAgoComparison.displayText}">Year</span></p>
-</td></tr></table></div>
-<div th:if="${summary.outcomes != null}"><h3>Friday–Sunday outcome measurements</h3><p th:text="|Weight: ${summary.outcomes.weight}|">Weight</p><p th:text="|Blood pressure: ${summary.outcomes.bloodPressure}|">Blood pressure</p></div>
-<div th:if="${!summary.warnings.isEmpty()}"><h3>Missing data</h3><ul><li th:each="warning : ${summary.warnings}" th:text="${warning}">Warning</li></ul></div>
-<div th:if="${!summary.routineWatchouts.isEmpty()}"><h3>Routine watch-outs · below 60%</h3><p th:each="routine : ${summary.routineWatchouts}" th:text="|${routine.name}: ${routine.completedDays}/${routine.eligibleDays} days · ${routine.percentage}|">Routine</p></div>
-<div th:if="${summary.presentation != null and !summary.presentation.nutritionRows.isEmpty()}">
-<h3>Nutrition · Current targets captured when saved</h3>
-<div th:each="row : ${summary.presentation.nutritionRows}"><strong th:text="${row.label}">Nutrient</strong><p style="font-size:13px" th:text="|Current: ${row.current}|">Current</p><p style="font-size:13px" th:text="|Previous week: ${row.previous}|">Previous</p><p style="font-size:13px" th:text="|52 weeks ago: ${row.yearAgo}|">Year</p></div>
+<tr><td class="email-cell" style="padding:28px;">
+<h2 style="font-size:20px;margin:0 0 8px;">Routine completion</h2>
+<strong class="hero-value" style="font-size:48px;line-height:1.1;color:#183d58;" th:text="${v.routines.value}">75%</strong>
+<p style="margin:8px 0;color:#486277;" th:text="|${v.routines.completed} of ${v.routines.opportunities} daily routine opportunities completed|">Daily routine opportunities</p>
+<p style="margin:8px 0 16px;">Last week: <strong th:style="|color:${v.routines.previous.color}|" th:text="${v.routines.previous.text}">Change</strong><br>52 weeks ago: <strong th:style="|color:${v.routines.yearAgo.color}|" th:text="${v.routines.yearAgo.text}">Change</strong></p>
+<table role="presentation" width="100%" style="table-layout:fixed;"><tr>
+<td th:each="day : ${v.routines.days}" style="text-align:center;padding:0 3px;vertical-align:top;font-size:13px;">
+<span th:text="${day.label}">Sat</span>
+<table role="presentation" width="100%" bgcolor="#dce7ef" style="margin:8px 0;background:#dce7ef;"><tr><td height="8" th:width="|${day.width}%|" th:bgcolor="${day.status.color}" th:style="|height:8px;background:${day.status.color};width:${day.width}%|"></td><td height="8"></td></tr></table>
+<strong th:text="${day.value}">75%</strong>
+</td></tr></table>
+<div th:if="${v.routines.watchoutCount > 0}" style="margin-top:20px;padding-top:16px;border-top:1px solid #becfde;">
+<strong th:text="|Needs attention · ${v.routines.watchoutCount} routines below 60%|">Needs attention</strong>
+<p th:each="routine : ${v.routines.watchouts}" style="margin:6px 0;" th:text="|${routine.name}: ${routine.value}|">Routine</p>
+<a th:href="${summary.appUrl}" style="color:#317db6;">See all routine details ↗</a>
 </div>
-<div th:if="${summary.weeklyReflection != null}">
-<div style="font-weight:bold">Weekly reflection</div><h3 th:text="${summary.weeklyReflection.title}">Title</h3><p th:text="${summary.weeklyReflection.summary}">Summary</p>
-<div th:each="section : ${summary.weeklyReflection.sections}"><h4 th:text="${section.title}">Domain</h4><p th:text="${section.summary}">Evidence</p></div>
-</div></td></tr>
-<tr><td align="center" class="email-cell" style="padding:24px"><a th:href="${summary.appUrl}" style="display:block;padding:14px;background:#3b83bd;color:white;text-decoration:none;border-radius:4px">Open this weekly summary</a><p style="font-size:12px;color:#63717b">Missing days are not treated as zero.</p></td></tr>
+<div th:if="${!v.weeklyRoutines.isEmpty()}" style="margin-top:20px;padding-top:16px;border-top:1px solid #becfde;">
+<strong>Weekly routines</strong><p style="margin:4px 0 10px;color:#486277;font-size:14px;">Separate from daily completion above.</p>
+<p th:each="routine : ${v.weeklyRoutines}" style="margin:8px 0;"><span th:text="|${routine.name}: ${routine.value}|">Weekly routine</span><br><span style="font-size:13px;color:#486277;" th:text="${routine.dates}">Recorded dates</span></p>
+</div>
+</td></tr>
+<tr><td class="email-cell" style="padding:0 28px 28px;">
+<h2 style="font-size:20px;margin:0 0 8px;">Your week at a glance</h2>
+<p style="margin:0 0 12px;color:#486277;font-size:14px;" th:text="${v.goalsLabel}">Goals saved with this report</p>
+<table role="presentation" width="100%" style="table-layout:fixed;">
+<tr th:each="index : ${#numbers.sequence(0,4,2)}">
+<td th:each="column : ${#numbers.sequence(0,1)}" th:with="card=${v.overview[index+column]}" class="metric-column" width="50%" style="padding:5px;vertical-align:top;">
+<table role="presentation" width="100%" bgcolor="#e2edf6" style="background:#e2edf6;border:1px solid #becfde;"><tr><td style="padding:16px;overflow-wrap:anywhere;">
+<h3 style="margin:0;font-size:15px;" th:text="${card.label}">Metric</h3>
+<strong style="display:block;margin:8px 0;font-size:27px;line-height:1.2;" th:text="${card.value}">Value</strong>
+<strong style="font-size:14px;" th:style="|font-size:14px;color:${card.status.color}|" th:text="${card.status.label}">Status</strong>
+<p style="margin:8px 0;color:#486277;font-size:14px;" th:text="${card.detail}">Evidence</p>
+<p th:if="${card.key != 'weekendWeight' and card.key != 'bloodPressure'}" style="margin:10px 0 0;font-size:13px;">vs last week: <span th:style="|color:${card.previous.color}|" th:text="${card.previous.text}">Change</span><br>vs 52 weeks ago: <span th:style="|color:${card.yearAgo.color}|" th:text="${card.yearAgo.text}">Change</span></p>
+</td></tr></table>
+</td></tr></table>
+</td></tr>
+<tr><td class="email-cell" style="padding:0 28px 28px;">
+<h2 style="font-size:20px;margin:0 0 8px;">Workout activity</h2>
+<p style="margin:0 0 12px;color:#486277;font-size:14px;">A mixed workout counts in each category it includes; categories do not add up to total sessions.</p>
+<table width="100%" style="table-layout:fixed;font-size:14px;">
+<thead><tr bgcolor="#e2edf6" style="background:#e2edf6;text-align:left;vertical-align:top;">
+<th scope="col" class="data-cell" width="28%" style="padding:12px 8px;">Activity</th>
+<th scope="col" class="data-cell" width="24%" style="padding:12px 8px;">This week<br><span style="font-size:12px;font-weight:normal;" th:text="${v.periods.current}">Dates</span></th>
+<th scope="col" class="data-cell" width="24%" style="padding:12px 8px;">Last week<br><span style="font-size:12px;font-weight:normal;" th:text="${v.periods.previous}">Dates</span></th>
+<th scope="col" class="data-cell" width="24%" style="padding:12px 8px;">52 weeks ago<br><span style="font-size:12px;font-weight:normal;" th:text="${v.periods.yearAgo}">Dates</span></th>
+</tr></thead><tbody><tr th:each="row : ${v.workouts}" style="border-bottom:1px solid #becfde;vertical-align:top;overflow-wrap:anywhere;">
+<th scope="row" class="data-cell" style="text-align:left;padding:12px 8px;font-weight:normal;" th:text="${row.label}">Activity</th>
+<td class="data-cell" style="padding:12px 8px;font-weight:bold;" th:text="${row.current}">Value</td>
+<td class="data-cell" style="padding:12px 8px;"><span th:text="${row.previous}">Baseline</span><br><strong th:text="${row.previousDelta.text}">Change</strong></td>
+<td class="data-cell" style="padding:12px 8px;"><span th:text="${row.yearAgo}">Baseline</span><br><strong th:text="${row.yearAgoDelta.text}">Change</strong></td>
+</tr></tbody></table>
+<p style="margin:8px 0 0;font-size:13px;color:#486277;">Changes show this week minus the comparison week.</p>
+</td></tr>
+<tr><td class="email-cell" style="padding:0 28px 28px;">
+<h2 style="font-size:20px;margin:0 0 8px;">Nutrition · daily averages</h2>
+<p style="margin:0 0 12px;font-size:14px;color:#486277;">Available targets come from saved evidence. ≈ marks estimated values; partial coverage is shown beside the nutrient.</p>
+<table width="100%" style="table-layout:fixed;font-size:14px;">
+<thead><tr bgcolor="#e2edf6" style="background:#e2edf6;text-align:left;vertical-align:top;">
+<th scope="col" class="data-cell" width="28%" style="padding:12px 8px;">Nutrient</th>
+<th scope="col" class="data-cell" width="25%" style="padding:12px 8px;">This week</th>
+<th scope="col" class="data-cell" width="21%" style="padding:12px 8px;">Saved target</th>
+<th scope="col" class="data-cell" width="26%" style="padding:12px 8px;">Last week</th>
+</tr></thead><tbody><tr th:each="row : ${v.nutrition.rows}" style="border-bottom:1px solid #becfde;vertical-align:top;overflow-wrap:anywhere;">
+<th scope="row" class="data-cell" style="text-align:left;padding:12px 8px;font-weight:normal;"><strong th:text="${row.label}">Nutrient</strong><br><span style="font-size:12px;color:#486277;" th:text="${row.coverage}">Coverage</span></th>
+<td class="data-cell" style="padding:12px 8px;"><strong th:style="|color:${row.status.color}|" th:text="${row.current}">Value</strong><br><span style="font-size:12px;" th:style="|font-size:12px;color:${row.status.color}|" th:text="${row.status.label}">Status</span></td>
+<td class="data-cell" style="padding:12px 8px;" th:text="${row.target}">Target</td>
+<td class="data-cell" style="padding:12px 8px;"><span th:text="${row.previous}">Baseline</span><br><strong th:text="${row.previousDelta.text}">Change</strong><br><span style="font-size:12px;color:#486277;" th:text="|Target: ${row.previousTarget}|">Prior target</span></td>
+</tr></tbody></table>
+<p style="margin:8px 0 0;font-size:13px;color:#486277;" th:text="${v.nutrition.note}">Comparison availability</p>
+<p th:if="${v.nutrition.hasYearAgo}" style="margin:8px 0 0;font-size:14px;"><a th:href="${summary.appUrl}" style="color:#317db6;">See the available 52-week nutrient comparison in the full report ↗</a></p>
+</td></tr>
+<tr th:if="${v.reflection != null}"><td class="email-cell" bgcolor="#e2edf6" style="padding:24px 28px;background:#e2edf6;">
+<h2 style="font-size:20px;margin:0 0 8px;">Weekly reflection</h2>
+<h3 style="margin:0 0 8px;font-size:17px;" th:text="${v.reflection.title}">Saved title</h3>
+<p style="margin:0;white-space:pre-line;" th:text="${v.reflection.summary}">Saved summary</p>
+</td></tr>
+<tr><td class="email-cell" style="padding:28px;">
+<a th:href="${summary.appUrl}" style="display:block;padding:14px;background:#317db6;color:#ffffff;text-align:center;text-decoration:none;font-weight:bold;">Open this weekly summary ↗</a>
+<p style="margin:14px 0 0;font-size:13px;color:#486277;text-align:center;">Full evidence and recommendations are in Weight Control.<br>Missing days are not treated as zero.</p>
+</td></tr>
 </table></td></tr></table>
 </body></html>
