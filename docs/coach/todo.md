@@ -866,3 +866,12 @@ Daily plan-progress rationales allow 500 characters in storage and the API; Coac
 - [ ] Verify fresh read-only Instant and Medium drafts for the clarified reported dinner, catalog nutrient gaps (including Apple EPA+DHA/ALA in a new meal), new foods and genuine portion ambiguity; require an independent source for total omega-3 and record evidence separately from persistence coverage.
 
 Acceptance remains failed after version 169: Medium's two-food draft and both ambiguity gates passed, but the nine-food drafts remained incomplete and Instant substituted ALA for total omega-3. Review the scope for source-backed preparation and validated nutrient mappings before claiming delivery; see the [verification record](coach-gpt.md#proactive-meal-preparation-verification--november-7-2026).
+
+
+## Limited-search meal estimates
+
+The approved instruction-only recovery uses saved foods and recipes first, then at most one external search query per food with missing values. Read useful results and finish with reasonable sourced similar-food estimates when exact values are not readily available; no repeated precision searches, estimate opt-in or partial proposals. Correct arithmetic before the full proposal, keep independent nutrient meanings and existing source/flag/confirmation contracts, and ask only for material unresolved identity, quantity, conflicts or a genuinely unsupported comparison. Catalog Actions do not consume the external-search budget.
+
+Verify two fresh original nine-food requests on each actual Instant and Medium setting, plus catalog gaps, unavailable brands, ambiguity and implausible protein. Check calculations, source attribution, the search budget and exact Action arguments. A temporary historical meal save/readback/delete is authorized with catalog additions disabled; baseline and verify cleanup of data and test notifications, recording any irreversible push delivery. Preserve the original conversation and real meals.
+
+Keep 30 Actions, instructions at most 8,000 characters, operation descriptions at most 300 characters and identical parsed API structure after removing descriptions. Validate Coach checks/tests and diff, commit/push, publish privately and independently compare saved/live hashes. No application deployment or backend service. Allow one evidence-driven follow-up revision; publication alone is not behavioral acceptance. Acceptance is pending.
