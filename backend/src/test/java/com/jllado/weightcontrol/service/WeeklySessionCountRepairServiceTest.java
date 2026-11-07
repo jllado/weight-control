@@ -105,6 +105,20 @@ class WeeklySessionCountRepairServiceTest {
     }
 
     @Test
+    void weeklyRoutineSnapshotRemainsUnchangedByOldSessionCountRepair() throws Exception {
+        var saved = saved(owner, friday);
+        ObjectNode snapshot = (ObjectNode) mapper.readTree(saved.getSnapshotJson());
+        snapshot.put("schemaVersion", 8);
+        snapshot.putArray("weeklyRoutines").addObject().put("name", "Check weight").put("completedWeeks", 1);
+        String before = mapper.writeValueAsString(snapshot);
+        jdbc.update("update weekly_summaries set snapshot_json = ? where id = ?", before, saved.getId());
+
+        assertFalse(repair.repair(owner, friday, false).changeRequired());
+        assertFalse(repair.repair(owner, friday, true).changeRequired());
+        assertEquals(before, read(saved));
+    }
+
+    @Test
     void rejectsUnsupportedSnapshotOrWrongOwnerWithoutChangingAnySnapshot() throws Exception {
         var saved = saved(owner, friday);
         ObjectNode invalid = (ObjectNode) mapper.readTree(saved.getSnapshotJson());

@@ -16,6 +16,7 @@ import com.jllado.weightcontrol.repository.BloodPressureRepository;
 import com.jllado.weightcontrol.repository.InAppNotificationRepository;
 import com.jllado.weightcontrol.repository.MoodRepository;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
+import com.jllado.weightcontrol.repository.RoutineRepository;
 import com.jllado.weightcontrol.repository.WeightRepository;
 import com.jllado.weightcontrol.util.DateTimes;
 import com.jllado.weightcontrol.util.RoutinePeriods;
@@ -29,6 +30,8 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Optional;
+import java.util.Comparator;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -45,6 +48,7 @@ public class InAppNotificationService {
     private final BackPainEpisodeRepository backPainEpisodeRepository;
     private final WeightRepository weightRepository;
     private final BloodPressureRepository bloodPressureRepository;
+    private final RoutineRepository routineRepository;
 
     public InAppNotificationService(
         InAppNotificationRepository repository,
@@ -52,7 +56,8 @@ public class InAppNotificationService {
         MoodRepository moodRepository,
         BackPainEpisodeRepository backPainEpisodeRepository,
         WeightRepository weightRepository,
-        BloodPressureRepository bloodPressureRepository
+        BloodPressureRepository bloodPressureRepository,
+        RoutineRepository routineRepository
     ) {
         this.repository = repository;
         this.routineCheckinRepository = routineCheckinRepository;
@@ -60,6 +65,7 @@ public class InAppNotificationService {
         this.backPainEpisodeRepository = backPainEpisodeRepository;
         this.weightRepository = weightRepository;
         this.bloodPressureRepository = bloodPressureRepository;
+        this.routineRepository = routineRepository;
     }
 
     public InAppNotification reschedule(User user, Long id, LocalDate date, LocalTime time) {
@@ -74,8 +80,8 @@ public class InAppNotificationService {
         }
         OffsetDateTime requestedAt = ZonedDateTime.of(date, time, DateTimes.USER_ZONE).toOffsetDateTime();
         OffsetDateTime now = OffsetDateTime.now(DateTimes.USER_ZONE);
-        OffsetDateTime nextNotificationAt = nextNotificationAt(notification, user);
-        if (!requestedAt.isAfter(now) || !requestedAt.isBefore(nextNotificationAt)) {
+        Optional<OffsetDateTime> nextNotificationAt = nextNotificationAt(notification, user);
+        if (!requestedAt.isAfter(now) || nextNotificationAt.filter(next -> !requestedAt.isBefore(next)).isPresent()) {
             throw new BadRequestException("Choose a future time before the next notification");
         }
         return schedule(notification, requestedAt);
@@ -107,7 +113,7 @@ public class InAppNotificationService {
             return null;
         }
         OffsetDateTime requestedAt = target.toOffsetDateTime();
-        if (!requestedAt.isBefore(nextNotificationAt(notification, user))) {
+        if (nextNotificationAt(notification, user).filter(next -> !requestedAt.isBefore(next)).isPresent()) {
             throw new BadRequestException("Choose a future time before the next notification");
         }
         schedule(notification, requestedAt);
@@ -150,17 +156,31 @@ public class InAppNotificationService {
         };
     }
 
-    private OffsetDateTime nextNotificationAt(InAppNotification notification, User user) {
+    private Optional<OffsetDateTime> nextNotificationAt(InAppNotification notification, User user) {
+        if (notification.getType() == InAppNotificationType.ROUTINE
+            && notification.getRoutineReminder().getRoutine().getCadence() == RoutineCadence.WEEKLY) {
+            return notification.getRoutineReminder().getRoutine().getReminders().stream()
+                .map(reminder -> nextWeeklyOccurrence(reminder, notification.getAvailableAt()))
+                .min(Comparator.comparing(OffsetDateTime::toInstant));
+        }
+        if (notification.getType() == InAppNotificationType.WEIGHT || notification.getType() == InAppNotificationType.BLOOD_PRESSURE) {
+            RoutineAutomaticTrigger trigger = notification.getType() == InAppNotificationType.WEIGHT
+                ? RoutineAutomaticTrigger.WEIGHT_MEASUREMENT : RoutineAutomaticTrigger.BLOOD_PRESSURE_MEASUREMENT;
+            return routineRepository.findByUserOrderByStartDateAsc(user).stream()
+                .filter(routine -> routine.getAutomaticTrigger() == trigger)
+                .flatMap(routine -> routine.getReminders().stream())
+                .map(reminder -> nextWeeklyOccurrence(reminder, notification.getAvailableAt()))
+                .min(Comparator.comparing(OffsetDateTime::toInstant));
+        }
         LocalDate date = switch (notification.getType()) {
             case ROUTINE -> notification.getReminderDate();
             case MEDICATION -> DateTimes.toLocalDate(notification.getMedicationDose().getScheduledAt());
             default -> LocalDate.parse(notification.getDeduplicationKey().substring(notification.getDeduplicationKey().lastIndexOf(':') + 1));
         };
-        return switch (notification.getType()) {
+        return Optional.of(switch (notification.getType()) {
             case ROUTINE -> {
                 var reminder = notification.getRoutineReminder();
-                LocalDate nextDate = reminder.getDay() == null ? date.plusDays(1) : date.with(java.time.temporal.TemporalAdjusters.next(reminder.getDay()));
-                yield ZonedDateTime.of(nextDate, reminder.getReminderTime(), DateTimes.USER_ZONE).toOffsetDateTime();
+                yield ZonedDateTime.of(date.plusDays(1), reminder.getReminderTime(), DateTimes.USER_ZONE).toOffsetDateTime();
             }
             case MEDICATION -> {
                 var medication = notification.getMedicationDose().getMedication();
@@ -168,10 +188,14 @@ public class InAppNotificationService {
                 yield notification.getMedicationDose().getScheduledAt().plusDays(days);
             }
             case MOOD, BACK -> ZonedDateTime.of(date.plusDays(1), periodTime(user, notification.getPeriod()), DateTimes.USER_ZONE).toOffsetDateTime();
-            case WEIGHT -> ZonedDateTime.of(date.with(java.time.temporal.TemporalAdjusters.next(user.getWeightReminderDay())), user.getWeightReminderTime(), DateTimes.USER_ZONE).toOffsetDateTime();
-            case BLOOD_PRESSURE -> ZonedDateTime.of(date.with(java.time.temporal.TemporalAdjusters.next(user.getBloodPressureReminderDay())), user.getBloodPressureReminderTime(), DateTimes.USER_ZONE).toOffsetDateTime();
             default -> throw new BadRequestException("Notification cannot be rescheduled");
-        };
+        });
+    }
+
+    private OffsetDateTime nextWeeklyOccurrence(RoutineReminder reminder, OffsetDateTime after) {
+        LocalDate date = DateTimes.toLocalDate(after).with(java.time.temporal.TemporalAdjusters.nextOrSame(reminder.getDay()));
+        ZonedDateTime occurrence = ZonedDateTime.of(date, reminder.getReminderTime(), DateTimes.USER_ZONE);
+        return (occurrence.toInstant().isAfter(after.toInstant()) ? occurrence : occurrence.plusWeeks(1)).toOffsetDateTime();
     }
 
     private LocalTime periodTime(User user, MoodPeriod period) {

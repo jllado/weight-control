@@ -61,6 +61,7 @@ class InAppNotificationServiceTest {
     private WeightRepository weightRepository;
     @Mock
     private BloodPressureRepository bloodPressureRepository;
+    @Mock private com.jllado.weightcontrol.repository.RoutineRepository routineRepository;
     private InAppNotificationService service;
 
     @BeforeEach
@@ -71,7 +72,8 @@ class InAppNotificationServiceTest {
             moodRepository,
             backPainEpisodeRepository,
             weightRepository,
-            bloodPressureRepository
+            bloodPressureRepository,
+            routineRepository
         );
     }
 
@@ -110,9 +112,10 @@ class InAppNotificationServiceTest {
         notification.setUser(user);
         notification.setType(InAppNotificationType.WEIGHT);
         notification.setReminderDate(originalDate);
-        notification.setAvailableAt(originalDate.atTime(5, 0).atZone(DateTimes.USER_ZONE).toOffsetDateTime());
+        notification.setAvailableAt(originalDate.atTime(6, 0).atZone(DateTimes.USER_ZONE).toOffsetDateTime());
         notification.setDeduplicationKey("WEIGHT:" + originalDate);
         when(repository.findByIdAndUser(50L, user)).thenReturn(Optional.of(notification));
+        canonicalMetric(user, com.jllado.weightcontrol.domain.RoutineAutomaticTrigger.WEIGHT_MEASUREMENT, originalDate.getDayOfWeek(), java.time.LocalTime.of(6, 0));
         LocalDate movedDate = originalDate.plusDays(1);
 
         service.reschedule(user, 50L, movedDate, java.time.LocalTime.of(8, 0));
@@ -172,6 +175,7 @@ class InAppNotificationServiceTest {
         notification.setDeduplicationKey("WEIGHT:" + date);
         when(repository.findByIdAndUser(58L, user)).thenReturn(Optional.of(notification));
 
+        canonicalMetric(user, com.jllado.weightcontrol.domain.RoutineAutomaticTrigger.WEIGHT_MEASUREMENT, date.getDayOfWeek(), java.time.LocalTime.of(6, 0));
         OffsetDateTime nextReminderAt = service.snooze(user, 58L, 30, now);
 
         assertEquals(now.plusMinutes(30).toOffsetDateTime(), nextReminderAt);
@@ -193,6 +197,7 @@ class InAppNotificationServiceTest {
         notification.setRescheduled(true);
         when(repository.findByIdAndUser(59L, user)).thenReturn(Optional.of(notification));
 
+        canonicalMetric(user, com.jllado.weightcontrol.domain.RoutineAutomaticTrigger.WEIGHT_MEASUREMENT, date.getDayOfWeek(), java.time.LocalTime.of(6, 0));
         assertThrows(BadRequestException.class, () -> service.snooze(user, 59L, 15, now));
         verify(repository, never()).save(notification);
     }
@@ -231,10 +236,11 @@ class InAppNotificationServiceTest {
         notification.setUser(user);
         notification.setType(InAppNotificationType.WEIGHT);
         notification.setReminderDate(originalDate);
-        notification.setAvailableAt(originalDate.atTime(5, 0).atZone(DateTimes.USER_ZONE).toOffsetDateTime());
+        notification.setAvailableAt(originalDate.atTime(6, 0).atZone(DateTimes.USER_ZONE).toOffsetDateTime());
         notification.setDeduplicationKey("WEIGHT:" + originalDate);
         when(repository.findByIdAndUser(51L, user)).thenReturn(Optional.of(notification));
 
+        canonicalMetric(user, com.jllado.weightcontrol.domain.RoutineAutomaticTrigger.WEIGHT_MEASUREMENT, originalDate.getDayOfWeek(), java.time.LocalTime.of(6, 0));
         assertThrows(BadRequestException.class, () -> service.reschedule(user, 51L, originalDate.plusDays(7), java.time.LocalTime.of(6, 0)));
         verify(repository, never()).save(notification);
     }
@@ -244,14 +250,14 @@ class InAppNotificationServiceTest {
         LocalDate originalDate = LocalDate.now(DateTimes.USER_ZONE);
         for (InAppNotificationType type : List.of(InAppNotificationType.WEIGHT, InAppNotificationType.BLOOD_PRESSURE)) {
             User user = user(1L);
-            user.setWeightReminderDay(originalDate.plusDays(3).getDayOfWeek());
-            user.setBloodPressureReminderDay(originalDate.plusDays(4).getDayOfWeek());
             InAppNotification notification = notificationForRescheduling(55L, user, originalDate);
             notification.setType(type);
             notification.setDeduplicationKey(type + ":" + originalDate);
             when(repository.findByIdAndUser(55L, user)).thenReturn(Optional.of(notification));
             LocalDate limit = originalDate.plusDays(type == InAppNotificationType.WEIGHT ? 3 : 4);
-            java.time.LocalTime limitTime = type == InAppNotificationType.WEIGHT ? user.getWeightReminderTime() : user.getBloodPressureReminderTime();
+            java.time.LocalTime limitTime = type == InAppNotificationType.WEIGHT ? java.time.LocalTime.of(8, 15) : java.time.LocalTime.of(9, 30);
+            canonicalMetric(user, type == InAppNotificationType.WEIGHT ? com.jllado.weightcontrol.domain.RoutineAutomaticTrigger.WEIGHT_MEASUREMENT
+                : com.jllado.weightcontrol.domain.RoutineAutomaticTrigger.BLOOD_PRESSURE_MEASUREMENT, limit.getDayOfWeek(), limitTime);
 
             service.reschedule(user, 55L, originalDate.plusDays(1), java.time.LocalTime.NOON);
             service.reschedule(user, 55L, limit, limitTime.minusMinutes(1));
@@ -259,6 +265,84 @@ class InAppNotificationServiceTest {
             assertEquals(type + ":" + originalDate, notification.getDeduplicationKey());
             assertEquals(limit.atTime(limitTime.minusMinutes(1)).atZone(DateTimes.USER_ZONE).toOffsetDateTime(), notification.getAvailableAt());
         }
+    }
+
+    @Test
+    void legacyMeasurementUsesTheEarliestCanonicalPairIncludingLaterOnTheSameDay() {
+        User owner = user(1L); LocalDate today = LocalDate.now(DateTimes.USER_ZONE);
+        LocalDate day = today.plusDays(2);
+        Routine assigned = canonicalMetric(owner, com.jllado.weightcontrol.domain.RoutineAutomaticTrigger.WEIGHT_MEASUREMENT,
+            day.getDayOfWeek(), java.time.LocalTime.of(9, 0));
+        // Automation pause does not disable the still-configured reminder pairs.
+        assigned.setAutomaticCompletionEnabled(false);
+        var later = reminder(9L, assigned); later.setDay(day.plusDays(1).getDayOfWeek()); later.setReminderTime(java.time.LocalTime.of(7, 0));
+        assigned.getReminders().add(later);
+        var notification = notificationForRescheduling(56L, owner, today);
+        notification.setAvailableAt(day.atTime(8, 0).atZone(DateTimes.USER_ZONE).toOffsetDateTime());
+        notification.setRescheduled(true);
+        when(repository.findByIdAndUser(56L, owner)).thenReturn(Optional.of(notification));
+        service.reschedule(owner, 56L, day, java.time.LocalTime.of(8, 59));
+        assertThrows(BadRequestException.class, () -> service.reschedule(owner, 56L, day, java.time.LocalTime.of(9, 0)));
+        assertEquals(java.time.LocalTime.of(9, 0), assigned.getReminders().iterator().next().getReminderTime());
+        assertEquals(java.time.LocalTime.of(5, 0), owner.getWeightReminderTime());
+    }
+
+    @Test
+    void weeklyRoutineRescheduleStopsAtTheEarliestLaterWeekdayPair() {
+        User owner = user(1L);
+        LocalDate saturday = LocalDate.now(DateTimes.USER_ZONE).with(java.time.temporal.TemporalAdjusters.next(java.time.DayOfWeek.SATURDAY));
+        Routine assigned = routine(20L, owner); assigned.setCadence(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY);
+        assigned.setAutomaticTrigger(com.jllado.weightcontrol.domain.RoutineAutomaticTrigger.WEIGHT_MEASUREMENT);
+        var first = reminder(30L, assigned); first.setDay(java.time.DayOfWeek.SATURDAY); first.setReminderTime(java.time.LocalTime.of(5,0));
+        var next = reminder(31L, assigned); next.setDay(java.time.DayOfWeek.MONDAY); next.setReminderTime(java.time.LocalTime.of(6,0));
+        assigned.getReminders().addAll(List.of(first, next));
+        var notification = routineNotification(58L, owner, first, saturday, DateTimes.startOfDay(saturday).plusHours(5));
+        when(repository.findByIdAndUser(58L, owner)).thenReturn(Optional.of(notification));
+        service.reschedule(owner, 58L, saturday.plusDays(1), java.time.LocalTime.NOON);
+        assertThrows(BadRequestException.class, () -> service.reschedule(owner, 58L, saturday.plusDays(2), java.time.LocalTime.of(6,0)));
+        assertEquals(saturday.plusDays(1), notification.getReminderDate());
+    }
+
+    @Test
+    void weeklyRoutineSnoozeCannotCrossTheNextPairEvenOnTheSameDay() {
+        User owner = user(1L); LocalDate monday = LocalDate.of(2026,11,9);
+        Routine assigned = routine(20L, owner); assigned.setCadence(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY);
+        assigned.setAutomaticTrigger(com.jllado.weightcontrol.domain.RoutineAutomaticTrigger.WEIGHT_MEASUREMENT);
+        var saturday = reminder(30L, assigned); saturday.setDay(java.time.DayOfWeek.SATURDAY); saturday.setReminderTime(java.time.LocalTime.of(5,0));
+        var firstMonday = reminder(31L, assigned); firstMonday.setDay(java.time.DayOfWeek.MONDAY); firstMonday.setReminderTime(java.time.LocalTime.of(7,0));
+        var laterMonday = reminder(32L, assigned); laterMonday.setDay(java.time.DayOfWeek.MONDAY); laterMonday.setReminderTime(java.time.LocalTime.of(8,0));
+        assigned.getReminders().addAll(List.of(saturday, firstMonday, laterMonday));
+        var notification = routineNotification(59L, owner, saturday, monday.minusDays(2), DateTimes.startOfDay(monday).plusHours(6));
+        notification.setRescheduled(true);
+        when(repository.findByIdAndUser(59L, owner)).thenReturn(Optional.of(notification));
+        ZonedDateTime now = monday.atTime(6,50).atZone(DateTimes.USER_ZONE);
+        assertThrows(BadRequestException.class, () -> service.snooze(owner, 59L, 15, now));
+        notification.setAvailableAt(DateTimes.startOfDay(monday).plusHours(7));
+        assertThrows(BadRequestException.class, () -> service.snooze(owner, 59L, 15, monday.atTime(7,50).atZone(DateTimes.USER_ZONE)));
+        verify(repository, never()).save(notification);
+    }
+
+    @Test
+    void deletedOrUnscheduledMeasurementRoutineHasNoRecurringUpperBound() {
+        User owner = user(1L); LocalDate today = LocalDate.now(DateTimes.USER_ZONE);
+        var notification = notificationForRescheduling(57L, owner, today);
+        when(repository.findByIdAndUser(57L, owner)).thenReturn(Optional.of(notification));
+        when(routineRepository.findByUserOrderByStartDateAsc(owner)).thenReturn(List.of());
+        service.reschedule(owner, 57L, today.plusDays(15), java.time.LocalTime.NOON);
+        assertEquals(today.plusDays(15), notification.getReminderDate());
+        Routine assigned = canonicalMetric(owner, com.jllado.weightcontrol.domain.RoutineAutomaticTrigger.WEIGHT_MEASUREMENT,
+            today.getDayOfWeek(), java.time.LocalTime.of(5, 0));
+        assigned.getReminders().clear();
+        service.reschedule(owner, 57L, today.plusDays(16), java.time.LocalTime.NOON);
+        assertEquals(today.plusDays(16), notification.getReminderDate());
+    }
+
+    private Routine canonicalMetric(User owner, com.jllado.weightcontrol.domain.RoutineAutomaticTrigger trigger, java.time.DayOfWeek day, java.time.LocalTime time) {
+        Routine routine = routine(20L, owner); routine.setCadence(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY); routine.setAutomaticTrigger(trigger);
+        RoutineReminder reminder = reminder(30L, routine); reminder.setDay(day); reminder.setReminderTime(time);
+        routine.getReminders().add(reminder);
+        when(routineRepository.findByUserOrderByStartDateAsc(owner)).thenReturn(List.of(routine));
+        return routine;
     }
 
     @Test

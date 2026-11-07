@@ -1769,11 +1769,11 @@ export default {
         await this.load_dashboard_tab(deepLink.index);
       }
       await nextTick();
-      const panel = this.$refs.home.querySelectorAll('.home-panels-tabs .p-tabview-panel')[deepLink.index];
+      const panel = this.$refs.home.querySelectorAll('.home-panels-tabs > .p-tabview-panels > .p-tabview-panel')[deepLink.index];
       const heading = deepLink.metric
           ? [...panel.querySelectorAll('.table-header strong')].find(element => element.textContent.trim() === dashboardMetrics[deepLink.metric])
           : panel.querySelector('.table-header strong');
-      (heading || this.$refs.home.querySelectorAll('.home-panels-tabs [role="tab"]')[deepLink.index]).scrollIntoView({block: 'start'});
+      (heading || this.$refs.home.querySelectorAll('.home-panels-tabs > .p-tabview-nav-container [role="tab"]')[deepLink.index]).scrollIntoView({block: 'start'});
     },
     open_training_balance() { this.$router.push({path: '/workouts', query: {tab: 'training-balance', date: dayjs(this.daily_status.date).format('YYYY-MM-DD')}}); },
     saunaSummary,

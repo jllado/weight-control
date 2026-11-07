@@ -346,9 +346,9 @@ public final class CoachDtos {
 
     public record BehaviorContext(
         List<CoachDailyStatusData> dailyStatuses,
-        List<CoachRoutineData> routines,
+        List<CoachRoutineEvidence> routines,
         List<PauseSessionData> urgePauses,
-        List<CoachRoutineData> weeklyRoutines
+        List<CoachRoutineEvidence> weeklyRoutines
     ) {
     }
 
@@ -377,6 +377,19 @@ public final class CoachDtos {
 
     public record CoachRoutineData(
         Long id,
+        com.jllado.weightcontrol.domain.RoutineCadence cadence,
+        String name,
+        LocalDate startDate,
+        List<String> types,
+        List<LocalDate> checkinDates,
+        List<LocalDate> completedWeekStarts
+    ) {
+        public CoachRoutineEvidence evidence() {
+            return new CoachRoutineEvidence(cadence, name, startDate, types, checkinDates, completedWeekStarts);
+        }
+    }
+
+    public record CoachRoutineEvidence(
         com.jllado.weightcontrol.domain.RoutineCadence cadence,
         String name,
         LocalDate startDate,

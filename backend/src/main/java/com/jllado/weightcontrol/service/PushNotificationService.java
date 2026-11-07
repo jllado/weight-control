@@ -178,6 +178,12 @@ public class PushNotificationService {
     }
 
     public ReminderSettingsResponse updateReminderSettings(User user, ReminderSettingsRequest request) {
+        if (!request.weightTime().truncatedTo(ChronoUnit.MINUTES).equals(user.getWeightReminderTime())
+            || !request.bloodPressureTime().truncatedTo(ChronoUnit.MINUTES).equals(user.getBloodPressureReminderTime())
+            || (request.weightDay() != null && request.weightDay() != user.getWeightReminderDay())
+            || (request.bloodPressureDay() != null && request.bloodPressureDay() != user.getBloodPressureReminderDay())) {
+            throw new BadRequestException("Manage weight and blood pressure reminder schedules in Routines");
+        }
         LocalTime morning = request.morningTime().truncatedTo(ChronoUnit.MINUTES);
         LocalTime midday = request.middayTime().truncatedTo(ChronoUnit.MINUTES);
         LocalTime evening = request.eveningTime().truncatedTo(ChronoUnit.MINUTES);
@@ -187,11 +193,6 @@ public class PushNotificationService {
         user.setMorningCheckInReminderTime(morning);
         user.setMiddayCheckInReminderTime(midday);
         user.setEveningCheckInReminderTime(evening);
-        user.setWeightReminderTime(request.weightTime().truncatedTo(ChronoUnit.MINUTES));
-        user.setBloodPressureReminderTime(request.bloodPressureTime().truncatedTo(ChronoUnit.MINUTES));
-        // Older installed clients send only times; keep their existing weekdays.
-        if (request.weightDay() != null) user.setWeightReminderDay(request.weightDay());
-        if (request.bloodPressureDay() != null) user.setBloodPressureReminderDay(request.bloodPressureDay());
         return reminderSettingsResponse(userRepository.save(user));
     }
 

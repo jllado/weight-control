@@ -221,26 +221,32 @@ class PushNotificationServiceTest {
     }
 
     @Test
-    void weeklyReminderSettingsRoundTripAndOlderClientsPreserveDays() {
-        User user = user(1L);
+    void unchangedRetiredMeasurementFieldsAllowDailyScheduleChangesAndOmittedDays() {
+        User user = user(1L); user.setWeightReminderDay(DayOfWeek.MONDAY); user.setBloodPressureReminderDay(DayOfWeek.FRIDAY);
+        user.setWeightReminderTime(LocalTime.of(8,0)); user.setBloodPressureReminderTime(LocalTime.of(9,15));
         when(userRepository.save(user)).thenReturn(user);
         var response = service.updateReminderSettings(user, new ReminderSettingsRequest(
-            LocalTime.of(7, 30), LocalTime.of(13, 30), LocalTime.of(20, 30),
-            LocalTime.of(8, 0, 30), LocalTime.of(9, 15, 20), DayOfWeek.MONDAY, DayOfWeek.FRIDAY
-        ));
-        assertEquals(DayOfWeek.MONDAY, response.weightDay());
-        assertEquals(DayOfWeek.FRIDAY, response.bloodPressureDay());
-        assertEquals(LocalTime.of(8, 0), response.weightTime());
-        assertEquals(LocalTime.of(9, 15), response.bloodPressureTime());
-        assertEquals(response, service.reminderSettings(user));
+            LocalTime.of(7,45), LocalTime.of(13,30), LocalTime.of(20,30), LocalTime.of(8,0,30), LocalTime.of(9,15,20), null, null));
+        assertEquals(LocalTime.of(7,45), response.morningTime());
+        assertEquals(DayOfWeek.MONDAY, response.weightDay()); assertEquals(DayOfWeek.FRIDAY, response.bloodPressureDay());
+        assertEquals(LocalTime.of(8,0), response.weightTime()); assertEquals(LocalTime.of(9,15), response.bloodPressureTime());
+    }
 
-        var legacyResponse = service.updateReminderSettings(user, new ReminderSettingsRequest(
-            LocalTime.of(7, 45), LocalTime.of(13, 30), LocalTime.of(20, 30),
-            LocalTime.of(8, 30), LocalTime.of(9, 30), null, null
-        ));
-        assertEquals(DayOfWeek.MONDAY, legacyResponse.weightDay());
-        assertEquals(DayOfWeek.FRIDAY, legacyResponse.bloodPressureDay());
-        assertEquals(LocalTime.of(8, 30), legacyResponse.weightTime());
+    @Test
+    void changedRetiredMeasurementFieldsAreRejectedBeforeAnyDailySettingsMutation() {
+        User user = user(1L);
+        for (var request : List.of(
+            new ReminderSettingsRequest(LocalTime.of(7,45), LocalTime.of(13,30), LocalTime.of(20,30), LocalTime.of(6,0), LocalTime.of(5,15), null, null),
+            new ReminderSettingsRequest(LocalTime.of(7,45), LocalTime.of(13,30), LocalTime.of(20,30), LocalTime.of(5,0), LocalTime.of(6,15), null, null),
+            new ReminderSettingsRequest(LocalTime.of(7,45), LocalTime.of(13,30), LocalTime.of(20,30), LocalTime.of(5,0), LocalTime.of(5,15), DayOfWeek.MONDAY, null),
+            new ReminderSettingsRequest(LocalTime.of(7,45), LocalTime.of(13,30), LocalTime.of(20,30), LocalTime.of(5,0), LocalTime.of(5,15), null, DayOfWeek.FRIDAY))) {
+            var error = assertThrows(BadRequestException.class, () -> service.updateReminderSettings(user, request));
+            assertTrue(error.getMessage().contains("Routines"));
+            assertEquals(LocalTime.of(7,30), user.getMorningCheckInReminderTime());
+            assertEquals(LocalTime.of(5,0), user.getWeightReminderTime()); assertEquals(LocalTime.of(5,15), user.getBloodPressureReminderTime());
+            assertEquals(DayOfWeek.SATURDAY, user.getWeightReminderDay()); assertEquals(DayOfWeek.SATURDAY, user.getBloodPressureReminderDay());
+        }
+        verify(userRepository, never()).save(any());
     }
 
     @Test

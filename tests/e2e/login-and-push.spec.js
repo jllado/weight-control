@@ -3760,10 +3760,9 @@ test('daily reminder settings show and save the three default times', async ({pa
     await expect(page.locator('#morning-reminder-time')).toHaveValue('07:30');
     await expect(page.locator('#midday-reminder-time')).toHaveValue('13:30');
     await expect(page.locator('#evening-reminder-time')).toHaveValue('20:30');
-    await expect(page.getByRole('combobox', {name: 'Weight day', exact: true})).toHaveText('Saturday');
-    await expect(page.getByRole('combobox', {name: 'Blood pressure day', exact: true})).toHaveText('Saturday');
-    await expect(page.locator('#weight-reminder-time')).toHaveValue('05:00');
-    await expect(page.locator('#blood-pressure-reminder-time')).toHaveValue('05:15');
+    await expect(page.getByRole('combobox', {name: 'Weight day', exact: true})).toHaveCount(0);
+    await expect(page.getByRole('combobox', {name: 'Blood pressure day', exact: true})).toHaveCount(0);
+    await expect(page.getByText('Weight and blood-pressure reminders are managed in their weekly routines under Routines.')).toBeVisible();
     await expect(page.getByText('Active coaching plan', {exact: true})).toHaveCount(0);
     await expect(page.getByText('Health constraints', {exact: true})).toHaveCount(0);
     const saveRequest = page.waitForRequest(request => request.url().endsWith('/api/push/reminder-settings') && request.method() === 'PUT');
@@ -3774,9 +3773,17 @@ test('daily reminder settings show and save the three default times', async ({pa
 
 async function mockWeeklyMeasurementSchedule(page) {
     await mockRoutineReminderHome(page, []);
+    await page.route('**/api/weekly-summary/config', route => route.fulfill({json: {
+        enabled: false, canSend: true, recipientEmail: 'owner@example.com', deliveryDay: 'MONDAY', deliveryTime: '08:00:00',
+        reminderEnabled: true, reminderDay: 'MONDAY', reminderTime: '08:00:00', timeZone: 'Europe/Madrid'
+    }}));
     const state = {
         settings: {morningTime: '07:30', middayTime: '13:30', eveningTime: '20:30', weightTime: '05:00', bloodPressureTime: '05:15', weightDay: 'SATURDAY', bloodPressureDay: 'SATURDAY', timeZone: 'Europe/Madrid'},
-        requests: [], failSave: false, saveGate: Promise.resolve()
+        routines: [
+            {...routine(50, 'Check weight', null), cadence: 'WEEKLY', reminders: [{id: 501, day: 'SATURDAY', time: '05:00'}]},
+            {...routine(51, 'Check blood pressure', null), cadence: 'WEEKLY', reminders: [{id: 511, day: 'SATURDAY', time: '05:15'}]}
+        ],
+        requests: [], routineRequests: [], failSave: false, saveGate: Promise.resolve()
     };
     await page.route('**/api/push/reminder-settings', async route => {
         if (route.request().method() === 'PUT') {
@@ -3787,98 +3794,99 @@ async function mockWeeklyMeasurementSchedule(page) {
         }
         return route.fulfill({json: state.settings});
     });
+    await page.route('**/api/routines/*/reminders/*', async route => {
+        const [, , , routineId, , reminderId] = new URL(route.request().url()).pathname.split('/');
+        const record = state.routines.find(item => item.id === Number(routineId));
+        const body = route.request().postDataJSON();
+        state.routineRequests.push({routineId: Number(routineId), reminderId: Number(reminderId), ...body});
+        await state.saveGate;
+        if (state.failSave) return route.fulfill({status: 500, json: {message: 'Try again'}});
+        record.reminders.find(item => item.id === Number(reminderId)).time = body.time;
+        return route.fulfill({json: record});
+    });
     await page.route('**/api/push/agenda', route => route.fulfill({json: {
         date: '2026-10-03', timeZone: 'Europe/Madrid', entries: [
-            ...[{type: 'WEIGHT', key: 'weight', title: 'Weight reminder'}, {type: 'BLOOD_PRESSURE', key: 'bloodPressure', title: 'Blood pressure reminder'}]
-                .filter(entry => state.settings[`${entry.key}Day`] === 'SATURDAY')
-                .map(entry => ({type: entry.type, scheduledTime: state.settings[`${entry.key}Time`], title: entry.title, details: null, status: 'PENDING'})),
+            ...state.routines.flatMap(record => record.reminders.filter(reminder => reminder.day === 'SATURDAY').map(reminder => ({
+                type: 'ROUTINE', routineId: record.id, routineReminderId: reminder.id, scheduledTime: reminder.time,
+                title: record.name, details: 'Weekly', status: 'PENDING'
+            }))),
             {type: 'MOOD', scheduledTime: state.settings.morningTime, title: 'Mood check-in', details: 'Morning', status: 'PENDING'}
         ]
     }}));
     return state;
 }
 
-async function chooseWeeklyDay(page, label, day) {
-    await page.getByRole('combobox', {name: `${label} day`, exact: true}).click();
-    await page.getByRole('option', {name: day, exact: true}).click();
-    await expect(page.getByRole('listbox')).not.toBeVisible();
-}
 
 for (const width of [390, 575, 640, 960, 1280]) {
-    test(`weekly measurement schedule stays usable in Settings and Agenda at ${width}px`, async ({page}, testInfo) => {
+    test(`measurement reminders use routine schedules in Agenda at ${width}px`, async ({page}, testInfo) => {
         await page.setViewportSize({width, height: 900});
         const state = await mockWeeklyMeasurementSchedule(page);
         await openSpaRoute(page, '/settings');
-        await chooseWeeklyDay(page, 'Weight', 'Monday');
-        await chooseWeeklyDay(page, 'Blood pressure', 'Friday');
-        await page.getByLabel('Weight time', {exact: true}).click();
-        await page.getByRole('button', {name: 'Next Hour', exact: true}).click();
-        await page.getByRole('heading', {name: 'Weekly measurement schedule'}).click();
-        await page.getByRole('button', {name: 'Save reminder schedule'}).click();
-        await expect(page.getByText('Reminder schedule saved', {exact: true})).toBeVisible();
-        expect(state.settings).toMatchObject({weightDay: 'MONDAY', bloodPressureDay: 'FRIDAY', weightTime: '06:00', bloodPressureTime: '05:15', morningTime: '07:30'});
-        await page.goto('/');
-        await expect(page.getByRole('combobox', {name: 'Weight day', exact: true})).toHaveText('Monday');
-        await expect(page.getByRole('combobox', {name: 'Blood pressure day', exact: true})).toHaveText('Friday');
-        await page.getByRole('heading', {name: 'Weekly measurement schedule'}).scrollIntoViewIfNeeded();
+        await expect(page.getByRole('combobox', {name: 'Weight day', exact: true})).toHaveCount(0);
+        await expect(page.getByRole('combobox', {name: 'Blood pressure day', exact: true})).toHaveCount(0);
+        await page.getByText('Weight and blood-pressure reminders are managed in their weekly routines under Routines.').scrollIntoViewIfNeeded();
+        await expect(page.locator('.p-toast-message-error')).toHaveCount(0);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await page.screenshot({path: testInfo.outputPath(`settings-weekly-${width}.png`)});
-
-        state.settings.weightDay = 'SATURDAY';
-        state.settings.bloodPressureDay = 'SATURDAY';
         await openSpaRoute(page, '/agenda');
-        const row = page.locator('.agenda-entry').filter({hasText: 'Blood pressure reminder'});
-        await row.getByRole('button', {name: 'Change schedule', exact: true}).click();
-        const dialog = page.getByRole('dialog', {name: 'Change notification schedule'});
-        await expect(dialog.getByText('This changes the weekly day and time for future Blood Pressure reminders. Times use Europe/Madrid.')).toBeVisible();
-        await chooseWeeklyDay(page, 'Blood pressure', 'Thursday');
-        await expect(dialog.getByLabel('Blood pressure time', {exact: true})).toHaveValue('05:15');
-        const box = await dialog.boundingBox();
-        expect(box.x).toBeGreaterThanOrEqual(0);
-        expect(box.x + box.width).toBeLessThanOrEqual(width);
-        await page.screenshot({path: testInfo.outputPath(`agenda-weekly-${width}.png`)});
+        const row = page.locator('.agenda-entry').filter({hasText: 'Check blood pressure'});
+        await row.getByRole('button', {name: 'Change time', exact: true}).click();
+        const dialog = page.getByRole('dialog', {name: 'Change notification time'});
+        await expect(dialog.getByLabel('Time', {exact: true})).toHaveValue('05:15');
+        await dialog.getByLabel('Time', {exact: true}).click();
+        await page.getByRole('button', {name: 'Next Hour', exact: true}).click();
+        await page.keyboard.press('Escape');
+        await expect.poll(() => dialog.evaluate(element => element.getBoundingClientRect().left >= 0 && element.getBoundingClientRect().right <= innerWidth)).toBe(true);
+        await expect(dialog).not.toHaveClass(/p-dialog-enter-active/);
+        await expect(page.locator('.p-datepicker:visible')).toHaveCount(0);
+        await dialog.screenshot({path: testInfo.outputPath(`agenda-weekly-${width}.png`)});
         await dialog.getByRole('button', {name: 'Save', exact: true}).click();
         await expect(dialog).not.toBeVisible();
-        await expect(row).toHaveCount(0);
-        expect(state.settings).toMatchObject({weightDay: 'SATURDAY', bloodPressureDay: 'THURSDAY', weightTime: '06:00', bloodPressureTime: '05:15'});
-        expect(state.requests.at(-1)).toEqual({morningTime: '07:30', middayTime: '13:30', eveningTime: '20:30', weightTime: '06:00', bloodPressureTime: '05:15', weightDay: 'SATURDAY', bloodPressureDay: 'THURSDAY'});
-        await expect(page.locator('.agenda-entry').filter({hasText: 'Weight reminder'})).toBeVisible();
+        await expect(row.locator('time')).toHaveText('06:15');
+        expect(state.routineRequests).toEqual([{routineId: 51, reminderId: 511, time: '06:15'}]);
+        expect(state.routines[0].reminders[0]).toMatchObject({day: 'SATURDAY', time: '05:00'});
+        expect(state.routines[1].reminders[0].day).toBe('SATURDAY');
+        expect(state.requests).toHaveLength(0);
     });
 }
 
-for (const entry of [{title: 'Weight reminder', label: 'Weight', key: 'weight'}, {title: 'Blood pressure reminder', label: 'Blood pressure', key: 'bloodPressure'}]) {
-    test(`weekly measurement schedule preserves ${entry.label} draft through cancellation, pending and failed saves`, async ({page}) => {
+for (const entry of [{title: 'Check weight', index: 0, time: '05:00', changed: '06:00'}, {title: 'Check blood pressure', index: 1, time: '05:15', changed: '06:15'}]) {
+    test(`weekly routine schedule preserves ${entry.title} draft through cancellation, pending and failed saves`, async ({page}) => {
         const state = await mockWeeklyMeasurementSchedule(page);
         await openSpaRoute(page, '/agenda');
         const row = page.locator('.agenda-entry').filter({hasText: entry.title});
-        await row.getByRole('button', {name: 'Change schedule', exact: true}).click();
-        let dialog = page.getByRole('dialog', {name: 'Change notification schedule'});
-        await chooseWeeklyDay(page, entry.label, 'Tuesday');
+        await row.getByRole('button', {name: 'Change time', exact: true}).click();
+        const dialog = page.getByRole('dialog', {name: 'Change notification time'});
+        await dialog.getByLabel('Time', {exact: true}).click();
+        await page.getByRole('button', {name: 'Next Hour', exact: true}).click();
+        await page.keyboard.press('Escape');
         await dialog.getByRole('button', {name: 'Cancel', exact: true}).click();
-        expect(state.requests).toHaveLength(0);
-        await row.getByRole('button', {name: 'Change schedule', exact: true}).click();
-        await expect(page.getByRole('combobox', {name: `${entry.label} day`, exact: true})).toHaveText('Saturday');
-        await chooseWeeklyDay(page, entry.label, 'Tuesday');
+        expect(state.routineRequests).toHaveLength(0);
+        await row.getByRole('button', {name: 'Change time', exact: true}).click();
+        await expect(dialog.getByLabel('Time', {exact: true})).toHaveValue(entry.time);
+        await dialog.getByLabel('Time', {exact: true}).click();
+        await page.getByRole('button', {name: 'Next Hour', exact: true}).click();
+        await page.keyboard.press('Escape');
         state.failSave = true;
         let finishSave;
         state.saveGate = new Promise(resolve => { finishSave = resolve; });
         await dialog.getByRole('button', {name: 'Save', exact: true}).click();
         await expect(dialog.getByRole('button', {name: 'Saving…', exact: true})).toBeDisabled();
         await expect(dialog.getByRole('button', {name: 'Cancel', exact: true})).toBeDisabled();
-        await expect(dialog.locator('#agenda-reminder-day')).toHaveAttribute('aria-disabled', 'true');
+        await expect(dialog.getByLabel('Time', {exact: true})).toBeDisabled();
         await page.keyboard.press('Escape');
         await expect(dialog).toBeVisible();
         finishSave();
         await expect(page.getByText('Update failed', {exact: true})).toBeVisible();
         await expect(dialog.getByRole('button', {name: 'Save', exact: true})).toBeEnabled();
-        await expect(dialog.getByRole('combobox', {name: `${entry.label} day`, exact: true})).toHaveText('Tuesday');
-        expect(state.settings[`${entry.key}Day`]).toBe('SATURDAY');
+        await expect(dialog.getByLabel('Time', {exact: true})).toHaveValue(entry.changed);
+        expect(state.routines[entry.index].reminders[0].time).toBe(entry.time);
         state.failSave = false;
         await dialog.getByRole('button', {name: 'Save', exact: true}).click();
         await expect(dialog).not.toBeVisible();
-        expect(state.settings[`${entry.key}Day`]).toBe('TUESDAY');
-        expect(state.settings[`${entry.key === 'weight' ? 'bloodPressure' : 'weight'}Day`]).toBe('SATURDAY');
-        await expect(row).toHaveCount(0);
+        await expect(row.locator('time')).toHaveText(entry.changed);
+        expect(state.routines[entry.index].reminders[0].day).toBe('SATURDAY');
+        expect(state.requests).toHaveLength(0);
     });
 }
 
@@ -3900,20 +3908,20 @@ test('weekly measurement schedule remains unchanged when Agenda edits a daily re
     expect(state.requests).toEqual([{morningTime: '08:30', middayTime: '13:30', eveningTime: '20:30', weightTime: '05:00', bloodPressureTime: '05:15', weightDay: 'MONDAY', bloodPressureDay: 'FRIDAY'}]);
 });
 
-test('weekly measurement schedule keeps Settings draft after a failed save and retries', async ({page}) => {
+test('daily reminder settings keep their draft after a failed save without changing retired measurement settings', async ({page}) => {
     const state = await mockWeeklyMeasurementSchedule(page);
     await openSpaRoute(page, '/settings');
-    await chooseWeeklyDay(page, 'Weight', 'Wednesday');
-    await chooseWeeklyDay(page, 'Blood pressure', 'Sunday');
+    await page.locator('#morning-reminder-time').click();
+    await page.getByRole('button', {name: 'Next Hour', exact: true}).click();
+    await page.keyboard.press('Escape');
     state.failSave = true;
     await page.getByRole('button', {name: 'Save reminder schedule'}).click();
     await expect(page.getByText('Notification failed', {exact: true})).toBeVisible();
-    await expect(page.getByRole('combobox', {name: 'Weight day', exact: true})).toHaveText('Wednesday');
-    await expect(page.getByRole('combobox', {name: 'Blood pressure day', exact: true})).toHaveText('Sunday');
+    await expect(page.locator('#morning-reminder-time')).toHaveValue('08:30');
     state.failSave = false;
     await page.getByRole('button', {name: 'Save reminder schedule'}).click();
     await expect(page.getByText('Reminder schedule saved', {exact: true})).toBeVisible();
-    expect(state.settings).toMatchObject({weightDay: 'WEDNESDAY', bloodPressureDay: 'SUNDAY'});
+    expect(state.settings).toMatchObject({morningTime: '08:30', weightDay: 'SATURDAY', bloodPressureDay: 'SATURDAY', weightTime: '05:00', bloodPressureTime: '05:15'});
 });
 
 test('agenda shows statuses and a current-time divider without mobile overflow', async ({page}) => {
@@ -4059,7 +4067,8 @@ for (const [trigger, description] of automaticRoutineRules) {
         await expect(checkbox).toBeChecked();
         await expect(dialog).toContainText(`Completes once per day when you log ${description}.`);
         await expect(checkbox).toHaveAccessibleDescription(`Completes once per day when you log ${description}. Turning this off keeps existing check-ins.`);
-        await expect(dialog.locator('.p-dropdown')).toHaveCount(0);
+        await expect(dialog.locator('.p-dropdown')).toHaveCount(1);
+        await expect(dialog.getByRole('combobox', {name: 'Cadence', exact: true})).toBeDisabled();
         await checkbox.focus();
         await checkbox.press('Space');
         await expect(checkbox).not.toBeChecked();
@@ -4525,7 +4534,7 @@ test('different routines can be completed rapidly with compact streak context on
     await mockRoutineReminderHome(page, [routine(1, 'Morning walk', null), routine(2, 'Brush teeth', null)], {checkinDelay: 150});
     await openSpaRoute(page, '/');
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Routines'}).click();
-    const panel = page.locator('.home-panels-tabs .p-tabview-panel:visible');
+    const panel = page.locator('.home-panels-tabs').getByRole('tabpanel', {name: 'Daily', exact: true});
     const firstRow = panel.locator('tbody tr').filter({hasText: 'Morning walk'});
     const secondRow = panel.locator('tbody tr').filter({hasText: 'Brush teeth'});
 
@@ -4533,7 +4542,7 @@ test('different routines can be completed rapidly with compact streak context on
         page.waitForResponse(response => response.url().endsWith('/api/routines/1/checkins') && response.request().method() === 'POST'),
         page.waitForResponse(response => response.url().endsWith('/api/routines/2/checkins') && response.request().method() === 'POST')
     ]);
-    const complete = firstRow.getByRole('button', {name: 'Complete routine', exact: true});
+    const complete = firstRow.getByRole('button', {name: 'Complete Morning walk', exact: true});
     await expect(complete).toHaveClass(/p-button-success/);
     await expect(complete).toHaveClass(/p-button-outlined/);
     await expect(complete).not.toHaveClass(/p-button-rounded/);
@@ -4545,10 +4554,10 @@ test('different routines can be completed rapidly with compact streak context on
     const completeBounds = await complete.boundingBox();
     await firstRow.screenshot({path: testInfo.outputPath('routine-complete-action-390.png')});
     await complete.click();
-    await secondRow.getByRole('button', {name: 'Complete routine', exact: true}).click();
+    await secondRow.getByRole('button', {name: 'Complete Brush teeth', exact: true}).click();
     await checkins;
 
-    const undo = firstRow.getByRole('button', {name: 'Undo routine', exact: true});
+    const undo = firstRow.getByRole('button', {name: 'Undo Morning walk', exact: true});
     await expect(undo).toHaveClass(/p-button-warning/);
     await expect(undo).toHaveClass(/p-button-outlined/);
     await expect(undo).not.toHaveClass(/p-button-rounded/);
@@ -4568,8 +4577,8 @@ test('different routines can be completed rapidly with compact streak context on
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
         await panel.screenshot({path: testInfo.outputPath(`routine-checkin-actions-${width}.png`)});
     }
-    await expect(firstRow.getByText('Best: 1 days', {exact: true})).toBeVisible();
-    await expect(secondRow.getByText('Best: 1 days', {exact: true})).toBeVisible();
+    await expect(firstRow.getByText('Best: 1 day', {exact: true})).toBeVisible();
+    await expect(secondRow.getByText('Best: 1 day', {exact: true})).toBeVisible();
     await expect(panel.getByText('Streak', {exact: true})).toBeVisible();
     await expect(page.getByRole('dialog', {name: 'Personal records'})).not.toBeVisible();
 });
@@ -7099,7 +7108,7 @@ test('home tabs hide the right arrow after mobile navigation reaches the end', a
     const tabs = page.locator('.home-panels-tabs');
     const nextButton = tabs.locator('.p-tabview-nav-next');
     await expect(nextButton).toBeVisible();
-    const content = tabs.locator('.p-tabview-nav-content');
+    const content = tabs.locator(':scope > .p-tabview-nav-container .p-tabview-nav-content');
     await content.evaluate(element => element.style.scrollBehavior = 'auto');
     await tabs.evaluate(async (element, tabCount) => {
         for (let index = 0; index < tabCount; index++) {
@@ -7128,7 +7137,7 @@ test('home tabs treat a fractional mobile scroll position as the end', async ({p
     const tabs = page.locator('.home-panels-tabs');
     const nextButton = tabs.locator('.p-tabview-nav-next');
     await expect(nextButton).toBeVisible();
-    await tabs.locator('.p-tabview-nav-content').evaluate(content => {
+    await tabs.locator(':scope > .p-tabview-nav-container .p-tabview-nav-content').evaluate(content => {
         Object.defineProperties(content, {
             scrollLeft: {configurable: true, value: 99.5},
             scrollWidth: {configurable: true, value: 500},
