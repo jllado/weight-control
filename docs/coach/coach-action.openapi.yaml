@@ -1970,6 +1970,9 @@ components:
         Scale reference values with known unit factors, round calories HALF_UP to integers and nutrients to two decimals, and reconcile totals.
         Validate the full compact JSON against this schema before showing it, including every food, reference, source and flag;
         omit absent optional fields when their type does not permit null. Repair and recheck invalid fields automatically.
+        Final response format: one complete compact MealWrite JSON body containing every dish, reference, nutrient, source and flag,
+        followed by the confirmation question. A calories/protein table or meal-level totals do not replace this full body.
+        Do not generate a Confirm-and-save button or ask for confirmation of a partial summary; finish the full proposal first.
         Before answering, check every food and repair arithmetic or implausible values, including protein exceeding the edible food mass.
         A missing exact label alone is not an unsupported prerequisite. Use a known similar-food reference and label the estimate.
         Do not describe a value as reported by a source when it is your inference; state the comparison and assumption explicitly.
