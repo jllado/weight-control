@@ -129,6 +129,14 @@ Use `getHealthEntries(ROUTINE, from, to)` to retrieve owned routine IDs, names, 
 
 Weekly routines cover Saturday–Friday. Actual evidence dates are retained, later evidence never completes an earlier selected date, and duplicate evidence counts once per week. BEHAVIOR/reflection `weeklyRoutines` and schema-8 weekly snapshot `weeklyRoutines` are separate from daily routines, daily scores and `completedDays`/`eligibleDays`. Current unfinished weeks remain pending. Older immutable snapshots omit weekly evidence. A saved weight or blood-pressure entry also completes its enabled measurement routine; manual evidence survives source edits/deletion, and pausing automation preserves saved history.
 
+## Readable meal confirmation verification — November 7, 2026
+
+The presentation refinement is published at saved/live version **173/173**. Independent readback matched the 7,946-character instructions (SHA-256 `91604b8212bd389ff7dec53f88313c4dbb6f3629b3328f421c035a7d759b7c1d`) and 212,577-character schema (SHA-256 `ed8dcde11addf197a0a5d70a0c2da29aebe9451dc6f2e2296226ffbac7caf852`), 30 Actions, private visibility, Thinking 6 recommendation and API Key/Bearer authentication. Configuration validation and all 18 Coach tests passed independently; parsed schema structure is unchanged after removing descriptions. No application deployment was needed.
+
+Four fresh banana/kiwi and mixed-breakfast drafts on actual Instant (`gpt-6`) and Medium (`gpt-6-thinking`) showed readable food portions, dates/times and estimated totals without JSON or requests to approve nutrient estimates. Medium asked whether to save; Instant retained proposal-only status under the explicit do-not-save-yet restriction. A separate actual-intake ambiguity draft asked for yogurt/berry identity and quantities before finalization. JSON appeared only after an explicit technical-inspection request, retained `confirmed:false`, and did not trigger a write. A recommendation-style snack prompt legitimately proposed unconfirmed portions and is not counted as intake-clarification evidence.
+
+This verifies the requested presentation and consent distinction, not hidden payload completeness, nutrient provenance, every catalog side effect or confirmed persistence. The earlier source/estimate limitations remain unresolved; the technical JSON follow-up itself retained proxy caveats and recalculated the kiwi. No health writes or outbound test notifications were used. Temporary test conversations and their evidence are handled separately from real user conversations and data.
+
 ## Instructions
 
 ```text
