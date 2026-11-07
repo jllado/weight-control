@@ -68,78 +68,67 @@ public class WeeklySummaryMailSender {
     }
 
     private String plainText(WeeklySummaryEmailView view) {
+        var summary = view.visualSummary();
+        var routines = summary.routines();
         StringBuilder text = new StringBuilder()
             .append("Weight Control weekly summary\n")
             .append(view.dateRange()).append("\n\n")
-            .append("Hello, ").append(view.displayName()).append(".\n\n");
-        if (view.presentation() != null) {
-            text.append("Your week at a glance\n");
-            view.presentation().highlights().stream().filter(highlight -> !highlight.key().equals("records")).forEach(highlight -> text.append(highlight.label()).append(": ").append(highlight.value())
-                .append(" · ").append(highlight.coverage()).append("\n").append(highlight.comparison()).append("\n"));
-            text.append("\nNext steps\n");
-            view.presentation().recommendations().forEach(action -> text.append("• ").append(action.wording()).append("\n")
-                .append(String.join(", ", action.provenance())).append("\nActivate in app: ").append(view.actionUrl(action.sourceKey())).append("\n\n"));
-        }
-        text.append("New records");
-        if (view.presentation() != null) text.append(" · ").append(view.presentation().highlights().get(4).value());
+            .append("Hello, ").append(view.displayName()).append(".\n\n")
+            .append("Routine completion: ").append(routines.value()).append("\n")
+            .append(routines.completed()).append(" of ").append(routines.opportunities())
+            .append(" daily routine opportunities completed\n")
+            .append("vs last week: ").append(routines.previous().text()).append("\n")
+            .append("vs 52 weeks ago: ").append(routines.yearAgo().text()).append("\n");
+        routines.days().forEach(day -> text.append(day.label()).append(": ").append(day.value()).append(" · "));
         text.append("\n");
-        if (view.records().isEmpty()) {
-            text.append("No new records this week\n\n");
-        } else {
-            view.records().forEach(record -> text.append(record.label()).append(": ").append(record.value()).append(" · ").append(record.date()).append("\n"));
-            text.append("\n");
+        if (routines.watchoutCount() > 0) {
+            text.append("\nNeeds attention: ").append(routines.watchoutCount()).append(" routines below 60%\n");
+            routines.watchouts().forEach(row -> text.append(row.name()).append(": ").append(row.value()).append("\n"));
+            text.append("See all routine details: ").append(view.appUrl()).append("\n");
         }
-        text.append("Detailed measurements\n");
-        text.append("Routine completion: ").append(view.headlineValue()).append("\n")
-            .append(view.headlineDetail()).append("\n")
-            .append(view.previousRoutineComparison().displayText()).append("\n")
-            .append(view.yearAgoRoutineComparison().displayText()).append("\n\n");
-        if (view.presentation() != null) view.presentation().periods().forEach(period -> text.append(period).append("\n"));
-        for (WeeklySummaryEmailView.CardRow row : view.cardRows()) {
-            if (row.section() != null) text.append(row.section()).append("\n");
-            appendCard(text, row.left());
-            if (row.right() != null) {
-                appendCard(text, row.right());
+        if (!summary.weeklyRoutines().isEmpty()) {
+            text.append("\nWeekly routines · separate from daily completion\n");
+            summary.weeklyRoutines().forEach(row -> text.append(row.name()).append(": ").append(row.value())
+                .append(" · ").append(row.dates()).append("\n"));
+        }
+        text.append("\nYour week at a glance\n").append(summary.goalsLabel()).append("\n\n");
+        summary.overview().forEach(card -> {
+            text.append(card.label()).append(": ").append(card.value())
+                .append("\n").append(card.status().label()).append(" · ").append(card.detail());
+            if (!card.key().equals("weekendWeight") && !card.key().equals("bloodPressure")) {
+                text.append("\nvs last week: ").append(card.previous().text())
+                    .append("\nvs 52 weeks ago: ").append(card.yearAgo().text());
             }
-        }
-        if (view.outcomes() != null) {
-            text.append("Weekend outcome measurements\n")
-                .append("Weight: ").append(view.outcomes().weight()).append("\n")
-                .append("Blood pressure: ").append(view.outcomes().bloodPressure()).append("\n\n");
-        }
-        if (!view.warnings().isEmpty()) {
-            text.append("Missing data\n");
-            view.warnings().forEach(warning -> text.append("• ").append(warning).append("\n"));
+            text.append("\n\n");
+        });
+        text.append("Workout activity\n")
+            .append("This week: ").append(summary.periods().current())
+            .append("\nLast week: ").append(summary.periods().previous())
+            .append("\n52 weeks ago: ").append(summary.periods().yearAgo()).append("\n")
+            .append("Mixed workouts count in each category; categories do not add up to total sessions.\n")
+            .append("Changes show this week minus the comparison week.\n\n");
+        summary.workouts().forEach(row -> text.append(row.label()).append(": ").append(row.current())
+            .append("\nLast week: ").append(row.previous()).append(" · Change: ").append(row.previousDelta().text())
+            .append("\n52 weeks ago: ").append(row.yearAgo()).append(" · Change: ").append(row.yearAgoDelta().text()).append("\n\n"));
+        text.append("Nutrition · daily averages\n")
+            .append("Available targets come from saved evidence. ≈ marks estimated values; partial coverage is shown beside the nutrient.\n\n");
+        summary.nutrition().rows().forEach(row -> {
+            text.append(row.label()).append(": ").append(row.current()).append(" · ").append(row.status().label())
+                .append("\nSaved target: ").append(row.target()).append(" · ").append(row.coverage())
+                .append("\nLast week: ").append(row.previous()).append(" · Change: ").append(row.previousDelta().text())
+                .append(" · Target: ").append(row.previousTarget()).append("\n");
             text.append("\n");
+        });
+        text.append(summary.nutrition().note()).append("\n\n");
+        if (summary.nutrition().hasYearAgo()) {
+            text.append("See the available 52-week nutrient comparison in the full report: ").append(view.appUrl()).append("\n\n");
         }
-        if (!view.routineWatchouts().isEmpty()) {
-            text.append("Routine watch-outs (below 60%)\n");
-            view.routineWatchouts().forEach(routine -> text.append(routine.name()).append(": ")
-                .append(routine.completedDays()).append("/").append(routine.eligibleDays()).append(" days · ")
-                .append(routine.percentage()).append("\n"));
-            text.append("\n");
+        if (summary.reflection() != null) {
+            text.append("Weekly reflection: ").append(summary.reflection().title()).append("\n")
+                .append(summary.reflection().summary()).append("\n\n");
         }
-        if (view.weeklyReflection() != null) {
-            text.append("Weekly reflection: ").append(view.weeklyReflection().title()).append("\n")
-                .append(view.weeklyReflection().summary()).append("\n\n");
-            view.weeklyReflection().sections().forEach(section -> text.append(section.title()).append(": ")
-                .append(section.summary()).append("\n\n"));
-            text.append("\n");
-        }
-        if (view.presentation() != null && !view.presentation().nutritionRows().isEmpty()) {
-            text.append("Nutrition · Current targets captured when saved\n");
-            view.presentation().nutritionRows().forEach(row -> text.append(row.label()).append("\nCurrent: ").append(row.current())
-                .append("\nPrevious week: ").append(row.previous()).append("\n52 weeks ago: ").append(row.yearAgo()).append("\n\n"));
-        }
-        return text.append("Open Weight Control: ").append(view.appUrl()).append("\n\n")
-            .append("Missing days are not treated as zero.\n")
-            .toString();
-    }
-
-    private void appendCard(StringBuilder text, WeeklySummaryEmailView.MetricCard card) {
-        text.append(card.label()).append(": ").append(card.value()).append("\n")
-            .append(card.detail()).append("\n")
-            .append(card.previousComparison().displayText()).append("\n")
-            .append(card.yearAgoComparison().displayText()).append("\n\n");
+        return text.append("Open this weekly summary: ").append(view.appUrl()).append("\n\n")
+            .append("Full evidence and recommendations are in Weight Control.\n")
+            .append("Missing days are not treated as zero.\n").toString();
     }
 }

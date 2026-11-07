@@ -4741,6 +4741,11 @@ components:
       type: object
       required: [schemaVersion, periodStart, fridayDate, progress, outcomes, routines, goalEvidence, personalRecords, warnings]
       properties:
+        emailGoals:
+          description: Goals and versioned email rules captured when this report was saved, not goals proven applicable before capture. Absent/null in older snapshots; never substitute current settings.
+          oneOf:
+            - $ref: "#/components/schemas/WeeklyEmailGoals"
+            - type: "null"
         weeklyRoutines:
           type: [array, "null"]
           description: Separate weekly evidence in schema 8+; absent/null in immutable older snapshots.
@@ -4807,6 +4812,33 @@ components:
         warnings:
           type: array
           items: {type: string}
+    WeeklyEmailGoals:
+      type: object
+      required: [capturedAt, weeklyAverageCalorieMaximum, inShapeBodyFatLimit, rules]
+      properties:
+        capturedAt: {type: string, format: date-time}
+        weeklyAverageCalorieMaximum: {type: [number, "null"]}
+        inShapeBodyFatLimit: {type: [number, "null"]}
+        rules:
+          type: object
+          required: [version, sleepMinimumSeconds, sleepBasis, moodGoodMinimum, moodNeutralMinimum, bloodPressureStages]
+          properties:
+            version: {type: integer}
+            sleepMinimumSeconds: {type: integer}
+            sleepBasis: {type: string}
+            moodGoodMinimum: {type: number}
+            moodNeutralMinimum: {type: number}
+            bloodPressureStages:
+              type: array
+              description: Ordered app classifications; a non-null strict threshold matches with OR. Both thresholds null identifies the unconditional final stage. These are saved descriptive rules, not new medical advice.
+              items:
+                type: object
+                required: [label, systolicAbove, diastolicAbove, color]
+                properties:
+                  label: {type: string}
+                  systolicAbove: {type: [integer, "null"]}
+                  diastolicAbove: {type: [integer, "null"]}
+                  color: {type: string}
     WeeklyNutritionSnapshot:
       type: object
       additionalProperties: false

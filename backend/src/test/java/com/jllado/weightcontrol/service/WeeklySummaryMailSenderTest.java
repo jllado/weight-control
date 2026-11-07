@@ -35,6 +35,60 @@ import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
 class WeeklySummaryMailSenderTest {
 
     @Test
+    void populatedSavedEmailRendersItsEvidenceAndPreservesTheInlineLogo() throws Exception {
+        JavaMailSender transport = mock(JavaMailSender.class);
+        MimeMessage message = new MimeMessage(Session.getInstance(new Properties()));
+        when(transport.createMimeMessage()).thenReturn(message);
+        var snapshot = WeeklySummaryEmailFixtures.populated();
+        new WeeklySummaryMailSender(transport, templateEngine(), new WeeklySummaryEmailViewFactory(), properties())
+            .send(user(), snapshot, weeklyReflection(snapshot.fridayDate()));
+        message.saveChanges();
+        String html = htmlContent(message);
+        String text = plainText(message);
+        for (String body : List.of(html, text)) {
+            assertTrue(body.contains("Body-fat goal met") || body.contains("Above body-fat goal"));
+            assertTrue(body.contains("Weekly routines"));
+            assertTrue(body.contains("≈"));
+            assertTrue(body.contains("Total omega-3"));
+            assertTrue(!body.contains("Delta["));
+            assertTrue(!body.contains("Next steps"));
+            assertTrue(!body.contains("Body evidence."));
+        }
+        assertTrue(html.contains("cid:weight-control-logo"));
+        java.nio.file.Files.createDirectories(Path.of("build/test-artifacts"));
+        java.nio.file.Files.writeString(Path.of("build/test-artifacts/weekly-visual-summary.html"), html);
+        java.nio.file.Files.writeString(Path.of("build/test-artifacts/weekly-visual-summary.txt"), text);
+        try (var logo = getClass().getResourceAsStream("/email/weight-control-logo.png")) {
+            String image = "data:image/png;base64," + java.util.Base64.getEncoder().encodeToString(logo.readAllBytes());
+            java.nio.file.Files.writeString(Path.of("build/test-artifacts/weekly-visual-summary-preview.html"),
+                html.replace("cid:weight-control-logo", image));
+        }
+    }
+
+    @Test
+    void emailKeepsReflectionSummaryAndAppLinkWithoutRecommendationsOrDetailedEvidence() throws Exception {
+        JavaMailSender transport = mock(JavaMailSender.class);
+        MimeMessage message = new MimeMessage(Session.getInstance(new Properties()));
+        when(transport.createMimeMessage()).thenReturn(message);
+        LocalDate friday = LocalDate.of(2026, 8, 14);
+        WeeklySummarySnapshot snapshot = new WeeklySummarySnapshot(8, friday.minusDays(6), friday,
+            new WeeklyMetricsCalculator().progress(user(), friday, input(friday)),
+            new WeeklySummarySnapshot.OutcomeMeasurements(null, null), List.of(), null, List.of(), List.of());
+        new WeeklySummaryMailSender(transport, templateEngine(), new WeeklySummaryEmailViewFactory(), properties())
+            .send(user(), snapshot, weeklyReflection(friday));
+        message.saveChanges();
+        for (String body : List.of(htmlContent(message), plainText(message))) {
+            assertTrue(body.contains("Saved evidence."));
+            assertTrue(body.contains("https://weight.example/weekly-summaries/2026-08-14"));
+            for (String excluded : List.of("Next steps", "Activate in app", "Review body data.", "Body evidence.", "Detailed measurements", "Personal records", "New records")) {
+                assertTrue(!body.contains(excluded), excluded);
+            }
+            assertTrue(body.indexOf("Routine completion") < body.indexOf("Average sleep"));
+            assertTrue(body.indexOf("Average sleep") < body.indexOf("Workout activity"));
+        }
+    }
+
+    @Test
     void sendsMultipartEmailWithHtmlTextLogoAndPrivacyHeaders() throws Exception {
         JavaMailSender javaMailSender = mock(JavaMailSender.class);
         MimeMessage message = new MimeMessage(Session.getInstance(new Properties()));
@@ -65,9 +119,9 @@ class WeeklySummaryMailSenderTest {
         assertTrue(raw.contains("multipart/alternative"));
         assertTrue(raw.contains("Content-ID: <weight-control-logo>"));
         assertTrue(raw.contains("Routine completion"));
-        assertTrue(raw.contains("No new records this week"));
-        assertTrue(htmlContent(message).contains("comparison comparison--improved"));
-        assertTrue(raw.contains("Open Weight Control"));
+        assertTrue(!htmlContent(message).contains("No new records this week"));
+        assertTrue(plainText(message).contains("+25.0 pp"));
+        assertTrue(htmlContent(message).contains("Open this weekly summary"));
         for (String content : List.of("Workout activity", "Strength sessions", "Cardio sessions", "Stretching sessions", "Active cardio minutes", "0 min")) {
             assertTrue(htmlContent(message).contains(content), content);
             assertTrue(plainText(message).contains(content), content);
@@ -102,22 +156,19 @@ class WeeklySummaryMailSenderTest {
         String reflectionHtml = htmlContent(withReflection);
         String reflectionText = plainText(withReflection);
 
-        assertTrue(noReflectionHtml.contains("No measurement recorded"));
+        assertTrue(noReflectionHtml.contains("Not available"));
         assertTrue(noReflectionHtml.contains("weekly-summaries/2026-08-14"));
-        assertTrue(!noReflectionHtml.contains("Weekly reflection</div>"));
+        assertTrue(!noReflectionHtml.contains("Weekly reflection</h2>"));
         assertTrue(reflectionHtml.contains("Week &lt;review&gt;"));
         assertTrue(reflectionHtml.contains("Saved evidence."));
         assertTrue(reflectionText.contains("Weekly reflection: Week <review>"));
-        assertEquals(1, reflectionText.split("Review body data\\.", -1).length - 1);
-        assertEquals(1, reflectionHtml.split("Review body data\\.", -1).length - 1);
-        assertTrue(reflectionHtml.contains("/actions?source=weekly%3A42%3A"));
-        assertTrue(reflectionText.contains("/actions?source=weekly%3A42%3A"));
-        assertTrue(!reflectionText.contains("Next action:"));
-        assertTrue(!reflectionHtml.contains("Next action:"));
-        assertTrue(reflectionText.indexOf("Your week at a glance") < reflectionText.indexOf("Next steps"));
-        assertTrue(reflectionText.indexOf("Next steps") < reflectionText.indexOf("New records"));
-        assertTrue(reflectionText.indexOf("New records") < reflectionText.indexOf("Detailed measurements"));
-        assertTrue(reflectionText.indexOf("Detailed measurements") < reflectionText.indexOf("Routine completion:"));
+        for (String body : List.of(reflectionHtml, reflectionText)) {
+            assertTrue(!body.contains("Review body data."));
+            assertTrue(!body.contains("/actions?source="));
+            assertTrue(!body.contains("Next steps"));
+            assertTrue(!body.contains("Detailed measurements"));
+            assertTrue(body.indexOf("Routine completion") < body.indexOf("Your week at a glance"));
+        }
         java.nio.file.Files.createDirectories(Path.of("build/test-artifacts"));
         java.nio.file.Files.writeString(Path.of("build/test-artifacts/weekly-actions-report.html"), reflectionHtml);
         java.nio.file.Files.writeString(Path.of("build/test-artifacts/weekly-actions-report.txt"), reflectionText);
@@ -148,12 +199,13 @@ class WeeklySummaryMailSenderTest {
         message.saveChanges();
         String html = htmlContent(message);
         String text = plainText(message);
-        for (String value : List.of("Strength sessions", "2 sessions", "Cardio sessions", "Stretching sessions", "Active cardio minutes", "1.5 min · Partial coverage", "+1 min vs last week", "0.5 min", "Not available", "52 weeks ago")) {
+        for (String value : List.of("Strength sessions", "Cardio sessions", "Stretching sessions", "Active cardio minutes", "≥ 1.5 min · Partial coverage", "0.5 min", "Not available", "52 weeks ago")) {
             assertTrue(html.contains(value), "HTML: " + value);
             assertTrue(text.contains(value), "Text: " + value);
         }
         assertTrue(!html.contains("Timed activity"));
-        assertEquals(1, text.split("Workouts:", -1).length - 1);
+        assertTrue(text.contains("Strength sessions: 2\n"));
+        assertEquals(1, text.split("Total sessions:", -1).length - 1);
         java.nio.file.Files.createDirectories(Path.of("build/test-artifacts"));
         java.nio.file.Files.writeString(Path.of("build/test-artifacts/weekly-workout-activity.html"), html);
         java.nio.file.Files.writeString(Path.of("build/test-artifacts/weekly-workout-activity.txt"), text);
@@ -166,6 +218,11 @@ class WeeklySummaryMailSenderTest {
         legacyMessage.saveChanges();
         assertTrue(plainText(legacyMessage).contains("Strength sessions: Not available"));
         assertTrue(plainText(legacyMessage).contains("Active cardio minutes: Not available"));
+        for (String body : List.of(htmlContent(legacyMessage), plainText(legacyMessage))) {
+            assertTrue(body.contains("Nutrient evidence and targets were not captured in this report."));
+            assertTrue(!body.contains("targets captured with report"));
+            assertTrue(!body.contains("Targets are saved with the report"));
+        }
         java.nio.file.Files.writeString(Path.of("build/test-artifacts/weekly-workout-legacy.html"), htmlContent(legacyMessage));
     }
 
