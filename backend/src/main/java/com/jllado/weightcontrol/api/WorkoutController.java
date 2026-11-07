@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.util.LinkedHashSet;
 import java.util.List;
 import org.springframework.data.domain.Page;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -78,6 +79,13 @@ public class WorkoutController {
     @GetMapping("/preload")
     public List<WorkoutResponse> preload(@RequestParam LocalDate through) {
         return service.findPreloadWorkouts(currentUserService.requireUser(), through).stream().map(WorkoutResponse::from).toList();
+    }
+
+    @GetMapping("/sauna/latest")
+    public ResponseEntity<WorkoutResponse> latestSauna(@RequestParam LocalDate through) {
+        return service.findLatestSauna(currentUserService.requireUser(), through)
+            .map(WorkoutResponse::from).map(ResponseEntity::ok)
+            .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @PostMapping

@@ -1035,10 +1035,16 @@
                   <strong>Workout</strong>
                   <div class="tab-panel-actions">
                     <CreateWorkout label="Add session" :initial_date="daily_status.date" fixed_date @onSave="refresh_workout_status" />
+                    <ActionButton :label="sauna_action_label" icon="pi pi-plus" :action="add_sauna_session" :loading="sauna_saving" :disabled="!pending_sauna && !sauna_saved_date && (latest_sauna_loading || !latest_sauna || latest_sauna_date !== dashboard_date_key)" aria-describedby="sauna-shortcut-status" />
                     <Button label="Training balance" icon="pi pi-chart-bar" class="p-button-outlined" @click="open_training_balance" />
                   </div>
                 </div>
               </template>
+              <div id="sauna-shortcut-status" class="sauna-shortcut-status" role="status">
+                <template v-if="latest_sauna_error">{{ latest_sauna_error }} <ActionButton label="Retry sauna lookup" class="p-button-outlined" :action="() => load_latest_sauna(daily_status.date)" /></template>
+                <span v-else-if="latest_sauna_loading">Loading latest sauna…</span>
+                <span v-else-if="!latest_sauna">No saved sauna on or before this date.</span>
+              </div>
               <GuidedWorkoutResume />
               <details v-if="workout_status_summary" class="workout-status-details">
                 <summary>Weekly workload statistics</summary>
@@ -1420,6 +1426,14 @@ export default {
       fasting_duration_now: new Date(),
       fasting_duration_timer: null,
       workouts: [],
+      latest_sauna: null,
+      latest_sauna_date: null,
+      latest_sauna_loading: false,
+      latest_sauna_error: '',
+      latest_sauna_request: 0,
+      pending_sauna: null,
+      sauna_saved_date: null,
+      sauna_saving: false,
       coach_metrics: {},
       overall_progress: null,
       overall_progress_loading: false,
@@ -1535,6 +1549,11 @@ export default {
     }
   },
   computed: {
+    dashboard_date_key() { return this.daily_status ? dayjs(this.daily_status.date).format('YYYY-MM-DD') : null; },
+    sauna_action_label() {
+      if (this.sauna_saved_date) return 'Refresh saved sauna';
+      return this.pending_sauna ? `Retry sauna for ${dayjs(this.pending_sauna.workoutDate).format('DD/MM/YYYY')}` : 'Add sauna';
+    },
     back_pain_chart_today() { return madrid_date(this.fasting_duration_now); },
     selected_sleep() { return this.get_sleep_for(this.daily_status.date); },
     selected_weights() { return summaryService.get_measures_through(this.daily_status.date, this.weights); },
@@ -3253,11 +3272,56 @@ export default {
       this.fasting_periods = await fastingPeriodService.get_all();
     },
     async load_workout_status() {
-      const workoutStatus = await workoutService.get_dashboard(this.daily_status.date);
+      const date = new Date(this.daily_status.date);
+      this.load_latest_sauna(date);
+      const workoutStatus = await workoutService.get_dashboard(date);
+      if (dayjs(date).format('YYYY-MM-DD') !== this.dashboard_date_key) return;
       this.workouts = workoutStatus.preloadWorkouts;
       this.workout_days = workoutStatus.days;
       this.current_workouts = workoutStatus.currentWorkouts;
       this.previous_week_workouts = workoutStatus.previousWeekWorkouts;
+    },
+    async load_latest_sauna(date) {
+      const request = ++this.latest_sauna_request;
+      const dateKey = dayjs(date).format('YYYY-MM-DD');
+      this.latest_sauna_loading = true;
+      this.latest_sauna_error = '';
+      this.latest_sauna = null;
+      try {
+        const source = await workoutService.get_latest_sauna(date);
+        if (request !== this.latest_sauna_request || dateKey !== this.dashboard_date_key) return;
+        this.latest_sauna = source;
+        this.latest_sauna_date = dateKey;
+      } catch (error) {
+        if (request === this.latest_sauna_request && dateKey === this.dashboard_date_key) this.latest_sauna_error = 'Unable to load the latest sauna. ' + error.message;
+      } finally {
+        if (request === this.latest_sauna_request) this.latest_sauna_loading = false;
+      }
+    },
+    async add_sauna_session() {
+      if (this.sauna_saving) return;
+      this.sauna_saving = true;
+      try {
+        if (!this.sauna_saved_date) {
+          if (!this.pending_sauna) this.pending_sauna = workoutService.copy_sauna(this.latest_sauna, this.daily_status.date);
+          try {
+            await workoutService.save(this.pending_sauna);
+          } catch (error) {
+            if (error.status === 400 || error.status === 404) {
+              this.pending_sauna = null;
+              this.load_latest_sauna(this.daily_status.date);
+            }
+            throw error;
+          }
+          this.sauna_saved_date = this.pending_sauna.workoutDate;
+          this.pending_sauna = null;
+          this.$toast.add({severity: 'success', summary: 'Sauna added', detail: dayjs(this.sauna_saved_date).format('DD/MM/YYYY'), life: 3000});
+        }
+        await this.refresh_workout_status();
+        this.sauna_saved_date = null;
+      } finally {
+        this.sauna_saving = false;
+      }
     },
     async load_all_back_pain_episodes() {
       this.back_pain_loading = true;
@@ -3318,7 +3382,7 @@ export default {
       return `Logged duration: ${duration} min${incomplete ? ' (incomplete)' : ''} · Timed training: ${this.format_workout_duration(timed)} · Volume: ${this.format_coach_decimal(volume)} kg × reps · Distance: ${this.format_coach_decimal(distance)} km · Calories: ${calories} kcal`;
     },
     async refresh_loaded_workout_status() {
-      const workoutLoaded = this.is_dashboard_tab_loaded('workout');
+      const workoutLoaded = this.is_dashboard_tab_loaded('workout') || this.is_dashboard_tab_loading('workout');
       const coachLoaded = this.is_dashboard_tab_loaded('coach') || !!this.coach_metrics.selectedWeek;
       const refreshes = [];
       if (workoutLoaded) refreshes.push(this.load_workout_status());

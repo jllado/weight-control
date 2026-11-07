@@ -40,6 +40,9 @@ public interface WorkoutRepository extends JpaRepository<Workout, Long> {
     List<Long> findPreloadIds(User user, LocalDate through, Pageable pageable);
 
 
+    @Query("select w.id from Workout w where w.user = :user and w.saunaSession = true and w.workoutDate <= :through order by w.workoutDate desc, w.createdAt desc, w.id desc")
+    List<Long> findLatestSaunaIds(User user, LocalDate through, Pageable pageable);
+
     @EntityGraph(attributePaths = {"lines", "lines.exercise"})
     Optional<Workout> findWithLinesById(Long id);
 

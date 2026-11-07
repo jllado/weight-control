@@ -58,6 +58,27 @@ class WorkoutServiceTest {
     private WorkoutService service;
 
     @Test
+    void latestSaunaBoundsIdsBeforeLoadingOnlyTheSelectedOwnedSessionWithoutMutationEffects() {
+        User owner=new User();owner.setId(1L);LocalDate through=LocalDate.of(2026,11,7);
+        Workout source=new Workout();source.setId(9L);
+        when(repository.findLatestSaunaIds(owner,through,PageRequest.of(0,1))).thenReturn(List.of(9L));
+        when(repository.findSessionsByIds(owner,List.of(9L))).thenReturn(List.of(source));
+        assertEquals(Optional.of(source),service.findLatestSauna(owner,through));
+        verify(repository).findLatestSaunaIds(owner,through,PageRequest.of(0,1));verify(repository).findSessionsByIds(owner,List.of(9L));
+        org.mockito.Mockito.verifyNoMoreInteractions(repository);
+        org.mockito.Mockito.verifyNoInteractions(routineAutomationService,assessmentRepository,exerciseService);
+    }
+
+    @Test
+    void latestSaunaWithoutAnEligibleIdDoesNotLoadSessionGraphs() {
+        User owner=new User();LocalDate through=LocalDate.of(2026,11,7);
+        when(repository.findLatestSaunaIds(owner,through,PageRequest.of(0,1))).thenReturn(List.of());
+        assertEquals(Optional.empty(),service.findLatestSauna(owner,through));
+        verify(repository).findLatestSaunaIds(owner,through,PageRequest.of(0,1));org.mockito.Mockito.verifyNoMoreInteractions(repository);
+        org.mockito.Mockito.verifyNoInteractions(routineAutomationService,assessmentRepository,exerciseService);
+    }
+
+    @Test
     void persistsSupersetMembershipInTheWorkoutResponse() {
         User user = new User();
         Exercise first = new Exercise(); first.setId(3L); first.setName("Press"); first.setTrackingMode(ExerciseTrackingMode.REPS); first.setExerciseType(ExerciseType.TRAINING);
@@ -130,6 +151,26 @@ class WorkoutServiceTest {
         org.mockito.Mockito.verify(repository, org.mockito.Mockito.never()).save(any(Workout.class));
     }
 
+
+    @Test
+    void savingSaunaReconcilesRoutinesAndInvalidatesAssessmentOnceAcrossRecordingKeyRetry() {
+        User user = new User(); user.setId(7L);
+        LocalDate date = LocalDate.of(2026, 8, 20);
+        String key = "f04f3d14-c6a7-4e8a-a896-1fd1f1f812f1";
+        Workout saved = new Workout(); saved.setId(8L);
+        var request = new WorkoutRequest(date, null, List.of(), null, 15,
+            null, null, null, null, null, null, key, true, List.of(15), null);
+        when(repository.findByUserAndRecordingKey(user, key)).thenReturn(Optional.empty(), Optional.of(saved));
+        when(repository.save(any(Workout.class))).thenReturn(saved);
+
+        org.junit.jupiter.api.Assertions.assertSame(saved, service.create(user, request));
+        org.junit.jupiter.api.Assertions.assertSame(saved, service.create(user, request));
+
+        verify(repository).save(any(Workout.class));
+        verify(assessmentRepository).deleteByUserAndWorkoutDate(user, date);
+        verify(routineAutomationService).reconcile(user);
+        org.mockito.Mockito.verifyNoMoreInteractions(assessmentRepository, routineAutomationService);
+    }
 
     @Test
     void stretchingOnlyWorkoutRoundTripsTimedSetsAndValidatesDurationAndWeight() {
