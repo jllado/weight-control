@@ -189,7 +189,7 @@ paths:
     post:
       operationId: createMeal
       summary: Create a confirmed meal
-      description: Creates the exact consumed meal and optional 1–10 Coach rating explicitly confirmed by the user; re-fetch with getMeals after success. For an attached image, send GPT_IMAGE_ESTIMATE and never send image bytes, ChatGPT file IDs, or image URLs.
+      description: Prepare every food using MealWrite research rules; finish sourced comparable estimates before proposing. Save only the explicitly confirmed meal and optional 1–10 rating, then getMeals. Images use GPT_IMAGE_ESTIMATE; no image bytes, ChatGPT file IDs or URLs.
       x-openai-isConsequential: true
       requestBody:
         required: true
@@ -1945,7 +1945,30 @@ components:
     MealWrite:
       type: object
       additionalProperties: false
-      description: Structured meal values only. Image-derived writes use GPT_IMAGE_ESTIMATE and never include image data or references.
+      description: >-
+        Prepare the entire meal before presenting its save proposal. Read DISHES and targeted FOODS first;
+        reuse known matching values and research missing fields, including nulls in catalog foods reused in a new meal.
+        With food identity and edible quantity established, research and calculate in the same turn without an estimate opt-in.
+        Use matching product labels first, then defensible cited comparable-food composition for missing values.
+        An unavailable exact brand or flavor label is not a blocker when a defensible comparable exists.
+        Sourced, explicitly marked estimates are complete save proposals; they do not require further user permission to calculate.
+        Ask one bundled question only for materially unresolved identity, quantity, conflicts or unsupported assumptions after research.
+        For EACH food, finish calories, protein, carbohydrate, fat, vitamin D, magnesium, total omega-3, EPA+DHA, ALA and fiber
+        in both the consumed and reference portions, with actual source strings and estimate flags. Do not stop at macros or offer later research.
+        Prefer whole-food composition tables that explicitly report ALA and total omega-3 before considering undifferentiated 18:3 proxies.
+        A proxy requires separate food-specific numeric and isomer evidence, an explicit assumption and checked scaling; a second source
+        that merely repeats undifferentiated 18:3 is not isomer evidence. Seed-oil figures are not measured whole-fruit composition.
+        Total omega-3 needs its own supported total or defensible independently sourced proxy; never replace it with ALA or EPA+DHA,
+        or present a sum of selected subtypes as complete total omega-3. Zero needs an explicitly reported matching or comparable zero.
+        Read the cited composition values and verify every calculation; never invent ratios, processing adjustments or source claims.
+        Each persisted source string names its source title and stable ID or URL plus any estimate basis; aim for at most 350 characters
+        and validate the existing 500-character limit. A generic homepage or 'same table' is not an identifiable composition record.
+        Scale reference values with known unit factors, round calories HALF_UP to integers and nutrients to two decimals, and reconcile totals.
+        Validate the full compact JSON against this schema before showing it, including every food, reference, source and flag;
+        omit absent optional fields when their type does not permit null. Repair and recheck invalid fields automatically.
+        If both exact and comparable research genuinely fail, identify the unsupported prerequisite rather than fabricate a complete body.
+        This preparation never authorizes a write: obtain explicit confirmation of the final complete meal and any rating, then save once
+        and read back with getMeals. Structured values only; image-derived writes use GPT_IMAGE_ESTIMATE and never include image data or references.
       required:
         - date
         - mealType

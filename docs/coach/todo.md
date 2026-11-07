@@ -862,5 +862,5 @@ Daily plan-progress rationales allow 500 characters in storage and the API; Coac
 
 - [x] Require automatic research and defensible comparable-food estimates before a complete, validated meal proposal; preserve source, reference, confirmation and nutrient contracts.
 - [x] Keep the instruction change within 8,000 characters and the existing 30 Actions; update the matching plan and acceptance criteria.
-- [ ] Publish and independently verify exact saved/live instructions with unchanged schema, privacy and authentication.
+- [ ] Validate readable meal Action/schema preparation descriptions, preserving schema structure and all 30 Actions; publish and independently verify exact saved/live instructions and schema with unchanged privacy and authentication.
 - [ ] Verify fresh read-only Instant and Medium drafts for the clarified reported dinner, catalog nutrient gaps (including Apple EPA+DHA/ALA in a new meal), new foods and genuine portion ambiguity; require an independent source for total omega-3 and record evidence separately from persistence coverage.
