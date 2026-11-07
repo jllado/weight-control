@@ -450,6 +450,25 @@ Fresh hypothetical conversations verified an increased workout with unknown tole
 
 A read-only review of the current plan and goals produced a complete proposed seven-day replacement with one supported target adjustment, a dated before→after/reason note, and explicit whole-plan confirmation wording. A separate user-declined adjustment was not proposed or written. No confirmation was submitted, so no plan save or persisted read-back was exercised. Stale-token reload/reconfirmation and post-save read-back remain required in the published instructions and Action contract; production state was left unchanged.
 
+## Limited-search meal estimate verification — November 7, 2026
+
+Published the instructions-first recovery from `82937aa` and its one allowed follow-up `d27b50f`. The private GPT independently returned saved/live version **171/171**, with exact source matches: 7,997 instruction characters (SHA-256 `e1ec0e8e2ac0ac7a55b3185e89ac8bb042dce40c7df5cdb45280b84dbb21c7ff`) and 210,372 schema characters (SHA-256 `1a4dd16ada0c1a31ee497931c398064cadc77b4c0faf218e5c136c7b50d701cc`). Private sharing, Thinking 6 recommendation, bearer authentication and all 30 Actions remain intact. Only descriptions changed in the parsed API schema. No application deployment was required.
+
+Coach configuration and all 18 Coach tests passed (0 seconds and 1 second respectively, including process exit); independent review found no actionable defects in the instruction/schema diff. Intermittent editor network failures required retries, so publication was established by independent saved/live reads rather than the editor's error banner.
+
+Version 170 still stopped at partial summaries on both Instant and Medium. Version 171 explicitly requires the full compact MealWrite proposal before confirmation. Two fresh repetitions of the original clarified nine-food request ran on each actual setting (`gpt-6` Instant and `gpt-6-thinking` Medium), without estimation reminders:
+
+| Setting | Complete consumed/reference proposal and arithmetic | Remaining acceptance findings |
+| --- | --- | --- |
+| Instant A | Passed structural and arithmetic audit for all nine foods | ALA derived from saved total omega-3; some zero values described only as negligible, without reported comparable-zero evidence. |
+| Instant B | Failed: all nine references omitted; protein 97.8 vs 97.75 g, carbohydrate 171 vs 174.8 g and fat 12.5 vs 13.62 g dish sums | Confirmation requested before references existed; several sources identify only a generic database homepage. |
+| Medium A | Passed structural and arithmetic audit for all nine foods | Rice ALA derived from total omega-3; several proxy explanations lack the independent evidence required by the existing contract. |
+| Medium B | Passed structural and arithmetic audit for all nine foods | Rice ALA derived from total omega-3; plum ALA rounded from assumed negligible content, with no exact or comparable reported-zero basis. |
+
+Proposal audits allow `confirmed:false` before approval; they do not authorize a write. Approximate values and comparable foods are acceptable, but missing references, inconsistent totals and unsupported attribution remain failures. Available conversation traces omit raw search arguments, so the per-food single-query limit is not independently verified. The wider edge-case matrix and temporary save/readback/delete were not attempted after these acceptance failures. No health writes occurred; before/after responses matched exactly for all 1,912 meals and 121 foods. All six synthetic chats were deleted and independently returned 404; the original conversation remained readable. Private evidence includes full traces, extracted proposals and audit results outside source control.
+
+The limited instruction release is delivered; complete behavioral acceptance remains unproven. Task workflow state is DEVELOPED at the user's explicit request, with these failures retained in its delivery record. This state does not establish a successful meal-save test or require a backend redesign.
+
 ## Privacy
 
 Selected health records, Coach Notes requested by the Coach, pause descriptions, saved recipes, catalog foods, and progress photos returned by the Action are transmitted to ChatGPT. Progress-photo URLs expire after five minutes and do not make stored photos permanently public. In ChatGPT, open **Settings -> Data Controls** and turn off **Improve the model for everyone** before using the GPT.

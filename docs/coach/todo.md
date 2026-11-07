@@ -874,4 +874,9 @@ The approved instruction-only recovery uses saved foods and recipes first, then 
 
 Verify two fresh original nine-food requests on each actual Instant and Medium setting, plus catalog gaps, unavailable brands, ambiguity and implausible protein. Check calculations, source attribution, the search budget and exact Action arguments. A temporary historical meal save/readback/delete is authorized with catalog additions disabled; baseline and verify cleanup of data and test notifications, recording any irreversible push delivery. Preserve the original conversation and real meals.
 
-Keep 30 Actions, instructions at most 8,000 characters, operation descriptions at most 300 characters and identical parsed API structure after removing descriptions. Validate Coach checks/tests and diff, commit/push, publish privately and independently compare saved/live hashes. No application deployment or backend service. Allow one evidence-driven follow-up revision; publication alone is not behavioral acceptance. Acceptance is pending.
+- [x] Publish and independently verify the limited-search guidance and one evidence-driven full-proposal follow-up; retain all 30 Actions and the unchanged API structure.
+- [x] Run two fresh nine-food requests on each actual Instant and Medium setting and audit their proposals; preserve before/after meals and foods.
+- [ ] Pass the full behavioral matrix: one Instant proposal still omitted references and miscalculated totals; source/subtype evidence remains inconsistent, and the raw per-food search count is unavailable.
+- [ ] After acceptable proposals, verify the wider edge cases and authorized temporary save/readback/delete; these were not attempted after the final candidate failed acceptance.
+
+Version 171 is live with 7,997 instruction characters; Coach configuration and all 18 tests passed. Workflow state is DEVELOPED at the user's explicit request, with unresolved acceptance findings retained. See the [verification record](coach-gpt.md#limited-search-meal-estimate-verification--november-7-2026). No further revision or backend expansion is implied.
