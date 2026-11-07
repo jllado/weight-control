@@ -79,7 +79,7 @@ import org.springframework.data.domain.Sort;
 public class WeeklySummaryService {
 
     private static final int YEAR_COMPARISON_WEEKS = 52;
-    static final int SNAPSHOT_SCHEMA_VERSION = 8;
+    static final int SNAPSHOT_SCHEMA_VERSION = 9;
     private static final Logger LOG = LoggerFactory.getLogger(WeeklySummaryService.class);
 
     private final WeightRepository weightRepository;
@@ -456,8 +456,20 @@ public class WeeklySummaryService {
                 .toList(),
             outcomeWarnings(outcomes),
             nutritionSnapshots.capture(user, fridayDate),
-            weeklyRoutineProgress(user, periodStart, fridayDate)
+            weeklyRoutineProgress(user, periodStart, fridayDate),
+            captureEmailGoals(user)
         );
+    }
+
+    static WeeklySummarySnapshot.EmailGoals captureEmailGoals(User user) {
+        return new WeeklySummarySnapshot.EmailGoals(Instant.now(), BigDecimal.valueOf(user.getWeeklyAverageCalorieMaximum()), user.getInShapeBodyFatLimit(),
+            new WeeklySummarySnapshot.FixedRules(1, 21600, "Average of recorded nights", BigDecimal.valueOf(4), BigDecimal.valueOf(3), List.of(
+                new WeeklySummarySnapshot.BloodPressureRule("CRISIS", 180, 120, "#c53030"),
+                new WeeklySummarySnapshot.BloodPressureRule("HYPER", 140, 90, "#c05621"),
+                new WeeklySummarySnapshot.BloodPressureRule("HIGH", 130, 80, "#975a16"),
+                new WeeklySummarySnapshot.BloodPressureRule("ELEVATED", 120, null, "#317db6"),
+                new WeeklySummarySnapshot.BloodPressureRule("NORMAL", null, null, "#2f855a")
+            )));
     }
 
     BackPainSummary backPainSummary(User user, LocalDate periodStart, LocalDate periodEnd) {

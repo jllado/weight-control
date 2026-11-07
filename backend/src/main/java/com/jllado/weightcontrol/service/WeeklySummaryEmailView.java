@@ -18,8 +18,27 @@ public record WeeklySummaryEmailView(
     OutcomeView outcomes,
     WeeklyReflectionView weeklyReflection,
     String appUrl,
-    WeeklySummaryPresentationMapper.Presentation presentation
+    WeeklySummaryPresentationMapper.Presentation presentation,
+    VisualSummary visualSummary
 ) {
+
+    public record VisualSummary(PeriodHeaders periods, RoutineHero routines, List<OverviewCard> overview,
+        List<WorkoutRow> workouts, NutritionTable nutrition, List<WeeklyRoutineView> weeklyRoutines,
+        ReflectionTeaser reflection, String goalsLabel) { }
+    public record PeriodHeaders(String current, String previous, String yearAgo) { }
+    public record Status(String label, String color) { }
+    public record Delta(String text, String color) { }
+    public record RoutineHero(String value, int completed, int opportunities, Delta previous, Delta yearAgo,
+        List<DayBar> days, List<RoutineAttention> watchouts, int watchoutCount) { }
+    public record DayBar(String label, String value, int width, Status status) { }
+    public record RoutineAttention(String name, String value) { }
+    public record OverviewCard(String key, String label, String value, String detail, Status status, Delta previous, Delta yearAgo) { }
+    public record WorkoutRow(String label, String current, String previous, Delta previousDelta, String yearAgo, Delta yearAgoDelta) { }
+    public record NutritionTable(List<NutrientRow> rows, boolean hasYearAgo, String note) { }
+    public record NutrientRow(String key, String label, String current, String target, Status status, String previous,
+        String previousTarget, Delta previousDelta, String yearAgo, String yearAgoTarget, Delta yearAgoDelta, String coverage) { }
+    public record WeeklyRoutineView(String name, String value, String dates) { }
+    public record ReflectionTeaser(String title, String summary) { }
 
     public String actionUrl(String sourceKey) {
         return java.net.URI.create(appUrl).resolve("/actions?source=" + java.net.URLEncoder.encode(sourceKey, java.nio.charset.StandardCharsets.UTF_8)).toString();

@@ -14,6 +14,8 @@ import com.jllado.weightcontrol.service.WeeklyMetrics.Progress;
 import com.jllado.weightcontrol.service.WeeklyMetrics.RoutineCompletion;
 import com.jllado.weightcontrol.service.WeeklyMetrics.Summary;
 import com.jllado.weightcontrol.service.WeeklyMetrics.WorkoutSummary;
+import com.jllado.weightcontrol.service.WeeklySummaryEmailView.*;
+import com.jllado.weightcontrol.domain.MacroTargetComparison;
 import com.jllado.weightcontrol.service.WeeklySummaryEmailView.CardRow;
 import com.jllado.weightcontrol.service.WeeklySummaryEmailView.Comparison;
 import com.jllado.weightcontrol.service.WeeklySummaryEmailView.ComparisonStatus;
@@ -91,7 +93,8 @@ public class WeeklySummaryEmailViewFactory {
             null,
             null,
             appUrl,
-            null
+            null,
+            visualSummary(legacySnapshot(progress, measurements), null)
         );
     }
 
@@ -147,8 +150,177 @@ public class WeeklySummaryEmailViewFactory {
             summaryUrl(appUrl, snapshot.fridayDate()),
             WeeklySummaryPresentationMapper.create(snapshot,
                 reflection == null ? null : com.jllado.weightcontrol.api.dto.WeeklyReflectionDtos.WeeklyReflectionResponse.from(reflection),
-                reflection == null ? null : "weekly:" + reflection.getId())
+                reflection == null ? null : "weekly:" + reflection.getId()),
+            visualSummary(snapshot, reflection)
         );
+    }
+
+    private static final String MET_COLOR = "#2f855a";
+    private static final String MISSED_COLOR = "#c05621";
+    private static final String NEUTRAL_COLOR = "#486277";
+    private static final String UNAVAILABLE = "Not available";
+
+    private WeeklySummarySnapshot legacySnapshot(Progress progress, WeeklySummaryMeasurements measurements) {
+        var period = measurements.currentPeriod();
+        Weight weight = period.weight();
+        BloodPressure pressure = period.bloodPressure();
+        var outcomeWeight = weight == null ? null : new WeightMeasurement(DateTimes.toLocalDate(weight.getMeasuredAt()),
+            weight.getWeight(), weight.getFatPercentage(), weight.getFat(), weight.getMusclePercentage(), weight.getMuscle());
+        var outcomePressure = pressure == null ? null : new BloodPressureMeasurement(DateTimes.toLocalDate(pressure.getMeasuredAt()), pressure.getUpper(), pressure.getLower());
+        return new WeeklySummarySnapshot(1, progress.currentPeriod().startDate(), progress.currentPeriod().endDate(), progress,
+            new WeeklySummarySnapshot.OutcomeMeasurements(outcomeWeight, outcomePressure), List.of(), null, List.of(), List.of());
+    }
+
+    private VisualSummary visualSummary(WeeklySummarySnapshot snapshot, WeeklyReflection reflection) {
+        var current = snapshot.progress().currentPeriod();
+        var previous = snapshot.progress().previousComparablePeriod();
+        var year = snapshot.progress().yearAgoComparablePeriod();
+        var goals = snapshot.emailGoals();
+        var rules = goals == null ? null : goals.rules();
+        var completion = current.routineCompletion();
+        var attention = snapshot.routines().stream().filter(routine -> routine.eligibleDays() > 0
+                && (long) routine.completedDays() * 100 < (long) routine.eligibleDays() * 60)
+            .sorted(java.util.Comparator.comparing(WeeklySummarySnapshot.RoutineProgress::percentage).thenComparing(WeeklySummarySnapshot.RoutineProgress::name)).toList();
+        var hero = new RoutineHero(completion.percentage() == null ? UNAVAILABLE : percentage(completion.percentage()), completion.completed(), completion.opportunities(),
+            visualDelta(completion.percentage(), previous.routineCompletion().percentage(), "pp", 1, true),
+            visualDelta(completion.percentage(), year.routineCompletion().percentage(), "pp", 1, true),
+            completion.days().stream().map(day -> new DayBar(day.date().getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.ENGLISH),
+                day.percentage() == null ? "—" : percentage(day.percentage()), day.percentage() == null ? 0 : day.percentage().setScale(0, RoundingMode.HALF_UP).intValue(),
+                day.percentage() == null ? neutral("No opportunities") : new Status(day.percentage().compareTo(BigDecimal.valueOf(60)) < 0 ? "Needs attention" : "Recorded",
+                    day.percentage().compareTo(BigDecimal.valueOf(60)) < 0 ? MISSED_COLOR : MET_COLOR))).toList(),
+            attention.stream().limit(3).map(routine -> new RoutineAttention(routine.name(), routine.completedDays() + "/" + routine.eligibleDays() + " days · " + percentage(routine.percentage()))).toList(), attention.size());
+        BigDecimal sleep = sleepSeconds(current), calorie = current.calories().averageCalories();
+        BigDecimal weight = current.weight() == null ? null : current.weight().weightKg();
+        BigDecimal fat = current.weight() == null ? null : current.weight().fatPercentage();
+        var outcome = snapshot.outcomes().weight();
+        var bp = snapshot.outcomes().bloodPressure();
+        String sleepDetail = current.sleep() == null ? "No nights recorded" : current.sleep().nightCount() + "/7 nights · "
+            + (rules == null ? "Target unavailable" : "Goal ≥ " + duration(BigDecimal.valueOf(rules.sleepMinimumSeconds())) + " · " + rules.sleepBasis());
+        var cards = List.of(
+            new OverviewCard("sleep", "Average sleep", sleep == null ? UNAVAILABLE : duration(sleep), sleepDetail,
+                sleep == null ? neutral(UNAVAILABLE) : rules == null ? neutral("Target unavailable") : goalStatus(sleep, BigDecimal.valueOf(rules.sleepMinimumSeconds()), false, "Sleep goal met", "Below sleep goal"),
+                visualDelta(minutes(sleep), minutes(sleepSeconds(previous)), "min", 0, false), visualDelta(minutes(sleep), minutes(sleepSeconds(year)), "min", 0, false)),
+            new OverviewCard("calories", "Calories/day", amount(calorie, "kcal", 0), current.calories().entryCount() + "/7 days · "
+                + (goals == null ? "Target unavailable" : "Goal ≤ " + amount(goals.weeklyAverageCalorieMaximum(), "kcal/day", 0)),
+                calorie == null ? neutral(UNAVAILABLE) : goals == null ? neutral("Target unavailable") : goalStatus(calorie, goals.weeklyAverageCalorieMaximum(), true, "Within calorie ceiling", "Above calorie ceiling"),
+                visualDelta(calorie, previous.calories().averageCalories(), "kcal/day", 0, false), visualDelta(calorie, year.calories().averageCalories(), "kcal/day", 0, false)),
+            new OverviewCard("weight", "Average weight", amount(weight, "kg", 1), bodyFatDetail(fat, goals)
+                + (current.weight() == null ? "" : " · " + current.weight().measurementCount() + " readings"), bodyFatStatus(fat, goals),
+                visualDelta(weight, previous.weight() == null ? null : previous.weight().weightKg(), "kg", 1, false),
+                visualDelta(weight, year.weight() == null ? null : year.weight().weightKg(), "kg", 1, false)),
+            new OverviewCard("mood", "Average mood", amount(current.moodAverage(), "/5", 1), current.moodDayCount() + "/7 days recorded", moodStatus(current.moodAverage(), rules),
+                visualDelta(current.moodAverage(), previous.moodAverage(), "points", 1, false), visualDelta(current.moodAverage(), year.moodAverage(), "points", 1, false)),
+            new OverviewCard("weekendWeight", "Weekend weight", outcome == null ? UNAVAILABLE : amount(outcome.weightKg(), "kg", 1),
+                outcome == null ? "Friday–Sunday · No measurement" : outcome.measuredDate().format(RANGE_END_DATE) + " · " + bodyFatDetail(outcome.fatPercentage(), goals),
+                bodyFatStatus(outcome == null ? null : outcome.fatPercentage(), goals), unavailableDelta(), unavailableDelta()),
+            new OverviewCard("bloodPressure", "Weekend blood pressure", bp == null ? UNAVAILABLE : bp.systolic() + "/" + bp.diastolic() + " mm Hg",
+                bp == null ? "Friday–Sunday · No measurement" : "Measured " + bp.measuredDate().format(RANGE_END_DATE), pressureStatus(bp, rules), unavailableDelta(), unavailableDelta())
+        );
+        var workouts = List.of(
+            workoutRow("Total sessions", BigDecimal.valueOf(current.workouts().workoutCount()), BigDecimal.valueOf(previous.workouts().workoutCount()), BigDecimal.valueOf(year.workouts().workoutCount()), "", false, false, false),
+            workoutRow("Strength sessions", number(current.workouts().strengthSessionCount()), number(previous.workouts().strengthSessionCount()), number(year.workouts().strengthSessionCount()), "", false, false, false),
+            workoutRow("Cardio sessions", number(current.workouts().cardioSessionCount()), number(previous.workouts().cardioSessionCount()), number(year.workouts().cardioSessionCount()), "", false, false, false),
+            workoutRow("Stretching sessions", number(current.workouts().stretchingSessionCount()), number(previous.workouts().stretchingSessionCount()), number(year.workouts().stretchingSessionCount()), "", false, false, false),
+            workoutRow("Active cardio minutes", minutes(number(current.workouts().activeCardioSeconds())), minutes(number(previous.workouts().activeCardioSeconds())), minutes(number(year.workouts().activeCardioSeconds())), "min",
+                Boolean.FALSE.equals(current.workouts().cardioDurationComplete()), Boolean.FALSE.equals(previous.workouts().cardioDurationComplete()), Boolean.FALSE.equals(year.workouts().cardioDurationComplete()))
+        );
+        var weekly = snapshot.weeklyRoutines() == null ? List.<WeeklyRoutineView>of() : snapshot.weeklyRoutines().stream()
+            .map(routine -> new WeeklyRoutineView(routine.name(), routine.completedWeeks() + "/" + routine.eligibleWeeks() + " weeks",
+                routine.checkinDates().isEmpty() ? "No check-ins" : routine.checkinDates().stream().map(date -> date.format(SUBJECT_DATE)).collect(java.util.stream.Collectors.joining(", ")))).toList();
+        return new VisualSummary(new PeriodHeaders(periodLabel(current), periodLabel(previous), periodLabel(year)), hero, cards, workouts, nutritionTable(snapshot.nutrition()), weekly,
+            reflection == null ? null : new ReflectionTeaser(reflection.getTitle(), reflection.getSummary()),
+            goals == null ? "Personal targets unavailable for this report" : "Goals saved with report · " + goals.capturedAt().atZone(DateTimes.USER_ZONE).toLocalDate().format(RANGE_END_DATE));
+    }
+
+    private BigDecimal sleepSeconds(Summary period) { return period.sleep() == null ? null : period.sleep().totalSleepSeconds(); }
+    private BigDecimal minutes(BigDecimal seconds) { return seconds == null ? null : seconds.divide(BigDecimal.valueOf(60), 8, RoundingMode.HALF_UP); }
+    private BigDecimal number(Integer value) { return value == null ? null : BigDecimal.valueOf(value); }
+    private String amount(BigDecimal value, String unit, int scale) { return value == null ? UNAVAILABLE : decimal(value, scale) + (unit.isEmpty() ? "" : " " + unit); }
+    private Status neutral(String label) { return new Status(label, NEUTRAL_COLOR); }
+    private Status goalStatus(BigDecimal value, BigDecimal target, boolean maximum, String met, String missed) {
+        if (target == null) return neutral("Target unavailable");
+        boolean reached = maximum ? value.compareTo(target) <= 0 : value.compareTo(target) >= 0;
+        return new Status(reached ? met : missed, reached ? MET_COLOR : MISSED_COLOR);
+    }
+    private String bodyFatDetail(BigDecimal fat, WeeklySummarySnapshot.EmailGoals goals) {
+        return (fat == null ? "Body fat unavailable" : "Body fat " + fat.stripTrailingZeros().toPlainString() + "%") + " · "
+            + (goals == null || goals.inShapeBodyFatLimit() == null ? "Target unavailable" : "Goal ≤ " + goals.inShapeBodyFatLimit().stripTrailingZeros().toPlainString() + "%");
+    }
+    private Status bodyFatStatus(BigDecimal fat, WeeklySummarySnapshot.EmailGoals goals) {
+        return fat == null ? neutral("Body fat unavailable") : goals == null ? neutral("Target unavailable")
+            : goalStatus(fat, goals.inShapeBodyFatLimit(), true, "Body-fat goal met", "Above body-fat goal");
+    }
+    private Status moodStatus(BigDecimal value, WeeklySummarySnapshot.FixedRules rules) {
+        if (value == null) return neutral(UNAVAILABLE);
+        if (rules == null) return neutral("Rule unavailable");
+        if (value.compareTo(rules.moodGoodMinimum()) >= 0) return new Status("Good", MET_COLOR);
+        return value.compareTo(rules.moodNeutralMinimum()) >= 0 ? neutral("Neutral") : new Status("Low", MISSED_COLOR);
+    }
+    private Status pressureStatus(BloodPressureMeasurement value, WeeklySummarySnapshot.FixedRules rules) {
+        if (value == null) return neutral(UNAVAILABLE);
+        if (rules == null) return neutral("Rule unavailable");
+        var rule = rules.bloodPressureStages().stream().filter(stage ->
+            (stage.systolicAbove() == null && stage.diastolicAbove() == null)
+                || (stage.systolicAbove() != null && value.systolic() > stage.systolicAbove())
+                || (stage.diastolicAbove() != null && value.diastolic() > stage.diastolicAbove())).findFirst().orElseThrow();
+        return new Status(rule.label(), rule.color());
+    }
+    private Delta unavailableDelta() { return new Delta(UNAVAILABLE, NEUTRAL_COLOR); }
+    private Delta visualDelta(BigDecimal current, BigDecimal previous, String unit, int scale, boolean higherBetter) {
+        if (current == null || previous == null) return unavailableDelta();
+        var difference = current.subtract(previous).setScale(scale, RoundingMode.HALF_UP);
+        String change = unit.equals("min") ? (difference.signum() > 0 ? "+" : "") + difference.stripTrailingZeros().toPlainString() : signed(difference, scale);
+        return new Delta(change + (unit.isEmpty() ? "" : " " + unit), !higherBetter || difference.signum() == 0 ? NEUTRAL_COLOR : difference.signum() > 0 ? MET_COLOR : MISSED_COLOR);
+    }
+    private WorkoutRow workoutRow(String label, BigDecimal current, BigDecimal previous, BigDecimal year, String unit,
+        boolean currentPartial, boolean previousPartial, boolean yearPartial) {
+        return new WorkoutRow(label, partialAmount(current, unit, currentPartial), partialAmount(previous, unit, previousPartial),
+            currentPartial || previousPartial ? unavailableDelta() : visualDelta(current, previous, unit, unit.equals("min") ? 2 : 0, false),
+            partialAmount(year, unit, yearPartial), currentPartial || yearPartial ? unavailableDelta() : visualDelta(current, year, unit, unit.equals("min") ? 2 : 0, false));
+    }
+    private String partialAmount(BigDecimal value, String unit, boolean partial) { return value == null ? UNAVAILABLE : (partial ? "≥ " : "") + (unit.equals("min") ? value.setScale(2, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString() + " min" : amount(value, unit, 0)) + (partial ? " · Partial coverage" : ""); }
+
+    private NutritionTable nutritionTable(WeeklyNutritionSnapshot nutrition) {
+        var keys = List.of("protein", "carbohydrate", "fat", "vitaminD", "omega3", "fiber", "magnesium");
+        var labels = List.of("Protein", "Carbs", "Fat", "Vitamin D", "Total omega-3", "Fiber", "Magnesium");
+        var units = List.of("g", "g", "g", "µg", "mg", "g", "mg");
+        var rows = new ArrayList<NutrientRow>();
+        boolean hasYear = false;
+        for (int index = 0; index < keys.size(); index++) {
+            String key = keys.get(index), label = labels.get(index), unit = units.get(index);
+            var current = nutrition == null ? null : nutrientMeasure(nutrition.current(), key);
+            var previous = nutrition == null ? null : nutrientMeasure(nutrition.previous(), key);
+            var year = nutrition == null ? null : nutrientMeasure(nutrition.yearAgo(), key);
+            hasYear |= year != null && year.average() != null;
+            rows.add(new NutrientRow(key, label, nutrientAmount(current), nutrientTarget(current), nutrientStatus(current), baselineNutrientAmount(previous), nutrientTarget(previous),
+                nutrientDelta(current, previous, unit), baselineNutrientAmount(year), nutrientTarget(year), nutrientDelta(current, year, unit),
+                current == null ? "No captured nutrient evidence" : (current.eligibleDays() < 7 ? "Partial coverage · " : "") + current.eligibleDays() + "/7 complete days"
+                    + (current.totalFoods() == 0 ? "" : " · " + current.coveredFoods() + "/" + current.totalFoods() + " foods")
+                    + (current.estimatedFoods() == 0 ? "" : " · estimates")));
+        }
+        return new NutritionTable(rows, hasYear, nutrition == null ? "Nutrient evidence and targets were not captured in this report." : hasYear ? "Targets captured with report; baselines retain their own saved targets." : "52-week nutrient comparison unavailable; targets captured with report.");
+    }
+    private WeeklyNutritionSnapshot.Measure nutrientMeasure(WeeklyNutritionSnapshot.Period period, String key) {
+        return period == null ? null : period.measures().stream().filter(measure -> measure.key().equals(key)).findFirst().orElse(null);
+    }
+    private String nutrientAmount(WeeklyNutritionSnapshot.Measure measure) {
+        return measure == null || measure.average() == null ? UNAVAILABLE : (measure.estimatedFoods() > 0 ? "≈ " : "") + amount(measure.average(), measure.unit(), 2);
+    }
+    private String baselineNutrientAmount(WeeklyNutritionSnapshot.Measure measure) {
+        return nutrientAmount(measure) + (measure == null ? "" : " · " + measure.eligibleDays() + "/7 days" + (measure.eligibleDays() < 7 ? " · Partial coverage" : ""));
+    }
+    private String nutrientTarget(WeeklyNutritionSnapshot.Measure measure) {
+        return measure == null || measure.target() == null || measure.comparison() == null || measure.unavailableReason() != null ? "Target unavailable"
+            : (measure.comparison() == MacroTargetComparison.MINIMUM ? "≥ " : "≤ ") + amount(measure.target(), measure.unit(), 2);
+    }
+    private Status nutrientStatus(WeeklyNutritionSnapshot.Measure measure) {
+        if (measure == null || measure.average() == null) return neutral(UNAVAILABLE);
+        if (measure.target() == null || measure.comparison() == null || measure.unavailableReason() != null) return neutral("Target unavailable");
+        return goalStatus(measure.average(), measure.target(), measure.comparison() == MacroTargetComparison.MAXIMUM, "Goal met",
+            measure.comparison() == MacroTargetComparison.MAXIMUM ? "Above goal" : "Below goal");
+    }
+    private Delta nutrientDelta(WeeklyNutritionSnapshot.Measure current, WeeklyNutritionSnapshot.Measure baseline, String unit) {
+        return visualDelta(current == null ? null : current.average(), baseline == null ? null : baseline.average(), unit, 2, false);
     }
 
     private List<CardRow> withWeeklyRoutines(List<CardRow> rows, WeeklySummarySnapshot snapshot) {

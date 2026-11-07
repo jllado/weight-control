@@ -1,6 +1,7 @@
 package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -250,7 +251,7 @@ class WeeklySummaryServiceTest {
             .filter(card -> card.label().equals("Back pain"))
             .findFirst().orElseThrow();
 
-        assertEquals(8, snapshot.schemaVersion());
+        assertEquals(9, snapshot.schemaVersion());
         assertTrue(saved.getSnapshotJson().contains("\"subjectLabel\":\"Goblet squat\""));
         assertEquals(List.of("Heaviest load — Goblet squat", "Highest weight", "Longest routine streak — Evening stretch"),
             new WeeklySummaryEmailViewFactory().create(user, snapshot, null, "https://weight.example").records().stream()
@@ -400,7 +401,13 @@ class WeeklySummaryServiceTest {
         assertEquals(false, preview.alreadySaved());
         var created = service.createLatest(user, today);
         assertEquals(friday, created.fridayDate());
-        assertEquals(preview.snapshot(), created.snapshot());
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+        ObjectNode previewEvidence = mapper.valueToTree(preview.snapshot());
+        ObjectNode createdEvidence = mapper.valueToTree(created.snapshot());
+        ((ObjectNode) previewEvidence.path("emailGoals")).remove("capturedAt");
+        ((ObjectNode) createdEvidence.path("emailGoals")).remove("capturedAt");
+        assertEquals(previewEvidence, createdEvidence);
+        assertNotNull(created.snapshot().emailGoals().capturedAt());
         ArgumentCaptor<SavedWeeklySummary> saved = ArgumentCaptor.forClass(SavedWeeklySummary.class);
         verify(savedSummaryRepository).save(saved.capture());
         assertEquals(friday, saved.getValue().getFridayDate());

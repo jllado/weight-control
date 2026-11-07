@@ -6,6 +6,7 @@ import com.jllado.weightcontrol.domain.BackRegion;
 import com.jllado.weightcontrol.domain.BackSide;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -21,8 +22,22 @@ public record WeeklySummarySnapshot(
     List<PersonalRecordSnapshot> personalRecords,
     List<String> warnings,
     WeeklyNutritionSnapshot nutrition,
-    List<WeeklyRoutineProgress> weeklyRoutines
+    List<WeeklyRoutineProgress> weeklyRoutines,
+    EmailGoals emailGoals
 ) {
+
+    public record EmailGoals(Instant capturedAt, BigDecimal weeklyAverageCalorieMaximum, BigDecimal inShapeBodyFatLimit, FixedRules rules) { }
+    public record FixedRules(int version, int sleepMinimumSeconds, String sleepBasis, BigDecimal moodGoodMinimum,
+        BigDecimal moodNeutralMinimum, List<BloodPressureRule> bloodPressureStages) { }
+    public record BloodPressureRule(String label, Integer systolicAbove, Integer diastolicAbove, String color) { }
+
+    public WeeklySummarySnapshot(int schemaVersion, LocalDate periodStart, LocalDate fridayDate,
+        WeeklyMetrics.Progress progress, OutcomeMeasurements outcomes, BackPainSummary backPain,
+        List<RoutineProgress> routines, GoalEvidence goalEvidence, List<PersonalRecordSnapshot> personalRecords,
+        List<String> warnings, WeeklyNutritionSnapshot nutrition, List<WeeklyRoutineProgress> weeklyRoutines) {
+        this(schemaVersion, periodStart, fridayDate, progress, outcomes, backPain, routines, goalEvidence, personalRecords,
+            warnings, nutrition, weeklyRoutines, null);
+    }
 
     public WeeklySummarySnapshot(int schemaVersion, LocalDate periodStart, LocalDate fridayDate,
         WeeklyMetrics.Progress progress, OutcomeMeasurements outcomes, BackPainSummary backPain,
