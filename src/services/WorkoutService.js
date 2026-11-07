@@ -68,6 +68,41 @@ function toPayload(workout) {
 }
 
 export default {
+    async get_latest_sauna(through) {
+        const data = await get(`/workouts/sauna/latest?through=${dayjs(through).format('YYYY-MM-DD')}`);
+        return data ? toWorkout(data) : null;
+    },
+    copy_sauna(source, date) {
+        const lines = [...source.lines].sort((a, b) => a.position - b.position).map(line => ({
+            ...line,
+            segments: [...(line.trackingMode === 'CARDIO' ? line.intervals : line.sets)]
+                .filter(segment => !segment.skipped).sort((a, b) => a.position - b.position)
+        })).filter(line => line.segments.length);
+        const groups = new Map();
+        lines.filter(line => line.supersetGroupId).forEach(line => {
+            const members = groups.get(line.supersetGroupId) || [];
+            members.push(line);
+            groups.set(line.supersetGroupId, members);
+        });
+        groups.forEach(members => {
+            if (members.length < 2 || members.some(line => line.segments.length !== members[0].segments.length)) {
+                members.forEach(line => line.supersetGroupId = null);
+            }
+        });
+        return toPayload({
+            ...source,
+            workoutDate: date,
+            recordingKey: crypto.randomUUID(),
+            note: null,
+            plannedSessionName: null,
+            plannedTargets: null,
+            plannedSaunaRoundsMinutes: null,
+            startTime: null,
+            endTime: null,
+            saunaRoundsMinutes: [...source.saunaRoundsMinutes],
+            lines
+        });
+    },
     get_training_balance(date) { return get(`/workouts/training-balance?date=${date}`); },
     async get_diary(page = 0, size = 10) {
         const data = await get(`/workouts/diary?page=${page}&size=${size}`);

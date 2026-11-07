@@ -432,6 +432,127 @@ class WorkoutTimingPersistenceTest {
         }
     }
 
+    @Test void latestSaunaFiltersBeforeLimitingAndKeepsItsRecordedBreathsBeyondGenericPreloadHistory() {
+        var owner=assessmentOwner();var other=assessmentOwner();LocalDate through=LocalDate.of(2026,8,20);LocalDate sourceDate=through.minusDays(70);
+        var lines=new ArrayList<WorkoutLineRequest>();
+        for(int index=0;index<6;index++) {
+            var stretch=exercises.create(new ExerciseRequest("Sauna stretch "+UUID.randomUUID(),"Recorded breathing hold",ExerciseTrackingMode.SECONDS,ExerciseType.STRETCHING));
+            lines.add(new WorkoutLineRequest(stretch.getId(),null,null,List.of(new WorkoutSegmentRequest(null,null,null,null,null,null,null,null,2)),StretchingUnit.BREATHS));
+        }
+        var request=new WorkoutRequest(sourceDate,"Original sauna",lines,null,null,0,0,0,0,null,null,UUID.randomUUID().toString(),true,List.of(15),null);
+        var source=service.create(owner,request);
+        var before=json.valueToTree(WorkoutResponse.from(service.requireOwned(owner,source.getId())));
+        var ordinary=exercises.create(new ExerciseRequest("Non-sauna "+UUID.randomUUID(),"Hold",ExerciseTrackingMode.SECONDS,ExerciseType.TRAINING,PrimaryMuscleGroup.CORE));
+        var ordinaryLines=List.of(new WorkoutLineRequest(ordinary.getId(),null,null,List.of(new WorkoutSegmentRequest(null,30,null,null,null,null,null,null,null)),null));
+        for(int day=1;day<=45;day++) service.create(owner,new WorkoutRequest(sourceDate.plusDays(day),null,ordinaryLines,null,null,null,null,null,null));
+        service.create(other,new WorkoutRequest(through,null,List.of(),null,12,null,null,null,null,null,null,null,true,List.of(12),null));
+        service.create(owner,new WorkoutRequest(through.plusDays(1),null,List.of(),null,8,null,null,null,null,null,null,null,true,List.of(8),null));
+        assertEquals(40,service.findPreloadWorkouts(owner,through).size());
+        assertFalse(service.findPreloadWorkouts(owner,through).stream().anyMatch(workout -> workout.getId().equals(source.getId())));
+        var statistics=entityManagerFactory.unwrap(org.hibernate.SessionFactory.class).getStatistics();statistics.setStatisticsEnabled(true);
+        try {
+            statistics.clear();
+            var selected=service.findLatestSauna(owner,through).orElseThrow();
+            assertEquals(source.getId(),selected.getId());assertEquals(1,statistics.getEntityStatistics(Workout.class.getName()).getLoadCount());
+            var response=WorkoutResponse.from(selected);assertEquals(before,json.valueToTree(response));
+            assertEquals(6,response.lines().size());assertEquals(List.of(15),response.saunaRoundsMinutes());assertEquals(15,response.durationMinutes());
+            assertTrue(response.lines().stream().allMatch(line -> line.stretchingUnit()==StretchingUnit.BREATHS && line.sets().getFirst().breaths()==2));
+            assertTrue(service.findLatestSauna(owner,sourceDate.minusDays(1)).isEmpty());
+            assertTrue(service.findLatestSauna(other,through.minusDays(1)).isEmpty());
+        } finally { statistics.setStatisticsEnabled(false); }
+    }
+
+    @Test void latestSaunaUsesWorkoutDateThenNewestCreationThenHighestIdAndPreservesRecordedDetail() {
+        var owner=assessmentOwner();LocalDate date=LocalDate.of(2026,8,20);
+        var hold=exercises.create(new ExerciseRequest("Exact sauna hold "+UUID.randomUUID(),"93 seconds",ExerciseTrackingMode.SECONDS,ExerciseType.STRETCHING));
+        var strength=exercises.create(new ExerciseRequest("Exact sauna strength "+UUID.randomUUID(),"Recorded load",ExerciseTrackingMode.REPS,ExerciseType.TRAINING,PrimaryMuscleGroup.CORE));
+        var cardio=exercises.create(new ExerciseRequest("Exact sauna cardio "+UUID.randomUUID(),"Recorded interval",ExerciseTrackingMode.CARDIO,ExerciseType.TRAINING));
+        var lines=List.of(
+            new WorkoutLineRequest(hold.getId(),null,null,List.of(new WorkoutSegmentRequest(null,93,null,null,null,null,null,null,null)),StretchingUnit.SECONDS,null,93),
+            new WorkoutLineRequest(strength.getId(),null,null,List.of(new WorkoutSegmentRequest(7,null,new BigDecimal("12.35"),null,null,null,null,null,null)),null),
+            new WorkoutLineRequest(cardio.getId(),29,123,List.of(new WorkoutSegmentRequest(null,93,null,new BigDecimal("7.45"),new BigDecimal("0.23"),new BigDecimal("1.25"),null,null,null)),null));
+        var a=service.create(owner,new WorkoutRequest(date,"Newest creation",lines,LocalTime.of(5,0),null,1,2,3,4,"Old plan",null,null,true,List.of(12,8),List.of(10,10)));
+        var b=service.create(owner,new WorkoutRequest(date,"Higher id but older creation",List.of(),LocalTime.of(23,0),10,null,null,null,null,null,null,null,true,List.of(10),null));
+        var earlier=service.create(owner,new WorkoutRequest(date.minusDays(1),"Older workout date",List.of(),null,10,null,null,null,null,null,null,null,true,List.of(10),null));
+        jdbc.update("update workouts set created_at='2026-08-20 15:00:00',updated_at=updated_at where id=?",a.getId());
+        jdbc.update("update workouts set created_at='2026-08-20 14:00:00',updated_at=updated_at where id=?",b.getId());
+        jdbc.update("update workouts set created_at='2026-08-21 23:00:00',updated_at=updated_at where id=?",earlier.getId());
+        assertEquals(a.getId(),service.findLatestSauna(owner,date).orElseThrow().getId());
+        var response=WorkoutResponse.from(service.findLatestSauna(owner,date).orElseThrow());
+        assertEquals(List.of(12,8),response.saunaRoundsMinutes());assertEquals(30,response.durationMinutes());
+        assertEquals(List.of(1,2,3,4),List.of(response.warmUpMinutes(),response.trainingMinutes(),response.stretchingMinutes(),response.cardioMinutes()));
+        assertEquals(93,response.lines().get(0).sets().getFirst().durationSeconds());
+        assertEquals(new BigDecimal("12.35"),response.lines().get(1).sets().getFirst().weight());
+        assertEquals(new BigDecimal("7.45"),response.lines().get(2).intervals().getFirst().speedKph());
+        assertEquals(new BigDecimal("0.23"),response.lines().get(2).intervals().getFirst().distanceKm());
+        assertEquals(new BigDecimal("1.25"),response.lines().get(2).intervals().getFirst().inclinePercent());
+        var c=service.create(owner,new WorkoutRequest(date,"Same creation higher id",List.of(),LocalTime.of(1,0),10,null,null,null,null,null,null,null,true,List.of(10),null));
+        jdbc.update("update workouts set created_at='2026-08-20 15:00:00',updated_at=updated_at where id=?",c.getId());
+        assertEquals(c.getId(),service.findLatestSauna(owner,date).orElseThrow().getId());
+        var empty=assessmentOwner();assertTrue(service.findLatestSauna(empty,date).isEmpty());
+    }
+
+    @Test void completedOnlySaunaCopyNeedsNoGuidedProvenanceAndLeavesSkippedSourceUnchanged() {
+        var owner = assessmentOwner();
+        var date = LocalDate.of(2026, 8, 20);
+        var breathing = exercises.create(new ExerciseRequest("Guided sauna breaths " + UUID.randomUUID(), "Breaths", ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING));
+        var cardio = exercises.create(new ExerciseRequest("Guided sauna cardio " + UUID.randomUUID(), "Intervals", ExerciseTrackingMode.CARDIO, ExerciseType.TRAINING));
+        var strength = exercises.create(new ExerciseRequest("Guided sauna strength " + UUID.randomUUID(), "Load", ExerciseTrackingMode.REPS, ExerciseType.TRAINING, PrimaryMuscleGroup.CORE));
+        var omitted = exercises.create(new ExerciseRequest("Skipped sauna hold " + UUID.randomUUID(), "Hold", ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING));
+        var unevenGroup = UUID.randomUUID().toString();
+        var singletonGroup = UUID.randomUUID().toString();
+        var skipped = new WorkoutSegmentRequest(null, null, null, null, null, null, null, null, null, null, true);
+        var breaths = new WorkoutSegmentRequest(null, null, null, null, null, null, null, null, 2);
+        var firstInterval = new WorkoutSegmentRequest(null, 93, null, new BigDecimal("7.45"), new BigDecimal("0.23"), new BigDecimal("1.25"), null, null, null);
+        var secondInterval = new WorkoutSegmentRequest(null, 47, null, new BigDecimal("6.35"), new BigDecimal("0.11"), new BigDecimal("2.50"), null, null, null);
+        var reps = new WorkoutSegmentRequest(7, null, new BigDecimal("12.35"), null, null, null, null, null, null);
+        var hold = new WorkoutSegmentRequest(null, 30, null, null, null, null, null, null, null);
+        var targets = List.of(
+            new PlannedTargetRequest(breathing.getName(), "Breaths", ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING, null, StretchingUnit.BREATHS, List.of(breaths, breaths), unevenGroup),
+            new PlannedTargetRequest(cardio.getName(), "Intervals", ExerciseTrackingMode.CARDIO, ExerciseType.TRAINING, CardioMetric.SPEED_KPH, null, List.of(firstInterval, secondInterval), unevenGroup),
+            new PlannedTargetRequest(strength.getName(), "Load", ExerciseTrackingMode.REPS, ExerciseType.TRAINING, null, null, List.of(reps, reps), singletonGroup),
+            new PlannedTargetRequest("Omitted guided partner", "Load", ExerciseTrackingMode.REPS, ExerciseType.TRAINING, null, null, List.of(reps, reps), singletonGroup),
+            new PlannedTargetRequest(omitted.getName(), "Hold", ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING, null, StretchingUnit.SECONDS, List.of(hold, hold)));
+        var sourceLines = List.of(
+            new WorkoutLineRequest(breathing.getId(), null, null, List.of(breaths, skipped), StretchingUnit.BREATHS, unevenGroup, 42),
+            new WorkoutLineRequest(cardio.getId(), 29, 123, List.of(firstInterval, secondInterval), null, unevenGroup, 140),
+            new WorkoutLineRequest(strength.getId(), null, null, List.of(reps, skipped), null, singletonGroup, 55),
+            new WorkoutLineRequest(omitted.getId(), null, null, List.of(skipped, skipped), StretchingUnit.SECONDS, null, 0));
+        String sourceKey = UUID.randomUUID().toString();
+        var source = service.create(owner, new WorkoutRequest(date, "Original guided note", sourceLines, LocalTime.of(18, 0), null,
+            1, 2, 3, 4, "Original guided sauna", targets, sourceKey, true, List.of(12, 8), List.of(10, 10)));
+        var before = json.valueToTree(WorkoutResponse.from(service.findLatestSauna(owner, date).orElseThrow()));
+        var copyLines = List.of(
+            new WorkoutLineRequest(breathing.getId(), null, null, List.of(breaths), StretchingUnit.BREATHS, null, 42),
+            new WorkoutLineRequest(cardio.getId(), 29, 123, List.of(firstInterval, secondInterval), null, null, 140),
+            new WorkoutLineRequest(strength.getId(), null, null, List.of(reps), null, null, 55));
+        String copyKey = UUID.randomUUID().toString();
+        var copy = service.create(owner, new WorkoutRequest(date.plusDays(1), null, copyLines, null, 30,
+            1, 2, 3, 4, null, null, copyKey, true, List.of(12, 8), null));
+        var response = WorkoutResponse.from(service.requireOwned(owner, copy.getId()));
+        assertNotEquals(source.getId(), response.id());
+        assertNotEquals(source.getSessionReference(), response.sessionReference());
+        assertEquals(copyKey, copy.getRecordingKey());
+        assertNotEquals(sourceKey, copy.getRecordingKey());
+        assertNull(response.note()); assertNull(response.startTime()); assertNull(response.endTime());
+        assertNull(response.plannedSessionName()); assertNull(response.plannedTargets()); assertNull(response.plannedSaunaRoundsMinutes());
+        assertEquals(List.of(12, 8), response.saunaRoundsMinutes()); assertEquals(30, response.durationMinutes());
+        assertEquals(List.of(1, 2, 3, 4), List.of(response.warmUpMinutes(), response.trainingMinutes(), response.stretchingMinutes(), response.cardioMinutes()));
+        assertEquals(List.of(breathing.getId(), cardio.getId(), strength.getId()), response.lines().stream().map(WorkoutLineResponse::exerciseId).toList());
+        assertTrue(response.lines().stream().allMatch(line -> line.supersetGroupId() == null));
+        assertEquals(StretchingUnit.BREATHS, response.lines().get(0).stretchingUnit());
+        assertEquals(42, response.lines().get(0).exerciseDurationSeconds()); assertEquals(2, response.lines().get(0).sets().getFirst().breaths());
+        assertEquals(2, response.lines().get(1).intervals().size()); assertEquals(29, response.lines().get(1).calories()); assertEquals(123, response.lines().get(1).averageHeartRate());
+        assertEquals(93, response.lines().get(1).intervals().get(0).durationSeconds()); assertEquals(new BigDecimal("7.45"), response.lines().get(1).intervals().get(0).speedKph());
+        assertEquals(new BigDecimal("0.23"), response.lines().get(1).intervals().get(0).distanceKm()); assertEquals(new BigDecimal("1.25"), response.lines().get(1).intervals().get(0).inclinePercent());
+        assertEquals(47, response.lines().get(1).intervals().get(1).durationSeconds()); assertEquals(new BigDecimal("6.35"), response.lines().get(1).intervals().get(1).speedKph());
+        assertEquals(new BigDecimal("0.11"), response.lines().get(1).intervals().get(1).distanceKm()); assertEquals(new BigDecimal("2.50"), response.lines().get(1).intervals().get(1).inclinePercent());
+        assertEquals(1, response.lines().get(2).sets().size()); assertEquals(7, response.lines().get(2).sets().getFirst().repetitions());
+        assertEquals(new BigDecimal("12.35"), response.lines().get(2).sets().getFirst().weight());
+        assertTrue(response.lines().stream().flatMap(line -> line.sets().stream()).noneMatch(WorkoutSetResponse::skipped));
+        assertEquals(before, json.valueToTree(WorkoutResponse.from(service.requireOwned(owner, source.getId()))));
+    }
+
     private User assessmentOwner() {
         var user = new User(); user.setEmail(UUID.randomUUID() + "@example.com"); user = users.save(user);
         var plan = new CoachingPlan(); plan.setUser(user); plan.setGoal("Consistent training"); plan.setStartDate(LocalDate.of(2026, 8, 1));

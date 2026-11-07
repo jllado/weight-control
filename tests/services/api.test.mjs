@@ -12,6 +12,7 @@ test('uses the message from a JSON API error', async () => {
     globalThis.fetch = async () => new Response(JSON.stringify({message: 'MONDAY — Treadmill: Only elliptical intervals use cadence in RPM'}), {status: 400});
 
     await assert.rejects(get('/workout-plans/current'), {
+        status: 400,
         message: 'MONDAY — Treadmill: Only elliptical intervals use cadence in RPM'
     });
 });
@@ -19,7 +20,7 @@ test('uses the message from a JSON API error', async () => {
 test('preserves plain-text API errors', async () => {
     globalThis.fetch = async () => new Response('The service is unavailable', {status: 503});
 
-    await assert.rejects(get('/workout-plans/current'), {message: 'The service is unavailable'});
+    await assert.rejects(get('/workout-plans/current'), {message: 'The service is unavailable', status: 503});
 });
 
 test('preserves network failures', async () => {

@@ -937,6 +937,11 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
         }
         if (path === '/api/workout-exercises') return route.fulfill({json: workoutExercises});
         if (path === '/api/workout-plans/current') return route.fulfill({status: 204});
+        if (path === '/api/workouts/sauna/latest') {
+            const source = workouts.filter(workout => workout.saunaSession && workout.workoutDate <= url.searchParams.get('through'))
+                .sort((left, right) => right.workoutDate.localeCompare(left.workoutDate) || right.id - left.id)[0];
+            return source ? route.fulfill({json: source}) : route.fulfill({status: 204});
+        }
         if (path === '/api/workouts/preload') return route.fulfill({json: workouts.filter(workout => workout.workoutDate <= url.searchParams.get('through'))});
         if (path === '/api/workouts' && request.method() === 'POST') {
             const id = Math.max(0, ...workouts.map(workout => workout.id)) + 1;
@@ -4601,7 +4606,12 @@ test('Home shortcut stays visible and returns home across responsive navigation 
         await expect(home).not.toHaveAttribute('aria-current', 'page');
         await expect(shell.getByRole('menuitem', {name: 'Home', exact: true, includeHidden: true})).toHaveCount(0);
         await expect(shell.locator('.coach-notes-button')).toBeVisible({visible: width > 575});
+        await page.mouse.move(width - 1, 899);
         await home.focus();
+        await page.keyboard.press('Tab');
+        await expect(home).not.toBeFocused();
+        await page.keyboard.press('Shift+Tab');
+        await expect(home).toBeFocused();
         await expect(page.getByRole('tooltip', {name: 'Home', exact: true})).toBeVisible();
         const box = await home.boundingBox();
         expect(box.width).toBeCloseTo(box.height, 1);
@@ -5541,6 +5551,257 @@ test('week totals use status thresholds instead of previous-week comparisons', a
     await expect(weekScore.locator('.week-status-cell span.bad', {hasText: /^80$/})).toHaveCount(0);
     await expect(weekScore.locator('.week-status-cell span.good', {hasText: /^60$/})).toHaveCount(2);
     await expect(weekScore.locator('.week-status-cell span.perfect', {hasText: /^60$/})).toHaveCount(0);
+});
+
+test('dashboard sauna shortcut copies a saved session directly without changing its source', async ({page}, testInfo) => {
+    const exercises = Array.from({length: 6}, (_, index) => ({id: index + 1, name: `Stretch ${index + 1}`, exerciseType: 'STRETCHING', trackingMode: 'SECONDS', stretchingUnit: 'BREATHS'}));
+    const source = workoutResponse(7, {workoutDate: '2026-08-10', saunaSession: true, saunaRoundsMinutes: [15], durationMinutes: 15,
+        startTime: '19:30', endTime: '2026-08-10T17:45:00Z', note: 'Old note', plannedSessionName: 'Old plan', plannedTargets: [], plannedSaunaRoundsMinutes: [12],
+        lines: exercises.map(exercise => ({exerciseId: exercise.id, stretchingUnit: 'BREATHS', segments: [{breaths: 2}]}))}, exercises);
+    const before = JSON.stringify(source);
+    await mockAuthenticatedDashboard(page, '2026-08-11', {initialWorkouts: [source], workoutExercises: exercises});
+    const lookups = [];
+    await page.route('**/api/workouts/sauna/latest?*', route => {
+        lookups.push(new URL(route.request().url()).searchParams.get('through'));
+        return route.fulfill({json: source});
+    });
+    await openSpaRoute(page, '/?tab=workout&date=2026-08-11');
+    const button = page.getByRole('button', {name: 'Add sauna', exact: true});
+    await expect(button).toBeEnabled();
+    for (const width of [376, 393, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expect.poll(() => button.evaluate(element => element.getBoundingClientRect().right <= innerWidth)).toBe(true);
+        await expectWholeWords(button.locator('.p-button-label'));
+        await button.scrollIntoViewIfNeeded();
+        await page.screenshot({path: testInfo.outputPath(`sauna-shortcut-${width}.png`), animations: 'disabled'});
+    }
+    const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await button.click();
+    const payload = (await saving).postDataJSON();
+    expect(payload).toMatchObject({workoutDate: '2026-08-11', saunaSession: true, saunaRoundsMinutes: [15], durationMinutes: 15,
+        note: null, plannedSessionName: null, plannedTargets: null, plannedSaunaRoundsMinutes: null, startTime: null, endTime: null});
+    expect(payload.recordingKey).toMatch(/^[0-9a-f-]{36}$/);
+    expect(payload.id).toBeUndefined();
+    expect(payload.lines.map(line => ({exerciseId: line.exerciseId, stretchingUnit: line.stretchingUnit, segments: line.segments})))
+        .toEqual(exercises.map(exercise => ({exerciseId: exercise.id, stretchingUnit: 'BREATHS', segments: [{breaths: 2, skipped: false}]})));
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.locator('.workout-session').filter({hasText: '11/08/2026'})).toContainText('1 sauna round · 15 min sauna');
+    expect(lookups).toEqual(['2026-08-11', '2026-08-11']);
+    expect(JSON.stringify(source)).toBe(before);
+    const created = page.locator('.workout-session').filter({hasText: '11/08/2026'});
+    await created.getByRole('button', {name: 'Edit', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await expect(editor.locator('#workout-sauna-round-0')).toHaveValue('15');
+    await editor.locator('#workout-sauna-round-0').fill('16');
+    await editor.locator('#workout-sauna-round-0').press('Tab');
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(created).toContainText('1 sauna round · 16 min sauna');
+    await created.getByRole('button', {name: 'Delete', exact: true}).click();
+    await expect(created).toHaveCount(0);
+    const secondSaving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await button.click();
+    expect((await secondSaving).postDataJSON().recordingKey).not.toBe(payload.recordingKey);
+});
+
+test('dashboard sauna shortcut retains the clicked date and payload through a lost response retry', async ({page}) => {
+    const source = workoutResponse(7, {workoutDate: '2026-08-09', saunaSession: true, saunaRoundsMinutes: [12, 8], durationMinutes: 26,
+        warmUpMinutes: 1, trainingMinutes: 2, stretchingMinutes: 3, cardioMinutes: 0, lines: []}, []);
+    await mockAuthenticatedDashboard(page, '2026-08-11', {initialWorkouts: [source]});
+    await page.route('**/api/dashboard/retreat', route => route.fulfill({json: {
+        ...dashboard, anchorDate: '2026-08-10', dailyStatus: dashboardDailyStatus('2026-08-10'), lastWeekDailyStatus: dashboardDailyStatus('2026-08-03')
+    }}));
+    const attempts = [];
+    let releaseFirst;
+    const firstResponse = new Promise(resolve => releaseFirst = resolve);
+    await page.route('**/api/workouts', async route => {
+        attempts.push(route.request().postDataJSON());
+        if (attempts.length === 1) {
+            await firstResponse;
+            return route.abort('failed');
+        }
+        return route.fallback();
+    });
+    await openSpaRoute(page, '/?tab=workout&date=2026-08-11');
+    const add = page.getByRole('button', {name: 'Add sauna', exact: true});
+    await expect(add).toBeEnabled();
+    await add.evaluate(element => { element.click(); element.click(); });
+    await expect.poll(() => attempts.length).toBe(1);
+    await expect(page.getByRole('button', {name: 'Saving…', exact: true})).toBeDisabled();
+    await page.getByRole('button', {name: 'Previous Day', exact: true}).click();
+    await expect(page.locator('.dashboard-date-value')).toHaveText('10/08/2026');
+    releaseFirst();
+    const retry = page.getByRole('button', {name: 'Retry sauna for 11/08/2026'});
+    await expect(retry).toBeEnabled();
+    await retry.click();
+    await expect.poll(() => attempts.length).toBe(2);
+    expect(attempts[1]).toEqual(attempts[0]);
+    expect(attempts[0]).toMatchObject({workoutDate: '2026-08-11', saunaRoundsMinutes: [12, 8], durationMinutes: 26,
+        warmUpMinutes: 1, trainingMinutes: 2, stretchingMinutes: 3, cardioMinutes: 0});
+    await expect(add).toBeEnabled();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.locator('.workout-session').filter({hasText: '10/08/2026'})).toHaveCount(0);
+});
+
+test('dashboard sauna shortcut loading leaves ordinary workout entry available', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-11');
+    let release;
+    const held = new Promise(resolve => release = resolve);
+    await page.route('**/api/workouts/sauna/latest?*', async route => { await held; return route.fulfill({status: 204}); });
+    await openSpaRoute(page, '/?tab=workout&date=2026-08-11');
+    try {
+        await expect(page.getByRole('button', {name: 'Add session', exact: true})).toBeEnabled();
+        await expect(page.getByRole('button', {name: 'Add sauna', exact: true})).toBeDisabled();
+        await expect(page.getByText('Loading latest sauna…')).toBeVisible();
+    } finally { release(); }
+    await expect(page.getByText('No saved sauna on or before this date.')).toBeVisible();
+});
+
+test('dashboard sauna shortcut ignores an old lookup after the selected date changes', async ({page}) => {
+    const oldSource = workoutResponse(7, {workoutDate: '2026-08-11', saunaSession: true, saunaRoundsMinutes: [20], durationMinutes: 20, lines: []}, []);
+    const selectedSource = workoutResponse(6, {workoutDate: '2026-08-09', saunaSession: true, saunaRoundsMinutes: [15], durationMinutes: 15, lines: []}, []);
+    await mockAuthenticatedDashboard(page, '2026-08-11');
+    let releaseDashboard;
+    const heldDashboard = new Promise(resolve => releaseDashboard = resolve);
+    await page.route('**/api/workouts/dashboard?*', async route => {
+        if (new URL(route.request().url()).searchParams.get('date') === '2026-08-11') await heldDashboard;
+        return route.fallback();
+    });
+    await page.route('**/api/dashboard/retreat', route => route.fulfill({json: {
+        ...dashboard, anchorDate: '2026-08-10', dailyStatus: dashboardDailyStatus('2026-08-10'), lastWeekDailyStatus: dashboardDailyStatus('2026-08-03')
+    }}));
+    let release;
+    const held = new Promise(resolve => release = resolve);
+    const lookups = [];
+    await page.route('**/api/workouts/sauna/latest?*', async route => {
+        const old = new URL(route.request().url()).searchParams.get('through') === '2026-08-11';
+        lookups.push(old ? 'old' : 'selected');
+        if (old) await held;
+        return route.fulfill({json: old ? oldSource : selectedSource});
+    });
+    await openSpaRoute(page, '/?tab=workout&date=2026-08-11');
+    await expect.poll(() => lookups).toContain('old');
+    await page.getByRole('button', {name: 'Previous Day', exact: true}).click();
+    await expect(page.locator('.dashboard-date-value')).toHaveText('10/08/2026');
+    releaseDashboard();
+    const add = page.getByRole('button', {name: 'Add sauna', exact: true});
+    await expect(add).toBeEnabled();
+    const oldResponse = page.waitForResponse(response => response.url().endsWith('/sauna/latest?through=2026-08-11'));
+    release();
+    await oldResponse;
+    const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await add.click();
+    expect((await saving).postDataJSON()).toMatchObject({workoutDate: '2026-08-10', saunaRoundsMinutes: [15], durationMinutes: 15});
+});
+
+test('dashboard sauna shortcut distinguishes empty history from failed lookup and retries without writing', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-11');
+    let fail = true;
+    let writes = 0;
+    page.on('request', request => { if (request.url().endsWith('/api/workouts') && request.method() === 'POST') writes++; });
+    await page.route('**/api/workouts/sauna/latest?*', route => fail ? route.fulfill({status: 503, json: {message: 'Unavailable'}}) : route.fulfill({status: 204}));
+    await openSpaRoute(page, '/?tab=workout&date=2026-08-11');
+    await expect(page.getByRole('button', {name: 'Add sauna', exact: true})).toBeDisabled();
+    await expect(page.getByText(/Unable to load the latest sauna/)).toBeVisible();
+    fail = false;
+    await page.getByRole('button', {name: 'Retry sauna lookup'}).click();
+    await expect(page.getByText('No saved sauna on or before this date.')).toBeVisible();
+    await expect(page.getByRole('button', {name: 'Add sauna', exact: true})).toBeDisabled();
+    expect(writes).toBe(0);
+});
+
+test('dashboard sauna shortcut retries refresh without creating another session', async ({page}) => {
+    const source = workoutResponse(7, {workoutDate: '2026-08-10', saunaSession: true, saunaRoundsMinutes: [15], durationMinutes: 15, lines: []}, []);
+    await mockAuthenticatedDashboard(page, '2026-08-11', {initialWorkouts: [source]});
+    let writes = 0;
+    page.on('request', request => { if (request.url().endsWith('/api/workouts') && request.method() === 'POST') writes++; });
+    await openSpaRoute(page, '/?tab=workout&date=2026-08-11');
+    await expect(page.getByRole('button', {name: 'Add sauna', exact: true})).toBeEnabled();
+    await page.route('**/api/workouts/dashboard?*', route => route.fulfill({status: 503, json: {message: 'Refresh unavailable'}}), {times: 1});
+    await page.getByRole('button', {name: 'Add sauna', exact: true}).click();
+    await expect(page.getByRole('button', {name: 'Refresh saved sauna'})).toBeEnabled();
+    await page.getByRole('button', {name: 'Refresh saved sauna'}).click();
+    await expect(page.locator('.workout-session').filter({hasText: '11/08/2026'})).toHaveCount(1);
+    expect(writes).toBe(1);
+});
+
+test('dashboard sauna shortcut preserves recorded seconds, fractional metrics and independent ordered segments', async ({page}) => {
+    const exercises = [
+        {id: 1, name: 'Weighted hold', exerciseType: 'TRAINING', trackingMode: 'SECONDS', primaryMuscleGroup: 'CORE'},
+        {id: 2, name: 'Bike', exerciseType: 'TRAINING', trackingMode: 'CARDIO', cardioMetric: 'CADENCE_RPM'}
+    ];
+    const source = workoutResponse(7, {workoutDate: '2026-08-10', saunaSession: true, saunaRoundsMinutes: [7, 11], durationMinutes: 24,
+        warmUpMinutes: 1, trainingMinutes: 0, stretchingMinutes: 2, cardioMinutes: 3,
+        lines: [
+            {exerciseId: 1, stretchingUnit: 'SECONDS', exerciseDurationSeconds: 93, segments: [{durationSeconds: 93, weight: 1.25}]},
+            {exerciseId: 2, calories: 17, averageHeartRate: 123, exerciseDurationSeconds: 121,
+                segments: [{durationSeconds: 61, cadenceRpm: 82.5, distanceKm: 0.21}, {durationSeconds: 60, cadenceRpm: 85.25, distanceKm: 0.23}]}
+        ]}, exercises);
+    source.lines.reverse();
+    source.lines[0].intervals.reverse();
+    source.lines[0].intervals[0].recordEvents = [{id: 900}];
+    await mockAuthenticatedDashboard(page, '2026-08-11', {initialWorkouts: [source], workoutExercises: exercises});
+    await openSpaRoute(page, '/?tab=workout&date=2026-08-11');
+    const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await page.getByRole('button', {name: 'Add sauna', exact: true}).click();
+    const payload = (await saving).postDataJSON();
+    expect(payload).toMatchObject({saunaRoundsMinutes: [7, 11], durationMinutes: 24, warmUpMinutes: 1, trainingMinutes: 0, stretchingMinutes: 2, cardioMinutes: 3});
+    expect(payload.lines).toEqual([
+        {exerciseId: 1, stretchingUnit: 'SECONDS', exerciseDurationSeconds: 93, segments: [{durationSeconds: 93, weight: 1.25, skipped: false}]},
+        {exerciseId: 2, stretchingUnit: 'SECONDS', calories: 17, averageHeartRate: 123, exerciseDurationSeconds: 121,
+            segments: [{durationSeconds: 61, cadenceRpm: 82.5, distanceKm: 0.21, skipped: false}, {durationSeconds: 60, cadenceRpm: 85.25, distanceKm: 0.23, skipped: false}]}
+    ]);
+});
+
+test('dashboard sauna shortcut copies completed work without plan-only skipped sets or invalid supersets', async ({page}) => {
+    const exercises = Array.from({length: 6}, (_, i) => ({id: i + 1, name: `Hold ${i + 1}`, exerciseType: 'STRETCHING', trackingMode: 'SECONDS'}));
+    const source = workoutResponse(7, {workoutDate: '2026-08-10', saunaSession: true, saunaRoundsMinutes: [15], durationMinutes: 15,
+        plannedTargets: [], lines: [
+            {exerciseId: 1, supersetGroupId: 'aa', segments: [{durationSeconds: 93}, {skipped: true}]},
+            {exerciseId: 2, supersetGroupId: 'aa', segments: [{durationSeconds: 30}, {durationSeconds: 60}]},
+            {exerciseId: 3, supersetGroupId: 'bb', segments: [{skipped: true}]},
+            {exerciseId: 4, supersetGroupId: 'bb', segments: [{durationSeconds: 45}]},
+            {exerciseId: 5, supersetGroupId: 'cc', segments: [{durationSeconds: 20}]},
+            {exerciseId: 6, supersetGroupId: 'cc', segments: [{durationSeconds: 25}]}
+        ]}, exercises);
+    await mockAuthenticatedDashboard(page, '2026-08-11', {initialWorkouts: [source], workoutExercises: exercises});
+    await openSpaRoute(page, '/?tab=workout&date=2026-08-11');
+    const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await page.getByRole('button', {name: 'Add sauna', exact: true}).click();
+    const payload = (await saving).postDataJSON();
+    expect(payload.plannedTargets).toBeNull();
+    expect(payload.lines.map(line => [line.exerciseId, line.supersetGroupId, line.segments.map(segment => segment.durationSeconds)]))
+        .toEqual([[1, undefined, [93]], [2, undefined, [30, 60]], [4, undefined, [45]], [5, 'cc', [20]], [6, 'cc', [25]]]);
+    expect(source.lines[0].sets[1].skipped).toBe(true);
+});
+
+test('dashboard sauna shortcut can recover from validation rejection and preserves an active timer draft', async ({page}) => {
+    const source = workoutResponse(7, {workoutDate: '2026-08-10', saunaSession: true, saunaRoundsMinutes: [15], durationMinutes: 15, lines: []}, []);
+    await mockAuthenticatedDashboard(page, '2026-08-11', {initialWorkouts: [source]});
+    await page.addInitScript(() => localStorage.setItem('workout-timer-v1:jllado@gmail.com', JSON.stringify({
+        form: {workoutDate: '2026-08-11', note: 'Existing draft', plannedSessionName: null, plannedTargets: null, saunaSession: false, saunaRoundsMinutes: [], plannedSaunaRoundsMinutes: null,
+            startTime: null, endTime: null, endTimeManual: false, endTimeSource: null, durationMinutes: null, warmUpMinutes: null, trainingMinutes: null, stretchingMinutes: null, cardioMinutes: null, breakdown: false, lines: []},
+        elapsed: {warmUpMinutes: 0, trainingMinutes: 0, cardioMinutes: 0, stretchingMinutes: 5000}, runningPhase: 'stretchingMinutes', startedAt: Date.now()
+    })));
+    let reject = true;
+    const attempts = [];
+    await page.route('**/api/workouts', route => {
+        attempts.push(route.request().postDataJSON());
+        return reject ? route.fulfill({status: 400, json: {message: 'Exercise unavailable'}}) : route.fallback();
+    });
+    await openSpaRoute(page, '/?tab=workout&date=2026-08-11');
+    await expect(page.getByRole('button', {name: 'Resume workout', exact: true})).toBeVisible();
+    const before = await page.evaluate(() => localStorage.getItem('workout-timer-v1:jllado@gmail.com'));
+    const add = page.getByRole('button', {name: 'Add sauna', exact: true});
+    await add.click();
+    await expect(page.locator('.p-toast-message-error')).toContainText('Exercise unavailable');
+    await expect(add).toBeEnabled();
+    reject = false;
+    await add.click();
+    await expect(page.locator('.workout-session').filter({hasText: '11/08/2026'})).toHaveCount(1);
+    expect(attempts).toHaveLength(2);
+    expect(attempts[1].recordingKey).not.toBe(attempts[0].recordingKey);
+    expect(await page.evaluate(() => localStorage.getItem('workout-timer-v1:jllado@gmail.com'))).toBe(before);
+    await expect(page.getByRole('button', {name: 'Resume workout', exact: true})).toBeVisible();
 });
 
 test('dashboard entry modals hide the selected dashboard date', async ({page}) => {

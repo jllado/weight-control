@@ -23,6 +23,7 @@ import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -109,6 +110,10 @@ public class WorkoutService {
 
     public List<Workout> findPreloadWorkouts(User user, LocalDate through) {
         return loadSessions(user, repository.findPreloadIds(user, through, PageRequest.of(0, 40)));
+    }
+
+    public Optional<Workout> findLatestSauna(User user, LocalDate through) {
+        return loadSessions(user, repository.findLatestSaunaIds(user, through, PageRequest.of(0, 1))).stream().findFirst();
     }
 
     public DashboardWorkouts findDashboardWorkouts(User user, LocalDate date) {

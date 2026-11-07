@@ -21,7 +21,9 @@ async function request(path, options = {}) {
         } catch {
             // Plain-text error responses remain readable as-is.
         }
-        throw new Error(message);
+        const error = new Error(message);
+        error.status = response.status;
+        throw error;
     }
 
     const contentType = response.headers.get('content-type') || '';
