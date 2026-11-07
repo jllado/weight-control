@@ -189,7 +189,7 @@ paths:
     post:
       operationId: createMeal
       summary: Create a confirmed meal
-      description: Prepare every food using MealWrite research rules; finish sourced comparable estimates before proposing. Save only the explicitly confirmed meal and optional 1–10 rating, then getMeals. Images use GPT_IMAGE_ESTIMATE; no image bytes, ChatGPT file IDs or URLs.
+      description: Use saved references, then at most one external search per food with gaps; finish with sourced similar-food estimates. Save only the explicitly confirmed meal and optional 1–10 rating, then getMeals. Images use GPT_IMAGE_ESTIMATE; no image bytes, ChatGPT file IDs or URLs.
       x-openai-isConsequential: true
       requestBody:
         required: true
@@ -1948,7 +1948,11 @@ components:
       description: >-
         Prepare the entire meal before presenting its save proposal. Read DISHES and targeted FOODS first;
         reuse known matching values and research missing fields, including nulls in catalog foods reused in a new meal.
-        With food identity and edible quantity established, research and calculate in the same turn without an estimate opt-in.
+        With food identity and edible quantity established, finish preparation in the same turn without an estimate opt-in.
+        After saved-reference lookup, use at most ONE external search query per food with missing nutrients, covering those gaps together.
+        Read useful results from that search; opening a result is not another search. Saved-data Actions are outside this web-search budget.
+        If exact values are not readily available, immediately use reasonable similar-food estimates from the available evidence.
+        Do not repeat searches for another flavor, greater precision or additional reassurance; exact brand values are not a completion gate.
         Use matching product labels first, then defensible cited comparable-food composition for missing values.
         An unavailable exact brand or flavor label is not a blocker when a defensible comparable exists.
         Sourced, explicitly marked estimates are complete save proposals; they do not require further user permission to calculate.
@@ -1966,7 +1970,10 @@ components:
         Scale reference values with known unit factors, round calories HALF_UP to integers and nutrients to two decimals, and reconcile totals.
         Validate the full compact JSON against this schema before showing it, including every food, reference, source and flag;
         omit absent optional fields when their type does not permit null. Repair and recheck invalid fields automatically.
-        If both exact and comparable research genuinely fail, identify the unsupported prerequisite rather than fabricate a complete body.
+        Before answering, check every food and repair arithmetic or implausible values, including protein exceeding the edible food mass.
+        A missing exact label alone is not an unsupported prerequisite. Use a known similar-food reference and label the estimate.
+        Do not describe a value as reported by a source when it is your inference; state the comparison and assumption explicitly.
+        If the saved references and one search provide no defensible comparison, identify that concrete gap; never invent a source or measurement.
         This preparation never authorizes a write: obtain explicit confirmation of the final complete meal and any rating, then save once
         and read back with getMeals. Structured values only; image-derived writes use GPT_IMAGE_ESTIMATE and never include image data or references.
       required:
