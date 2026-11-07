@@ -880,3 +880,9 @@ Verify two fresh original nine-food requests on each actual Instant and Medium s
 - [ ] After acceptable proposals, verify the wider edge cases and authorized temporary save/readback/delete; these were not attempted after the final candidate failed acceptance.
 
 Version 171 is live with 7,997 instruction characters; Coach configuration and all 18 tests passed. Workflow state is DEVELOPED at the user's explicit request, with unresolved acceptance findings retained. See the [verification record](coach-gpt.md#limited-search-meal-estimate-verification--november-7-2026). No further revision or backend expansion is implied.
+
+## Readable meal save confirmation
+
+Prepare and validate the complete nutrient payload internally, retaining consumed/reference values, sources, estimate flags and bounded research. Show a concise summary of date/time, foods and portions, estimated calories/macros, any rating and material assumptions or catalog additions, then ask “Save this meal?” Do not ask the user to validate nutrient estimates. Show JSON only when explicitly requested; that request permits display, not a write. Clarify material identity/quantity gaps and require renewed save consent for a materially changed summary. Save the matching complete payload only after consent and read it back before reporting success.
+
+This presentation refinement supersedes the older full-JSON display requirement. Existing nutrient-source acceptance limitations remain recorded; this change does not claim to resolve them. The backend, Actions structure and persistence contract are unchanged. Publish only the private GPT configuration and verify its exact saved/live hashes. Check fresh banana/kiwi and mixed-meal proposals on actual Instant and Medium, a material portion ambiguity and an explicit JSON request; require no write before consent. Read-only acceptance is sufficient for this display change, so do not create artificial health records.
