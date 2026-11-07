@@ -49,9 +49,28 @@ class RoutineAutomationPersistenceTest {
     @Autowired RoutineCheckinRepository checkins;
     @Autowired JdbcTemplate jdbc;
     @Autowired InAppNotificationService inbox;
+    @Autowired PushNotificationService pushSettings;
     @Autowired com.jllado.weightcontrol.repository.InAppNotificationRepository notifications;
 
     private static final LocalDate DAY = LocalDate.of(2026, 8, 12);
+
+    @Test void dailySettingsCompatibilityNeverOverwritesCanonicalWeeklyPairsAndRejectsRetiredEditsAtomically() {
+        User owner = user("weekly-retired-settings");
+        routines.initializeMeasurementRoutines(owner);
+        Routine weight = routines.findAll(owner).stream().filter(candidate -> candidate.getAutomaticTrigger() == RoutineAutomaticTrigger.WEIGHT_MEASUREMENT).findFirst().orElseThrow();
+        var pairs = List.of(new com.jllado.weightcontrol.api.dto.RoutineDtos.WeeklyReminderRequest(java.time.DayOfWeek.MONDAY, LocalTime.of(9,0)),
+            new com.jllado.weightcontrol.api.dto.RoutineDtos.WeeklyReminderRequest(java.time.DayOfWeek.FRIDAY, LocalTime.of(10,0)));
+        routines.update(owner, weight.getId(), new RoutineRequest(weight.getName(), weight.getTypes(), null, false, weight.getAutomaticTrigger(), true, RoutineCadence.WEEKLY, pairs));
+        pushSettings.updateReminderSettings(owner, new com.jllado.weightcontrol.api.dto.PushDtos.ReminderSettingsRequest(
+            LocalTime.of(7,45), LocalTime.of(13,30), LocalTime.of(20,30), owner.getWeightReminderTime(), owner.getBloodPressureReminderTime(), owner.getWeightReminderDay(), owner.getBloodPressureReminderDay()));
+        assertEquals(pairs, routines.requireOwned(owner, weight.getId()).getReminders().stream()
+            .sorted(java.util.Comparator.comparing(RoutineReminder::getDay)).map(reminder -> new com.jllado.weightcontrol.api.dto.RoutineDtos.WeeklyReminderRequest(reminder.getDay(),reminder.getReminderTime())).toList());
+        assertThrows(BadRequestException.class, () -> pushSettings.updateReminderSettings(owner, new com.jllado.weightcontrol.api.dto.PushDtos.ReminderSettingsRequest(
+            LocalTime.of(8,0), LocalTime.of(13,30), LocalTime.of(20,30), LocalTime.of(6,0), owner.getBloodPressureReminderTime(), owner.getWeightReminderDay(), owner.getBloodPressureReminderDay())));
+        assertEquals(LocalTime.of(7,45), users.findById(owner.getId()).orElseThrow().getMorningCheckInReminderTime());
+        assertEquals(pairs, routines.requireOwned(owner, weight.getId()).getReminders().stream()
+            .sorted(java.util.Comparator.comparing(RoutineReminder::getDay)).map(reminder -> new com.jllado.weightcontrol.api.dto.RoutineDtos.WeeklyReminderRequest(reminder.getDay(),reminder.getReminderTime())).toList());
+    }
 
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})

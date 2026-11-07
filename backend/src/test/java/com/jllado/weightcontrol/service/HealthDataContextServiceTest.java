@@ -240,7 +240,7 @@ class HealthDataContextServiceTest {
         var context = (com.jllado.weightcontrol.api.dto.CoachDtos.BehaviorContext) service.getHealthContext(user, from, to,
             Set.of(CoachDomain.BEHAVIOR), OffsetDateTime.parse("2026-08-16T10:00:00+02:00")).data().get(CoachDomain.BEHAVIOR);
         assertEquals(List.of(), context.routines());
-        assertEquals(List.of(result), context.weeklyRoutines());
+        assertEquals(List.of(result.evidence()), context.weeklyRoutines());
     }
 
     @Test

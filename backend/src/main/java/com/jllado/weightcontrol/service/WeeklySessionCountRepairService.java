@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class WeeklySessionCountRepairService {
+    private static final int REPAIRED_SCHEMA_VERSION = 7;
     private static final List<String> PERIODS = List.of("currentPeriod", "previousComparablePeriod", "yearAgoComparablePeriod");
     private final UserRepository users;
     private final SavedWeeklySummaryRepository summaries;
@@ -44,7 +45,7 @@ public class WeeklySessionCountRepairService {
         try {
             ObjectNode snapshot = (ObjectNode) mapper.readTree(summary.getSnapshotJson());
             int version = snapshot.required("schemaVersion").intValue();
-            if (version == WeeklySummaryService.SNAPSHOT_SCHEMA_VERSION) return new RepairResult(false, List.of());
+            if (version >= REPAIRED_SCHEMA_VERSION) return new RepairResult(false, List.of());
             if (version != 6) throw new IllegalArgumentException("Session-count repair requires a schema v6 summary");
             List<PeriodCounts> changes = new ArrayList<>();
             for (String name : PERIODS) {
@@ -60,7 +61,7 @@ public class WeeklySessionCountRepairService {
                 saved.put("cardioSessionCount", counts.cardioSessionCount());
                 saved.put("stretchingSessionCount", counts.stretchingSessionCount());
             }
-            snapshot.put("schemaVersion", WeeklySummaryService.SNAPSHOT_SCHEMA_VERSION);
+            snapshot.put("schemaVersion", REPAIRED_SCHEMA_VERSION);
             if (apply) {
                 // Only this explicit administrative repair bypasses the entity's immutable snapshot mapping.
                 jdbc.update("update weekly_summaries set snapshot_json = ? where id = ? and user_id = ?",

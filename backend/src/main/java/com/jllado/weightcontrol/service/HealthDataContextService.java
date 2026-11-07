@@ -619,9 +619,9 @@ public class HealthDataContextService {
             .toList();
         List<CoachDtos.CoachRoutineData> routines = getCoachRoutines(user, from, to);
         return new CoachDtos.BehaviorContext(statuses,
-            routines.stream().filter(routine -> routine.cadence() == RoutineCadence.DAILY).toList(),
+            routines.stream().filter(routine -> routine.cadence() == RoutineCadence.DAILY).map(CoachDtos.CoachRoutineData::evidence).toList(),
             urgePauseService.context(user, from, to),
-            routines.stream().filter(routine -> routine.cadence() == RoutineCadence.WEEKLY).toList());
+            routines.stream().filter(routine -> routine.cadence() == RoutineCadence.WEEKLY).map(CoachDtos.CoachRoutineData::evidence).toList());
     }
 
     public List<CoachDtos.CoachRoutineData> getCoachRoutines(User user, LocalDate from, LocalDate to) {
@@ -759,7 +759,7 @@ public class HealthDataContextService {
             weeklyMetricsCalculator.baselineWeeks(user, contextStart, baselineEnd, weeklyMetricsInput).stream()
                 .map(this::toWeeklySummary)
                 .toList(),
-            routines.stream().filter(routine -> routine.getCadence() == RoutineCadence.WEEKLY).map(routine -> toCoachRoutineData(routine, detailedStart, selectedDate)).toList()
+            routines.stream().filter(routine -> routine.getCadence() == RoutineCadence.WEEKLY).map(routine -> toCoachRoutineData(routine, detailedStart, selectedDate).evidence()).toList()
         );
     }
 

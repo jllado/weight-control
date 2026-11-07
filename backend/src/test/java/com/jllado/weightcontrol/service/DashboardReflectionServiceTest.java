@@ -273,6 +273,10 @@ class DashboardReflectionServiceTest {
         Mood baselineMood = mood(detailedStart.minusDays(1), 2, "Baseline note must not be sent");
         Weight weight = weight(selectedDate);
         stubInput(user, selectedDate, List.of(detailedMood, baselineMood), List.of(weight));
+        Routine weeklyRoutine = routine(detailedStart);
+        weeklyRoutine.setId(91L);
+        weeklyRoutine.setCadence(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY);
+        when(routineRepository.findByUserOrderByStartDateAsc(user)).thenReturn(List.of(weeklyRoutine));
         var decision = new com.jllado.weightcontrol.domain.DecisionOutcome();
         decision.setOutcomeDate(selectedDate);
         decision.setOutcome(com.jllado.weightcontrol.domain.DecisionOutcomeType.WIN);
@@ -307,7 +311,8 @@ class DashboardReflectionServiceTest {
             "decisions",
             "decisionSummary",
             "weekProgress",
-            "baselineWeeks"
+            "baselineWeeks",
+            "weeklyRoutines"
         ), fields);
         assertTrue(json.contains("\"contextStart\":\"" + contextStart + "\""));
         assertTrue(json.contains("\"detailedStart\":\"" + detailedStart + "\""));
@@ -323,6 +328,8 @@ class DashboardReflectionServiceTest {
         assertFalse(json.contains("Reason stays outside reflection context"));
         assertFalse(context.path("decisions").get(0).has("reason"));
         assertFalse(json.contains("\"id\""));
+        assertEquals(1, context.path("weeklyRoutines").size());
+        assertEquals("WEEKLY", context.path("weeklyRoutines").get(0).path("cadence").textValue());
         assertFalse(json.contains("photoFrontPath"));
         assertFalse(json.contains("/private/front.jpg"));
         assertFalse(json.contains(user.getEmail()));
