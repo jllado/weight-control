@@ -4606,7 +4606,12 @@ test('Home shortcut stays visible and returns home across responsive navigation 
         await expect(home).not.toHaveAttribute('aria-current', 'page');
         await expect(shell.getByRole('menuitem', {name: 'Home', exact: true, includeHidden: true})).toHaveCount(0);
         await expect(shell.locator('.coach-notes-button')).toBeVisible({visible: width > 575});
+        await page.mouse.move(width - 1, 899);
         await home.focus();
+        await page.keyboard.press('Tab');
+        await expect(home).not.toBeFocused();
+        await page.keyboard.press('Shift+Tab');
+        await expect(home).toBeFocused();
         await expect(page.getByRole('tooltip', {name: 'Home', exact: true})).toBeVisible();
         const box = await home.boundingBox();
         expect(box.width).toBeCloseTo(box.height, 1);
