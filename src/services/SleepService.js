@@ -1,13 +1,14 @@
 import dayjs from 'dayjs';
 import {del, get, post, put} from './api';
 import Sleep from '../model/Sleep';
+import {sleepTimestamp} from '../model/SleepClock';
 import {celebratePersonalRecords} from './CelebrationService';
 
 function toPayload(sleep) {
     return {
         sleepDate: dayjs(sleep.date).format('YYYY-MM-DD'),
-        bedtimeStart: dayjs(sleep.bedtimeStart).format('YYYY-MM-DDTHH:mm:ssZ'),
-        bedtimeEnd: dayjs(sleep.bedtimeEnd).format('YYYY-MM-DDTHH:mm:ssZ'),
+        bedtimeStart: sleepTimestamp(sleep.bedtimeStart, sleep.bedtimeStartOffsetSeconds),
+        bedtimeEnd: sleepTimestamp(sleep.bedtimeEnd, sleep.bedtimeEndOffsetSeconds),
         totalSleepDuration: sleep.totalSleepDuration,
         deepSleepDuration: sleep.deepSleepDuration,
         remSleepDuration: sleep.remSleepDuration,

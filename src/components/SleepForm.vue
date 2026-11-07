@@ -11,15 +11,15 @@
     </div>
     <div class="p-flex-row p-pb-5">
       <span class="p-float-label">
-        <Calendar :modelValue="vv.bedtimeStart.$model" @update:modelValue="setBedtimeStart" dateFormat="dd/mm/yy" appendTo="body" v-model:locale="custom_locale" :maxDate="bedtime_max_datetime" :showTime="true" hourFormat="24" :stepMinute="5" />
-        <label>Bedtime Start</label>
+        <LocalDateTimeInput inputId="sleep-bedtime-start" label="Bedtime Start" :modelValue="vv.bedtimeStart.$model" @update:modelValue="setBedtimeStart" :max="bedtime_max_datetime" />
+        <label for="sleep-bedtime-start-date">Bedtime Start</label>
       </span>
       <span class="error">{{ vv.bedtimeStart?.$errors[0]?.$message }}</span>
     </div>
     <div class="p-flex-row p-pb-5">
       <span class="p-float-label">
-        <Calendar :key="bedtime_end_calendar_key" :modelValue="vv.bedtimeEnd.$model" @update:modelValue="setBedtimeEnd" dateFormat="dd/mm/yy" appendTo="body" v-model:locale="custom_locale" :minDate="bedtime_end_min_datetime" :maxDate="bedtime_max_datetime" :showTime="true" hourFormat="24" :stepMinute="5" />
-        <label>Bedtime End</label>
+        <LocalDateTimeInput inputId="sleep-bedtime-end" label="Bedtime End" :modelValue="vv.bedtimeEnd.$model" @update:modelValue="setBedtimeEnd" :min="bedtime_end_min_datetime" :max="bedtime_max_datetime" />
+        <label for="sleep-bedtime-end-date">Bedtime End</label>
       </span>
       <span class="error">{{ vv.bedtimeEnd?.$errors[0]?.$message }}</span>
     </div>
@@ -88,9 +88,12 @@ import { reactive, toRef } from "vue";
 import { useVuelidate } from "@vuelidate/core";
 import { minValue, required } from "@vuelidate/validators";
 import Sleep from "@/model/Sleep";
+import LocalDateTimeInput from "@/components/LocalDateTimeInput.vue";
+import {sleepEditorValue, sleepInstantFromEditor, normalizeSleepClock} from "@/model/SleepClock";
 
 export default {
   name: "SleepForm",
+  components: {LocalDateTimeInput},
   emits: ["onSave", "onClose"],
   props: {
     show: Boolean,
@@ -113,8 +116,8 @@ export default {
     };
     const fform = reactive({
       date: new Date(),
-      bedtimeStart: new Date(),
-      bedtimeEnd: new Date(),
+      bedtimeStart: null,
+      bedtimeEnd: null,
       deepSleepDuration: null,
       remSleepDuration: null,
       awakeTime: null,
@@ -156,7 +159,10 @@ export default {
       if (!this.vv.bedtimeStart.$model || !this.vv.bedtimeEnd.$model) {
         return null;
       }
-      return differenceInSeconds(this.vv.bedtimeStart.$model, this.vv.bedtimeEnd.$model);
+      return differenceInSeconds(
+          sleepInstantFromEditor(this.vv.bedtimeStart.$model, this.sleep?.bedtimeStartOffsetSeconds),
+          sleepInstantFromEditor(this.vv.bedtimeEnd.$model, this.sleep?.bedtimeEndOffsetSeconds)
+      );
     },
     total_sleep_seconds() {
       if (this.time_in_bed_seconds === null || !this.vv.awakeTime.$model) {
@@ -179,6 +185,9 @@ export default {
       if (this.time_in_bed_seconds <= 0) {
         return 'Bedtime end must be after bedtime start';
       }
+      if (this.vv.bedtimeStart.$model > this.bedtime_max_datetime || this.vv.bedtimeEnd.$model > this.bedtime_max_datetime) {
+        return 'Bedtime cannot be after the selected date or in the future';
+      }
       return null;
     },
     awake_error() {
@@ -200,17 +209,14 @@ export default {
       return null;
     },
     bedtime_max_datetime() {
-      return buildBedtimeMaxDate(this.vv.date.$model, this.max_datetime);
+      return normalizeSleepClock(sleepEditorValue(buildBedtimeMaxDate(this.vv.date.$model, this.max_datetime)));
     },
     bedtime_end_min_datetime() {
       if (!this.vv.bedtimeStart.$model) {
         return null;
       }
-      return addMinutes(this.vv.bedtimeStart.$model, 5);
-    },
-    bedtime_end_calendar_key() {
-      const min = this.bedtime_end_min_datetime ? this.bedtime_end_min_datetime.getTime() : 'none';
-      return `${min}-${this.bedtime_max_datetime.getTime()}`;
+      const instant = sleepInstantFromEditor(this.vv.bedtimeStart.$model, this.sleep?.bedtimeStartOffsetSeconds);
+      return normalizeSleepClock(sleepEditorValue(new Date(instant.getTime() + 5 * 60000), this.sleep?.bedtimeEndOffsetSeconds));
     }
   },
   watch: {
@@ -237,14 +243,14 @@ export default {
       this.alignBedtimesWithDate();
     },
     setBedtimeStart(value) {
-      this.vv.bedtimeStart.$model = cloneDate(value);
-      if (this.vv.bedtimeEnd.$model && this.vv.bedtimeEnd.$model <= this.vv.bedtimeStart.$model) {
-        this.vv.bedtimeEnd.$model = addMinutes(this.vv.bedtimeStart.$model, 5);
+      this.vv.bedtimeStart.$model = value;
+      if (this.vv.bedtimeEnd.$model && this.time_in_bed_seconds <= 0) {
+        this.vv.bedtimeEnd.$model = this.bedtime_end_min_datetime;
       }
       this.clampBedtimeEnd();
     },
     setBedtimeEnd(value) {
-      this.vv.bedtimeEnd.$model = cloneDate(value);
+      this.vv.bedtimeEnd.$model = value;
       this.clampBedtimeEnd();
     },
     setDuration(field, value) {
@@ -253,8 +259,8 @@ export default {
     load_form() {
       if (this.sleep) {
         this.vv.date.$model = this.sleep.date;
-        this.vv.bedtimeStart.$model = normalizeDateToFiveMinutes(this.sleep.bedtimeStart);
-        this.vv.bedtimeEnd.$model = normalizeDateToFiveMinutes(this.sleep.bedtimeEnd);
+        this.vv.bedtimeStart.$model = normalizeSleepClock(sleepEditorValue(this.sleep.bedtimeStart, this.sleep.bedtimeStartOffsetSeconds));
+        this.vv.bedtimeEnd.$model = normalizeSleepClock(sleepEditorValue(this.sleep.bedtimeEnd, this.sleep.bedtimeEndOffsetSeconds));
         this.vv.deepSleepDuration.$model = secondsToDurationDate(this.sleep.deepSleepDuration);
         this.vv.remSleepDuration.$model = secondsToDurationDate(this.sleep.remSleepDuration);
         this.vv.awakeTime.$model = secondsToDurationDate(this.sleep.awakeTime);
@@ -295,7 +301,7 @@ export default {
         return;
       }
       if (this.vv.bedtimeEnd.$model > this.bedtime_max_datetime) {
-        this.vv.bedtimeEnd.$model = cloneDate(this.bedtime_max_datetime);
+        this.vv.bedtimeEnd.$model = this.bedtime_max_datetime;
       }
     },
     async save() {
@@ -309,8 +315,10 @@ export default {
         let sleep = new Sleep();
         sleep.id = this.sleep ? this.sleep.id : null;
         sleep.date = this.vv.date.$model;
-        sleep.bedtimeStart = normalizeDateToFiveMinutes(this.vv.bedtimeStart.$model);
-        sleep.bedtimeEnd = normalizeDateToFiveMinutes(this.vv.bedtimeEnd.$model);
+        sleep.bedtimeStartOffsetSeconds = this.sleep?.bedtimeStartOffsetSeconds;
+        sleep.bedtimeEndOffsetSeconds = this.sleep?.bedtimeEndOffsetSeconds;
+        sleep.bedtimeStart = sleepInstantFromEditor(normalizeSleepClock(this.vv.bedtimeStart.$model), sleep.bedtimeStartOffsetSeconds);
+        sleep.bedtimeEnd = sleepInstantFromEditor(normalizeSleepClock(this.vv.bedtimeEnd.$model), sleep.bedtimeEndOffsetSeconds);
         sleep.totalSleepDuration = normalizeSecondsToFiveMinutes(this.total_sleep_seconds);
         sleep.deepSleepDuration = durationDateToSeconds(this.vv.deepSleepDuration.$model);
         sleep.remSleepDuration = durationDateToSeconds(this.vv.remSleepDuration.$model);
@@ -349,13 +357,13 @@ function buildDefaultBedtimeStart(date) {
   const bedtimeStart = normalizeDateToFiveMinutes(date);
   bedtimeStart.setDate(bedtimeStart.getDate() - 1);
   bedtimeStart.setHours(23, 0, 0, 0);
-  return bedtimeStart;
+  return normalizeSleepClock(sleepEditorValue(bedtimeStart));
 }
 
 function buildDefaultBedtimeEnd(date) {
   const bedtimeEnd = normalizeDateToFiveMinutes(date);
   bedtimeEnd.setHours(7, 0, 0, 0);
-  return bedtimeEnd;
+  return normalizeSleepClock(sleepEditorValue(bedtimeEnd));
 }
 
 function buildBedtimeMaxDate(date, maxDateTime) {
@@ -364,12 +372,6 @@ function buildBedtimeMaxDate(date, maxDateTime) {
   return bedtimeMax.getTime() > maxDateTime.getTime()
       ? normalizeDateToFiveMinutes(maxDateTime)
       : bedtimeMax;
-}
-
-function addMinutes(value, minutes) {
-  const date = cloneDate(value);
-  date.setMinutes(date.getMinutes() + minutes);
-  return date;
 }
 
 function cloneDate(value) {
