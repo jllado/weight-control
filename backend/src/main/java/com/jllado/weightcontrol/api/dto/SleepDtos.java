@@ -5,6 +5,7 @@ import com.jllado.weightcontrol.util.DateTimes;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.AssertTrue;
@@ -16,8 +17,8 @@ public final class SleepDtos {
 
     public record SleepRequest(
         @NotNull LocalDate sleepDate,
-        @NotNull OffsetDateTime bedtimeStart,
-        @NotNull OffsetDateTime bedtimeEnd,
+        @NotNull @JsonFormat(without = JsonFormat.Feature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE) OffsetDateTime bedtimeStart,
+        @NotNull @JsonFormat(without = JsonFormat.Feature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE) OffsetDateTime bedtimeEnd,
         @NotNull @DecimalMin("0") Integer totalSleepDuration,
         @NotNull @DecimalMin("0") Integer deepSleepDuration,
         @NotNull @DecimalMin("0") Integer remSleepDuration,
@@ -30,8 +31,8 @@ public final class SleepDtos {
 
     public record CoachSleepRequest(
         @NotNull LocalDate sleepDate,
-        @NotNull OffsetDateTime bedtimeStart,
-        @NotNull OffsetDateTime bedtimeEnd,
+        @NotNull @JsonFormat(without = JsonFormat.Feature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE) OffsetDateTime bedtimeStart,
+        @NotNull @JsonFormat(without = JsonFormat.Feature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE) OffsetDateTime bedtimeEnd,
         @NotNull @DecimalMin("0") Integer totalSleepDuration,
         @NotNull @DecimalMin("0") Integer deepSleepDuration,
         @NotNull @DecimalMin("0") Integer remSleepDuration,
@@ -55,6 +56,8 @@ public final class SleepDtos {
         String date,
         OffsetDateTime bedtimeStart,
         OffsetDateTime bedtimeEnd,
+        Integer bedtimeStartOffsetSeconds,
+        Integer bedtimeEndOffsetSeconds,
         Integer totalSleepDuration,
         Integer awakeTime,
         Integer deepSleepDuration,
@@ -67,11 +70,13 @@ public final class SleepDtos {
             return new SleepResponse(
                 sleep.getId(),
                 DateTimes.formatDate(sleep.getSleepDate()),
-                sleep.getBedtimeStart() == null ? null : DateTimes.formatDateTime(sleep.getBedtimeStart()),
-                sleep.getBedtimeEnd() == null ? null : DateTimes.formatDateTime(sleep.getBedtimeEnd()),
+                sleep.getBedtimeStart() == null ? null : DateTimes.DATE_TIME_FORMAT.format(sleep.getBedtimeStart()),
+                sleep.getBedtimeEnd() == null ? null : DateTimes.DATE_TIME_FORMAT.format(sleep.getBedtimeEnd()),
                 sleep.getSleepDate().toString(),
                 sleep.getBedtimeStart(),
                 sleep.getBedtimeEnd(),
+                sleep.getBedtimeStart() == null ? null : sleep.getBedtimeStart().getOffset().getTotalSeconds(),
+                sleep.getBedtimeEnd() == null ? null : sleep.getBedtimeEnd().getOffset().getTotalSeconds(),
                 sleep.getTotalSleepDuration(),
                 sleep.getAwakeTime(),
                 sleep.getDeepSleepDuration(),

@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import {sleepClockMinutes} from '../model/SleepClock';
 import {get_stage} from '../model/BloodPressure'
 
 export const TREND_WINDOW_DAYS = 30;
@@ -322,8 +323,8 @@ export default {
             this.get_average(month_sleeps.map(w => w.awakeTime)),
             this.get_average(month_sleeps.map(w => Number(w.averageHeartRate))),
             this.get_average(month_sleeps.map(w => w.averageHrv)),
-            this.get_average_sleep_time(month_sleeps.map(w => w.bedtimeStart), date => this.get_bedtime_start_minutes(date)),
-            this.get_average_sleep_time(month_sleeps.map(w => w.bedtimeEnd), date => this.get_bedtime_end_minutes(date))
+            this.get_average_sleep_time(month_sleeps.filter(w => w.bedtimeStart !== null).map(w => this.get_bedtime_start_minutes(w.bedtimeStart, w.bedtimeStartOffsetSeconds))),
+            this.get_average_sleep_time(month_sleeps.filter(w => w.bedtimeEnd !== null).map(w => sleepClockMinutes(w.bedtimeEnd, w.bedtimeEndOffsetSeconds)))
         );
     },
     get_average_moods(month_moods) {
@@ -349,19 +350,15 @@ export default {
         }
         return this.get_average(month_calories.map(calorie => calorie.calories));
     },
-    get_bedtime_start_minutes(date) {
-        let minutes = date.getHours() * 60 + date.getMinutes();
+    get_bedtime_start_minutes(date, offsetSeconds) {
+        let minutes = sleepClockMinutes(date, offsetSeconds);
         if (minutes < 720) {
             return minutes + 1440;
         }
         return minutes;
     },
-    get_bedtime_end_minutes(date) {
-        return date.getHours() * 60 + date.getMinutes();
-    },
-    get_average_sleep_time(dates, toMinutes) {
-        const available_dates = dates.filter(date => date !== null);
-        return available_dates.length ? this.get_average(available_dates.map(toMinutes)) : null;
+    get_average_sleep_time(minutes) {
+        return minutes.length ? this.get_average(minutes) : null;
     },
     get_projected_sleep_time(current, previous) {
         return current === null || previous === null ? null : this.get_projected_value(current, previous);

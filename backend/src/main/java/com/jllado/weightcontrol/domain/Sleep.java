@@ -5,6 +5,8 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import com.jllado.weightcontrol.util.DateTimes;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
@@ -53,6 +55,37 @@ public class Sleep {
 
     @Column(name = "bedtime_end")
     private OffsetDateTime bedtimeEnd;
+
+    @Column(name = "bedtime_start_offset_seconds")
+    private Integer bedtimeStartOffsetSeconds;
+
+    @Column(name = "bedtime_end_offset_seconds")
+    private Integer bedtimeEndOffsetSeconds;
+
+    public OffsetDateTime getBedtimeStart() {
+        return localTimestamp(bedtimeStart, bedtimeStartOffsetSeconds);
+    }
+
+    public void setBedtimeStart(OffsetDateTime value) {
+        bedtimeStart = value;
+        bedtimeStartOffsetSeconds = value == null ? null : value.getOffset().getTotalSeconds();
+    }
+
+    public OffsetDateTime getBedtimeEnd() {
+        return localTimestamp(bedtimeEnd, bedtimeEndOffsetSeconds);
+    }
+
+    public void setBedtimeEnd(OffsetDateTime value) {
+        bedtimeEnd = value;
+        bedtimeEndOffsetSeconds = value == null ? null : value.getOffset().getTotalSeconds();
+    }
+
+    private static OffsetDateTime localTimestamp(OffsetDateTime value, Integer offsetSeconds) {
+        if (value == null) return null;
+        // Legacy rows did not retain their offset and historically used Madrid clocks.
+        return offsetSeconds == null ? value.atZoneSameInstant(DateTimes.USER_ZONE).toOffsetDateTime()
+            : value.withOffsetSameInstant(ZoneOffset.ofTotalSeconds(offsetSeconds));
+    }
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

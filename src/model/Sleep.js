@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import {sleepClock} from './SleepClock.js';
 
 const MIN_TIME_IN_BED_SECONDS = 7 * 60 * 60;
 const MIN_TOTAL_SLEEP_SECONDS = 6 * 60 * 60;
@@ -26,8 +27,10 @@ export default class Sleep {
         this.dateFormat = source.dateFormat || dayjs(this.date).format('DD/MM/YYYY');
         this.bedtimeStart = source.bedtimeStart == null ? null : new Date(source.bedtimeStart);
         this.bedtimeEnd = source.bedtimeEnd == null ? null : new Date(source.bedtimeEnd);
-        this.bedtimeStartFormat = source.bedtimeStartFormat || (this.bedtimeStart ? dayjs(this.bedtimeStart).format('DD/MM/YYYY HH:mm') : '-');
-        this.bedtimeEndFormat = source.bedtimeEndFormat || (this.bedtimeEnd ? dayjs(this.bedtimeEnd).format('DD/MM/YYYY HH:mm') : '-');
+        this.bedtimeStartOffsetSeconds = source.bedtimeStartOffsetSeconds;
+        this.bedtimeEndOffsetSeconds = source.bedtimeEndOffsetSeconds;
+        this.bedtimeStartFormat = source.bedtimeStartFormat || (this.bedtimeStart ? sleepClock(this.bedtimeStart, this.bedtimeStartOffsetSeconds).format('DD/MM/YYYY HH:mm') : '-');
+        this.bedtimeEndFormat = source.bedtimeEndFormat || (this.bedtimeEnd ? sleepClock(this.bedtimeEnd, this.bedtimeEndOffsetSeconds).format('DD/MM/YYYY HH:mm') : '-');
         this.totalSleepDuration = source.totalSleepDuration;
         this.deepSleepDuration = source.deepSleepDuration;
         this.remSleepDuration = source.remSleepDuration;
@@ -107,7 +110,7 @@ export default class Sleep {
         if (this.bedtimeStart === null || this.bedtimeEnd === null) {
             return 'Not recorded';
         }
-        return `${dayjs(this.bedtimeStart).format('DD/MM HH:mm')} - ${dayjs(this.bedtimeEnd).format('DD/MM HH:mm')}`;
+        return `${sleepClock(this.bedtimeStart, this.bedtimeStartOffsetSeconds).format('DD/MM HH:mm')} - ${sleepClock(this.bedtimeEnd, this.bedtimeEndOffsetSeconds).format('DD/MM HH:mm')}`;
     }
 
     heartRateFormat() {
@@ -124,6 +127,8 @@ export default class Sleep {
             date: this.date,
             bedtimeStart: this.bedtimeStart,
             bedtimeEnd: this.bedtimeEnd,
+            bedtimeStartOffsetSeconds: this.bedtimeStartOffsetSeconds,
+            bedtimeEndOffsetSeconds: this.bedtimeEndOffsetSeconds,
             totalSleepDuration: this.totalSleepDuration,
             deepSleepDuration: this.deepSleepDuration,
             remSleepDuration: this.remSleepDuration,
