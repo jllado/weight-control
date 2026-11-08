@@ -41,6 +41,14 @@ The archive shows the latest preview and paginated weeks; opening a week display
 
 The private GPT schema keeps 30 Actions by extending getReflectionOverview, getReflectionContext and saveReflection with the optional target. Publish schema and instructions only after deploying backend support, then verify weekly read/save behavior in a fresh private-GPT conversation using an existing saved period. Follow the [live acceptance policy](coach-gpt.md#live-acceptance-policy); repository tests and schema validation do not establish live GPT acceptance.
 
+## Weekly review and shared nutrient assessments
+
+The report now separates Overview, Measurements and Reflection & actions. Daily routines lead; only three low-completion routines and three next-week priorities appear initially. Searchable routines, separate weekly habits, all saved recommendations and detailed evidence remain accessible. Measurements group body/pressure, sleep/mood, training/back pain, nutrition, routines and other evidence. Existing classification colors describe absolute status independently of signed changes.
+
+Schema 10 adds optional dated workout targets for all three periods and frozen body-fat/sleep classification stages; ambiguous plan history remains unknown. The optional sleep statusScore reuses the existing four-criterion score with seven complete dated nights, never duration-only severity bands; absent scores retain only the supported saved sleep-goal comparison. New nutrient measures preserve raw assessment means/targets separately from display rounding. Old snapshots are never resaved or recolored with current profile settings.
+
+Across Home, charts, weekly reports, email and Coach, default vitamin D is a neutral reference; only an explicit personal goal receives goal feedback. Omega-3 uses independently covered EPA+DHA and ALA evidence, never a sum of targets or a total-to-subtype inference. Both minima established is met, any established shortfall is below, otherwise unknown. Partial daily totals may establish a reached minimum, never a shortfall. Keep food-source suggestions broad and optional; an owned weekly fish-dinner routine is independent of nutrient adequacy. Publish the additive schema and matching compact instruction block after deployment, retaining 30 Actions and all confirmation/privacy contracts.
+
 ## Target experience
 
 The coach should support natural requests such as:

@@ -888,3 +888,10 @@ Prepare and validate the complete nutrient payload internally, retaining consume
 This presentation refinement supersedes the older full-JSON display requirement. Existing nutrient-source acceptance limitations remain recorded; this change does not claim to resolve them. The backend, Actions structure and persistence contract are unchanged. Publish only the private GPT configuration and verify its exact saved/live hashes. Check fresh banana/kiwi and mixed-meal proposals on actual Instant and Medium, a material portion ambiguity and an explicit JSON request; require no write before consent. Read-only acceptance is sufficient for this display change, so do not create artificial health records.
 
 Published version 173 preserves private access and all 30 Actions; configuration and 18 tests passed independently. Four fresh Instant/Medium food drafts passed readable presentation without JSON or estimate approval; explicit JSON remained read-only and actual-intake ambiguity prompted clarification. This closes the presentation refinement only; the older nutrient-source/persistence acceptance limits above remain applicable. See the [verification record](coach-gpt.md#readable-meal-confirmation-verification--november-7-2026).
+
+## Weekly review and shared nutrient feedback — November 8, 2026
+
+- [x] Add optional frozen workout targets, classification rules and precise nutrient assessment values to the existing weekly context.
+- [x] Align the app and future email on reference-only default vitamin D and independently assessed omega-3 forms.
+- [x] Keep all 30 Actions and preserve food provenance, historical snapshots and confirmation rules.
+- [ ] Publish the updated private GPT schema/instructions after deployment and independently verify saved/live configuration and read-only nutrient feedback.

@@ -9,7 +9,7 @@ import java.util.List;
 public final class WeeklySummaryPresentationMapper {
     private WeeklySummaryPresentationMapper() { }
     public record Presentation(List<Highlight> highlights, List<WeeklyRecommendationMapper.Recommendation> recommendations,
-        List<NutritionRow> nutritionRows, List<String> periods) { }
+        List<NutritionRow> nutritionRows, List<String> periods, WeeklySummaryEmailView.VisualSummary visualSummary) { }
     public record Highlight(String key, String label, String value, String comparison, BigDecimal currentAmount,
         BigDecimal previousAmount, String coverage, int currentWidth, int previousWidth) { }
     public record NutritionRow(String label, String current, String previous, String yearAgo) { }
@@ -40,12 +40,14 @@ public final class WeeklySummaryPresentationMapper {
         return new Presentation(highlights, recommendations, rows, List.of(
             "Current: " + current.startDate() + " – " + current.endDate(),
             "Previous week: " + previous.startDate() + " – " + previous.endDate(),
-            "52 weeks ago: " + snapshot.progress().yearAgoComparablePeriod().startDate() + " – " + snapshot.progress().yearAgoComparablePeriod().endDate()));
+            "52 weeks ago: " + snapshot.progress().yearAgoComparablePeriod().startDate() + " – " + snapshot.progress().yearAgoComparablePeriod().endDate()),
+            new WeeklySummaryEmailViewFactory().visualSummary(snapshot, reflection));
     }
     private static WeeklyNutritionSnapshot.Measure find(WeeklyNutritionSnapshot.Period period, String key) {
-        return period.measures().stream().filter(measure -> measure.key().equals(key)).findFirst().orElseThrow();
+        return period.measures().stream().filter(measure -> measure.key().equals(key)).findFirst().orElse(null);
     }
     private static String nutrient(WeeklyNutritionSnapshot.Measure measure) {
+        if (measure == null) return "Not available";
         String intake = measure.average() == null ? "Not available" : measure.average().stripTrailingZeros().toPlainString() + " " + measure.unit();
         String coverage = measure.eligibleDays() + (measure.eligibleDays() == 1 ? " complete day" : " complete days");
         if (measure.totalFoods() > 0) coverage += " · " + measure.coveredFoods() + "/" + measure.totalFoods() + " foods covered · " + measure.estimatedFoods() + " estimated";

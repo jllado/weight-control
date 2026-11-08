@@ -18,7 +18,7 @@ final class WeeklySummaryEmailFixtures {
         var user = new User(); user.setWeeklyAverageCalorieMaximum(2500); user.setInShapeBodyFatLimit(new BigDecimal("17.000"));
         var captured = WeeklySummaryService.captureEmailGoals(user);
         var goals = new WeeklySummarySnapshot.EmailGoals(Instant.parse("2026-10-26T07:00:00Z"), captured.weeklyAverageCalorieMaximum(), captured.inShapeBodyFatLimit(), captured.rules());
-        return new WeeklySummarySnapshot(9, start, start.plusDays(6), new WeeklyMetrics.Progress(true, current, previous, year),
+        return new WeeklySummarySnapshot(10, start, start.plusDays(6), new WeeklyMetrics.Progress(true, current, previous, year),
             new WeeklySummarySnapshot.OutcomeMeasurements(new WeeklySummarySnapshot.WeightMeasurement(start.plusDays(7), new BigDecimal("68.1"), new BigDecimal("17.001"), new BigDecimal("11.58"), new BigDecimal("75"), new BigDecimal("51.08")),
                 new WeeklySummarySnapshot.BloodPressureMeasurement(start.plusDays(8), 120, 80)),
             null, List.of(routine("Meditation", 1), routine("Walking", 2), routine("Reading", 3), routine("Stretch", 4), routine("Water", 7), routine("Bedtime", 7)),

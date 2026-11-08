@@ -50,17 +50,15 @@ const nutrientDay = (date, key, value, covered, totalFoods = 1, estimatedFoods =
     nutrients: {[key]: value, totalFoods, mealsWithoutFoods: 0,
         [key === 'fiberGrams' ? 'fiberCoverage' : 'omega3Coverage']: {foodsWithValues: covered, estimatedFoods}}});
 
-test('total omega-3 colors direct targets and only one-sided combined subtype shortfalls', () => {
+test('legacy total omega-3 alone cannot establish subtype adequacy', () => {
     const rows = [nutrientDay('2026-10-23', 'omega3Milligrams', 1849.99, 1),
         nutrientDay('2026-10-24', 'omega3Milligrams', 1850.01, 1)];
     const componentTargets = {omega3: {value: null}, epaDha: {value: 250}, ala: {value: 1600}};
-    assert.equal(omega3TrendStatus([rows[0]], omega3, componentTargets).className, 'target-missed');
-    assert.match(omega3TrendStatus([rows[0]], omega3, componentTargets).label, /does not establish either subtype goal/i);
-    assert.equal(omega3TrendStatus(rows, omega3, componentTargets).className, '');
-    assert.match(omega3TrendStatus(rows, omega3, componentTargets).label, /does not establish either subtype goal/i);
-    assert.equal(omega3TrendStatus([rows[0]], omega3, {...componentTargets, ala: {value: null}}).className, '');
-    assert.equal(omega3TrendStatus([rows[0]], omega3, {...componentTargets, omega3: {value: 1800}}).className, 'target-met');
-    assert.match(omega3TrendStatus([rows[0]], omega3, {...componentTargets, omega3: {value: 1900}}).label, /personal total omega-3 minimum/i);
+    for (const omegaTarget of [null, 1800, 1900]) {
+        const status = omega3TrendStatus(rows, omega3, {...componentTargets, omega3: {value: omegaTarget}});
+        assert.equal(status.className, '');
+        assert.equal(status.label, 'Assessment unavailable');
+    }
 });
 
 test('daily and trend field choices use stored total omega-3 without changing food fields', () => {
@@ -131,7 +129,7 @@ test('daily colors compare recorded totals without treating missing foods as zer
     for (const value of [25, 25.01]) assert.equal(dailyNutrientStatus(total(value), fiber, targets).className, 'target-met');
     for (const summary of [total(24.5, 0), total(24.5, 1, 1)]) {
         const status = dailyNutrientStatus(summary, fiber, targets);
-        assert.equal(status.className, 'target-missed');
+        assert.equal(status.className, '');
         assert.match(status.label, /minimum is not yet established/);
     }
     assert.equal(dailyNutrientStatus(total(25, 0), fiber, targets).className, 'target-met');
@@ -140,9 +138,9 @@ test('daily colors compare recorded totals without treating missing foods as zer
     assert.equal(dailyNutrientStatus(total(25), fiber, null), null);
     assert.equal(dailyNutrientStatus(total(25), fiber, {}), null);
     const omega = nutrientDay('2026-10-25', 'omega3Milligrams', 571.13, 1, 2).nutrients;
-    assert.match(dailyNutrientStatus(omega, omega3, targets).label, /minimum is not yet established/);
+    assert.equal(dailyNutrientStatus(omega, omega3, targets).label, 'Assessment unavailable');
     omega.omega3Milligrams = 1850;
     assert.equal(dailyNutrientStatus(omega, omega3, targets).className, '');
-    assert.equal(dailyNutrientStatus(omega, omega3, {...targets, omega3: {value: 1850}}).className, 'target-met');
+    assert.equal(dailyNutrientStatus(omega, omega3, {...targets, omega3: {value: 1850}}).className, '');
     assert.equal(dailyNutrientStatus(omega, omega3, {...targets, ala: {value: null}}).className, '');
 });

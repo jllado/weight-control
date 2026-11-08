@@ -42,6 +42,7 @@ class WeeklyNutritionSnapshotServiceTest {
         assertEquals(3, List.of(snapshot.current(), snapshot.previous(), snapshot.yearAgo()).size());
         var protein = metric(snapshot.current(), "protein");
         assertEquals(new BigDecimal("120.01"), protein.average());
+        assertEquals(0, new BigDecimal("120.005").compareTo(protein.assessmentAverage()));
         assertEquals(2, protein.eligibleDays());
         assertEquals(new BigDecimal("290.91"), metric(snapshot.current(), "carbohydrate").target());
         assertEquals(new BigDecimal("77.32"), metric(snapshot.current(), "fat").target());

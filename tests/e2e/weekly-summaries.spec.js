@@ -132,15 +132,18 @@ test('weekly summary warns before a missing-outcome save and stays usable at tar
     await confirm.getByRole('button', {name: 'Save anyway'}).click();
     await expect(confirm).toBeHidden();
     await expect(page.getByRole('heading', {name: '8 Aug 2026 – 14 Aug 2026'})).toBeVisible();
+    await page.getByRole('tab', {name: 'Reflection & actions', exact: true}).click();
     await expect(page.getByRole('button', {name: 'Add reflection'})).toBeVisible();
-    await expect(page.getByRole('table', {name: 'Weekly recorded metrics'})).toBeHidden();
-    await page.getByText('Recorded metrics', {exact: true}).click();
-    await expect(page.getByText('fat 14.0 kg')).toBeVisible();
-    await expect(page.getByText('Protein 100.0 g/day · 5 days')).toBeVisible();
-    await expect(page.getByText(/Deep 1\.5 h · REM 2\.0 h · Light 3\.5 h · Awake 0\.5 h/)).toBeVisible();
-    await expect(page.getByText('3.5 / 5 · 2 days')).toBeVisible();
+    await page.getByRole('tab', {name: 'Measurements', exact: true}).click();
+    await expect(page.getByRole('table', {name: 'Weekly recorded metrics'}).getByRole('row', {name: /Fat mass/})).toContainText('14.0 kg');
+    await page.getByRole('tab', {name: 'Nutrition', exact: true}).click();
+    await expect(page.getByRole('table', {name: 'Weekly nutrition evidence'}).getByRole('row', {name: /Protein/})).toContainText('100.0 g/day');
+    await page.getByRole('tab', {name: 'Sleep & mood', exact: true}).click();
+    await expect(page.getByRole('table', {name: 'Sleep and mood measurements'}).getByRole('row', {name: /Deep sleep/})).toContainText('1.5 h');
+    await expect(page.getByRole('row', {name: /Mood 3.5/})).toContainText('2 days');
+    await page.getByRole('tab', {name: 'Other metrics', exact: true}).click();
     await expect(page.getByText(/Flexibility 75% · Mind 50%/)).toBeVisible();
-    await page.getByText('Eligible check-in days', {exact: true}).click();
+    await page.getByRole('tab', {name: 'Routines', exact: true}).click();
     await expect(page.getByText('Below 60%', {exact: true})).toBeVisible();
     for (const width of [320, 376, 390, 640, 760, 761, 1280]) {
         await page.setViewportSize({width, height: 900});
@@ -152,6 +155,7 @@ test('weekly summary warns before a missing-outcome save and stays usable at tar
     await expect(page.getByRole('button', {name: 'Open latest summary'})).toBeEnabled();
     await expect(page.getByRole('button', {name: 'Create weekly summary'})).toBeHidden();
     await page.getByRole('button', {name: 'Open latest summary'}).click();
+    await page.getByRole('tab', {name: 'Reflection & actions', exact: true}).click();
     await expect(page.getByRole('button', {name: 'Add reflection'})).toBeVisible();
 });
 
@@ -204,36 +208,42 @@ test('weekly summaries separate archive and compact detail, distinguish averages
     await expect(page).toHaveURL(/\/weekly-summaries\/2026-10-02$/);
     await expect(archive).toHaveCount(0);
     await expect(detail).toBeVisible();
-    await expect(detail.getByRole('heading', {name: 'Weekly progress'})).toBeVisible();
-    await expect(detail.getByText('A separate weekly review of recorded evidence.')).toBeVisible();
-    await expect(detail.getByText('Continue recording comparable evidence.')).toBeVisible();
     await expect(detail.getByRole('heading', {name: 'Your week at a glance'})).toBeVisible();
+    await page.getByRole('tab', {name: 'Reflection & actions', exact: true}).click();
+    await expect(detail.getByRole('heading', {name: 'Weekly progress'})).toBeVisible();
+    await expect(page.getByRole('tabpanel', {name: 'Reflection & actions', exact: true}).getByText('A separate weekly review of recorded evidence.')).toBeVisible();
+    await expect(detail.getByText('Continue recording comparable evidence.')).toBeVisible();
+    await expect(detail.getByRole('link', {name: 'Activate action'})).toHaveCount(1);
+    await detail.getByText('More recommendations · 1', {exact: true}).click();
     await expect(detail.getByRole('link', {name: 'Activate action'})).toHaveCount(2);
     await expect(detail.getByText('Review the recorded evidence next week.', {exact: true})).toHaveCount(1);
+    await page.getByRole('tab', {name: 'Measurements', exact: true}).click();
     await expect(detail.getByText('69.1 kg · 3 Oct 2026')).toBeVisible();
     await expect(detail.getByText('118 / 78 mmHg · 4 Oct 2026')).toBeVisible();
     await expect(detail.getByText('2 Oct 2026 – 4 Oct 2026', {exact: true})).toBeVisible();
-    await expect(detail.locator('details[open]')).toHaveCount(0);
+    await page.getByRole('tab', {name: 'Reflection & actions', exact: true}).click();
     await expect(page.getByRole('button', {name: 'Update reflection'})).toBeVisible();
     for (const width of [320, 390, 1280]) {
         await page.setViewportSize({width, height: 900});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-compact-detail-${width}.png`), fullPage: true});
     }
-    const metricsToggle = detail.locator('summary').filter({hasText: 'Recorded metrics'});
+    const metricsToggle = page.getByRole('tab', {name: 'Measurements', exact: true});
     await metricsToggle.focus();
     await page.keyboard.press('Enter');
     const metrics = page.getByRole('table', {name: 'Weekly recorded metrics'});
     await expect(metrics).toBeVisible();
     await expect(metrics.getByRole('columnheader', {name: /This week.*26 Sep 2026 – 2 Oct 2026/})).toBeVisible();
     await expect(metrics.getByRole('columnheader', {name: /Last week.*19 Sep 2026 – 25 Sep 2026/})).toBeVisible();
-    await expect(metrics.getByRole('cell', {name: /This week · 26 Sep 2026 – 2 Oct 2026: 70.4 kg · 2 readings/})).toBeVisible();
+    await expect(metrics.getByRole('row', {name: /Average weight/})).toContainText('70.4 kg');
+    await expect(metrics.getByRole('row', {name: /Average weight/})).toContainText('2 readings');
     await expect(metrics.getByText('Not recorded', {exact: true}).first()).toBeVisible();
     for (const width of [320, 390, 1280]) {
         await page.setViewportSize({width, height: 900});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-metrics-${width}.png`), fullPage: true});
     }
+    await page.getByRole('tab', {name: 'Reflection & actions', exact: true}).click();
     const reflectionToggle = detail.locator('summary').filter({hasText: 'Reflection details'});
     await reflectionToggle.focus();
     await page.keyboard.press('Space');
@@ -243,7 +253,7 @@ test('weekly summaries separate archive and compact detail, distinguish averages
     const readsBeforeRefresh = detailReads;
     await detail.getByRole('button', {name: 'Refresh reflection'}).click();
     await expect(detail.getByRole('heading', {name: 'Updated weekly progress'})).toBeVisible();
-    await expect(detail.getByText('The newly saved reflection is now visible.')).toBeVisible();
+    await expect(page.getByRole('tabpanel', {name: 'Reflection & actions', exact: true}).getByText('The newly saved reflection is now visible.')).toBeVisible();
     expect(detailReads).toBe(readsBeforeRefresh + 1);
     await expect(page).toHaveURL(/\/weekly-summaries\/2026-10-02$/);
 });
@@ -303,6 +313,7 @@ test('weekly archive opens standalone summaries, copies selected evidence window
     const detail = page.getByRole('region', {name: 'Weekly summary details'});
     const copySelectedPrompt = async summary => {
         const coachPagePromise = context.waitForEvent('page');
+        await page.getByRole('tab', {name: 'Reflection & actions', exact: true}).click();
         await detail.getByRole('button', {name: 'Add reflection'}).click();
         const coachPage = await coachPagePromise;
         await expect(coachPage).toHaveTitle('Coach');
@@ -333,15 +344,16 @@ test('weekly archive opens standalone summaries, copies selected evidence window
     await expect(detail.locator('details[open]')).toHaveCount(0);
     const oldestPrompt = await copySelectedPrompt(oldest);
     expect(oldestPrompt).not.toContain(summaries[0].fridayDate);
-    await detail.getByText('Check-ins and episodes', {exact: true}).click();
+    await page.getByRole('tab', {name: 'Measurements', exact: true}).click();
+    await page.getByRole('tab', {name: 'Training & back pain', exact: true}).click();
     await expect(detail).toContainText('2 pain episodes across 2 days');
     await expect(detail).toContainText('Severity');
     await expect(detail).toContainText('mild: 1 · moderate: 1');
-    const metricsToggle = page.getByText('Recorded metrics', {exact: true});
+    const metricsToggle = page.getByRole('tab', {name: 'Body & pressure', exact: true});
     await expect(metricsToggle).toBeVisible();
     await metricsToggle.click();
     await expect(page.getByRole('table', {name: 'Weekly recorded metrics'})).toBeVisible();
-    await metricsToggle.click();
+    await page.getByRole('tab', {name: 'Overview', exact: true}).click();
     await expect(page.getByRole('table', {name: 'Weekly recorded metrics'})).toBeHidden();
 
     await page.getByRole('button', {name: 'Back to weekly summaries'}).click();
@@ -438,7 +450,8 @@ test('saved workout activity compares overlapping categories and exact cardio mi
         return json([]);
     });
     await page.goto(`/weekly-summaries/${fridayDate}`);
-    await page.getByText('Recorded metrics', {exact: true}).click();
+    await page.getByRole('tab', {name: 'Measurements', exact: true}).click();
+    await page.getByRole('tab', {name: 'Training & back pain', exact: true}).click();
     const activity = page.getByRole('rowgroup', {name: 'Workout activity'});
     await expect(activity).toBeVisible();
     const strength = activity.getByRole('row').filter({has: page.getByRole('rowheader', {name: 'Strength sessions', exact: true})});
@@ -448,12 +461,12 @@ test('saved workout activity compares overlapping categories and exact cardio mi
     const cardio = activity.getByRole('row').filter({has: page.getByRole('rowheader', {name: 'Active cardio minutes', exact: true})});
     await expect(cardio).toContainText('1.5 min · Partial coverage');
     await expect(cardio).toContainText('0.5 min');
-    await expect(cardio).toContainText('+1 min vs last week');
+    await expect(cardio).toContainText('Not available vs last week');
     await expect(activity.getByRole('row').filter({has: page.getByRole('rowheader', {name: 'Cardio sessions', exact: true})})).toContainText('0 sessions');
-    await expect(page.getByRole('table', {name: 'Weekly recorded metrics'})).toContainText('2.4 km');
+    await expect(page.getByRole('table', {name: 'Workout measurements', exact: true})).toContainText('2.4 km');
     await expect(activity.getByRole('row').filter({has: page.getByRole('rowheader', {name: 'Cardio sessions', exact: true})}).getByRole('cell').first()).toContainText('2 sessions');
     await expect(activity.getByRole('row').filter({has: page.getByRole('rowheader', {name: 'Stretching sessions', exact: true})}).getByRole('cell').first()).toContainText('2 sessions');
-    await expect(page.getByRole('table', {name: 'Weekly recorded metrics'})).not.toContainText('6 sessions');
+    await expect(page.getByRole('table', {name: 'Weekly workout activity'})).not.toContainText('6 sessions');
     for (const width of [320, 376, 390, 640, 760, 761, 1280]) {
         await page.setViewportSize({width, height: 900});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -467,7 +480,8 @@ test('saved workout activity compares overlapping categories and exact cardio mi
     await page.setViewportSize({width: 390, height: 900});
     snapshot.progress.currentPeriod.workouts = {...snapshot.progress.yearAgoComparablePeriod.workouts};
     await page.reload();
-    await page.getByText('Recorded metrics', {exact: true}).click();
+    await page.getByRole('tab', {name: 'Measurements', exact: true}).click();
+    await page.getByRole('tab', {name: 'Training & back pain', exact: true}).click();
     await expect(activity.getByRole('row').filter({has: page.getByRole('rowheader', {name: 'Strength sessions', exact: true})}).getByRole('cell').first()).toHaveText('Not available');
     await page.screenshot({animations: 'disabled', path: testInfo.outputPath('weekly-workout-legacy-390.png'), fullPage: true});
     expect(errors).toEqual([]);
@@ -497,7 +511,8 @@ test('new weekly nutrition renders captured coverage and targets without fetchin
     });
     await page.addInitScript(date => window.history.replaceState({}, '', '/weekly-summaries/' + date), fridayDate);
     await page.goto('/');
-    await page.getByText('Current targets captured when saved', {exact: true}).click();
+    await page.getByRole('tab', {name: 'Measurements', exact: true}).click();
+    await page.getByRole('tab', {name: 'Nutrition', exact: true}).click();
     const table = page.getByRole('table', {name: 'Weekly nutrition evidence'});
     await expect(table.getByText('250 mg · 1 complete day · 3/4 foods covered · 2 estimated · Current target ≥250 mg')).toBeVisible();
     await expect(table.getByText('Not available · 0 complete days · Current target ≥1600 mg')).toHaveCount(3);
@@ -530,6 +545,7 @@ test('weekly reflection shows immutable rolling warning snapshots and preserves 
     });
     await page.addInitScript(friday => window.history.replaceState({}, '', `/weekly-summaries/${friday}`), fridayDate);
     await page.goto('/');
+    await page.getByRole('tab', {name: 'Reflection & actions', exact: true}).click();
     const review = page.getByRole('region', {name: 'Warning progress'});
     await expect(review.getByRole('article')).toHaveCount(2);
     await expect(review).toContainText(/Triggered 26 Sept? 2026/);
@@ -548,6 +564,7 @@ test('weekly reflection shows immutable rolling warning snapshots and preserves 
     }
     // Reopen the saved route through the static test server's SPA entry document.
     await page.goto('/');
+    await page.getByRole('tab', {name: 'Reflection & actions', exact: true}).click();
     await expect(review.getByRole('row', {name: /Asleep/})).toContainText('42h');
     await expect(review.getByRole('row', {name: /Calories/})).toContainText('2,882.71');
     summary.reflection.warningReview = null;
@@ -558,4 +575,125 @@ test('weekly reflection shows immutable rolling warning snapshots and preserves 
     await expect(review).toContainText('No active warnings to review');
     await expect(review.getByRole('article')).toHaveCount(0);
     expect(writes).toEqual([]);
+});
+
+test('weekly review starts with routines and separates searchable measurements from saved priorities', async ({page}, testInfo) => {
+    const summary = structuredClone(savedSummary);
+    summary.snapshot.routines = Array.from({length: 5}, (_, index) => ({name: `Routine ${index + 1}`, completedDays: index, eligibleDays: 7, percentage: index * 100 / 7}));
+    summary.snapshot.weeklyRoutines = [{name: 'Weekly check', completedWeeks: 1, eligibleWeeks: 1, percentage: 100, checkinDates: ['2026-08-14']}];
+    summary.presentation.recommendations = Array.from({length: 5}, (_, index) => ({sourceKey: `weekly:42:${String(index).repeat(64)}`, wording: `Saved priority ${index + 1}`, provenance: [index < 4 ? 'Next week' : 'Nutrition']}));
+    await page.route('**/api/**', route => {
+        const path = new URL(route.request().url()).pathname;
+        const values = {
+            '/api/auth/me': {authenticated: true, email: 'owner@example.com'}, '/api/profile': {},
+            '/api/urge-pauses': {pause: null, serverNow: '2026-08-17T07:00:00Z'},
+            '/api/weekly-summary': {actionConfigured: true, items: [], page: 0, totalPages: 0, totalElements: 0},
+            '/api/weekly-summary/preview': {alreadySaved: true, snapshot: summary.snapshot},
+            ['/api/weekly-summary/' + fridayDate]: summary
+        };
+        return route.fulfill({json: values[path] || []});
+    });
+    await page.addInitScript(date => window.history.replaceState({}, '', '/weekly-summaries/' + date), fridayDate);
+    await page.goto('/');
+    const overview = page.getByRole('tabpanel', {name: 'Overview', exact: true});
+    await expect(overview.getByRole('heading', {name: 'Daily routines', exact: true})).toBeVisible();
+    await expect(overview.locator('.routine-attention')).toHaveCount(3);
+    await expect(page.getByRole('tab', {name: 'Overview', exact: true})).toHaveAttribute('aria-selected', 'true');
+    await page.getByRole('tab', {name: 'Overview', exact: true}).focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(page.getByRole('tab', {name: 'Measurements', exact: true})).toHaveAttribute('aria-selected', 'true');
+    await page.getByRole('tab', {name: 'Routines', exact: true}).click();
+    await page.getByRole('textbox', {name: 'Find a routine'}).fill('Routine 5');
+    const routines = page.getByRole('tabpanel', {name: 'Routines', exact: true});
+    await expect(routines.getByText('Routine 5', {exact: true})).toBeVisible();
+    await expect(routines.getByText('Routine 1', {exact: true})).toHaveCount(0);
+    await expect(routines.getByText('Weekly check', {exact: true})).toBeVisible();
+    await page.getByRole('tab', {name: 'Reflection & actions', exact: true}).click();
+    const reflection = page.getByRole('tabpanel', {name: 'Reflection & actions', exact: true});
+    await expect(reflection.getByText('Saved priority 3', {exact: true})).toBeVisible();
+    await expect(reflection.getByText('Saved priority 4', {exact: true})).toBeHidden();
+    await reflection.getByText('More recommendations · 2', {exact: true}).click();
+    await expect(reflection.getByText('Saved priority 4', {exact: true})).toBeVisible();
+    await expect(reflection.getByRole('link', {name: 'Activate action'}).first()).toHaveAttribute('href', '/actions?source=weekly:42:' + '0'.repeat(64));
+    for (const width of [376, 390, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-review-priorities-${width}.png`), fullPage: true});
+    }
+});
+
+test('weekly saved classifications and compact nutrient references remain separate from neutral weight changes', async ({page}, testInfo) => {
+    const summary = structuredClone(savedSummary);
+    const good = {label: 'Goal met', color: '#287d4b'};
+    const below = {label: 'Below goal', color: '#b33b35'};
+    const neutral = {label: 'Reference only', color: '#63717b'};
+    summary.snapshot.emailGoals = {rules: {version: 2, sleepMinimumSeconds: 21600, bodyFatStages: [{label: 'EXCELLENT', threshold: 13, color: '#287d4b'}], sleepStages: [{label: 'EXCELLENT', threshold: 4, color: '#287d4b'}, {label: 'FAIR', threshold: 2, color: '#63717b'}], bloodPressureStages: [{label: 'NORMAL', systolicAbove: null, diastolicAbove: null, color: '#287d4b'}], moodGoodMinimum: 3, moodNeutralMinimum: 2}};
+    summary.snapshot.progress.currentPeriod.sleep.statusScore = 4;
+    const nutrient = (key, label, current, target, status) => ({key, label, current, target, status, previous: 'Not available', previousTarget: 'Unavailable', previousStatus: {label: 'Unavailable', color: '#63717b'}, previousDelta: {text: 'Not available', color: '#63717b'}, yearAgo: 'Not available', yearAgoTarget: 'Unavailable', yearAgoStatus: {label: 'Unavailable', color: '#63717b'}, yearAgoDelta: {text: 'Not available', color: '#63717b'}, coverage: '7 complete days'});
+    summary.presentation.visualSummary = {
+        routines: {value: '57%', completed: 4, opportunities: 7, days: [], previous: {text: '+14 pp'}, yearAgo: {text: '0 pp'}, watchouts: [], watchoutCount: 0}, overview: [], workouts: [{label: 'Strength sessions', current: '2', previous: '1', yearAgo: 'Not available', target: 'Plan: 2', status: {label: 'Planned count reached', color: '#287d4b'}, previousDelta: {text: '+1', color: '#63717b'}, yearAgoDelta: {text: 'Not available', color: '#63717b'}}],
+        nutrition: {note: 'Saved targets', rows: [nutrient('protein', 'Protein', '138.2 g', '≥115 g', good), nutrient('carbohydrate', 'Carbs', '310.6 g', '≤293.2 g', {label: 'Above goal', color: '#b33b35'}), nutrient('fat', 'Fat', '81.2 g', '≤77.8 g', {label: 'Above goal', color: '#b33b35'}), nutrient('vitaminD', 'Vitamin D', '5.3 µg', '15 µg reference', neutral), nutrient('omega3', 'Total omega-3', '1433 mg', 'EPA+DHA and ALA goals', below), nutrient('fiber', 'Fiber', '42.7 g', '≥25 g', good), nutrient('magnesium', 'Magnesium', '382 mg', '≥350 mg', good)], references: [nutrient('epaDha', 'EPA+DHA', '427 mg', '≥250 mg', good), nutrient('ala', 'ALA', '896 mg', '≥1600 mg', below)]}
+    };
+    let liveReads = 0;
+    await page.route('**/api/**', route => {
+        const path = new URL(route.request().url()).pathname;
+        if (path.includes('/nutrition/targets') || path.includes('/weekly-calorie-plans')) liveReads++;
+        const values = {'/api/auth/me': {authenticated: true}, '/api/profile': {}, '/api/urge-pauses': {pause: null, serverNow: '2026-08-17T07:00:00Z'}, '/api/weekly-summary': {actionConfigured: true, items: [], page: 0, totalPages: 0}, '/api/weekly-summary/preview': {alreadySaved: true, snapshot: summary.snapshot}, ['/api/weekly-summary/' + fridayDate]: summary};
+        return route.fulfill({json: values[path] || []});
+    });
+    await page.addInitScript(date => window.history.replaceState({}, '', '/weekly-summaries/' + date), fridayDate);
+    await page.goto('/');
+    const overview = page.getByRole('tabpanel', {name: 'Overview', exact: true});
+    await expect(overview.getByRole('table', {name: 'Nutrition daily averages'}).getByRole('rowgroup').getByRole('row')).toHaveCount(7);
+    await expect(overview.getByRole('table', {name: 'Workout activity overview'})).toBeVisible();
+    await overview.getByRole('button', {name: 'View references'}).click();
+    await expect(page.getByRole('table', {name: 'Omega-3 references'})).toBeVisible();
+    await page.getByRole('tab', {name: 'Body & pressure', exact: true}).click();
+    const body = page.getByRole('table', {name: 'Weekly recorded metrics'});
+    await expect(body.getByRole('row', {name: /Body fat/})).toContainText('EXCELLENT');
+    await expect(body.getByRole('row', {name: /Average blood pressure/})).toContainText('NORMAL');
+    await expect(body.getByRole('row', {name: /Average weight/})).not.toContainText('EXCELLENT');
+    for (const width of [376, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-body-statuses-${width}.png`), fullPage: true});
+    }
+    await page.getByRole('tab', {name: 'Sleep & mood', exact: true}).click();
+    await expect(page.getByRole('row', {name: /Total sleep/})).toContainText('EXCELLENT');
+    await page.getByRole('tab', {name: 'Nutrition', exact: true}).click();
+    const nutrients = page.getByRole('table', {name: 'Weekly nutrition evidence'});
+    await expect(nutrients.getByRole('row')).toHaveCount(8);
+    const missingBaseline = nutrients.getByRole('row', {name: /Vitamin D/}).getByRole('cell').nth(1);
+    await expect(missingBaseline).toHaveText('Not available');
+    await expect(nutrients.getByRole('row', {name: /Vitamin D/})).toContainText('Reference only');
+    await expect(nutrients.getByRole('row', {name: /Total omega-3/})).toContainText('Below goal');
+    await expect(nutrients).not.toContainText('EPA+DHA');
+    await expect(nutrients).not.toContainText('ALA goals');
+    await page.getByText('Omega-3 references', {exact: true}).click();
+    await expect(page.getByRole('table', {name: 'Omega-3 references'})).toBeHidden();
+    await nutrients.getByRole('button', {name: 'View references'}).click();
+    await expect(page.getByRole('table', {name: 'Omega-3 references'}).getByRole('row', {name: /ALA/})).toContainText('Below goal');
+    for (const width of [376, 390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-nutrition-statuses-${width}.png`), fullPage: true});
+    }
+    summary.snapshot.progress.currentPeriod.sleep.statusScore = 2;
+    await page.goto('/');
+    await page.getByRole('tab', {name: 'Measurements', exact: true}).click();
+    await page.getByRole('tab', {name: 'Sleep & mood', exact: true}).click();
+    await expect(page.getByRole('row', {name: /Total sleep/})).toContainText('FAIR');
+    await expect(page.getByRole('row', {name: /Total sleep/})).not.toContainText('EXCELLENT');
+    summary.snapshot.progress.currentPeriod.sleep.statusScore = null;
+    await page.goto('/');
+    await page.getByRole('tab', {name: 'Measurements', exact: true}).click();
+    await page.getByRole('tab', {name: 'Sleep & mood', exact: true}).click();
+    await expect(page.getByRole('row', {name: /Total sleep/})).toContainText('Goal met');
+    summary.snapshot.emailGoals = {inShapeBodyFatLimit: 17, rules: {version: 1, sleepMinimumSeconds: 21600}};
+    await page.goto('/');
+    await page.getByRole('tab', {name: 'Measurements', exact: true}).click();
+    await expect(page.getByRole('row', {name: /Body fat/})).toContainText('Above goal');
+    await expect(page.getByRole('row', {name: /Body fat/})).not.toContainText('EXCELLENT');
+    await page.getByRole('tab', {name: 'Sleep & mood', exact: true}).click();
+    await expect(page.getByRole('row', {name: /Total sleep/})).toContainText('Goal met');
+    expect(liveReads).toBe(0);
 });

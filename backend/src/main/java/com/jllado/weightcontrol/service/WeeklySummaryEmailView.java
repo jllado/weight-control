@@ -33,10 +33,11 @@ public record WeeklySummaryEmailView(
     public record DayBar(String label, String value, int width, Status status) { }
     public record RoutineAttention(String name, String value) { }
     public record OverviewCard(String key, String label, String value, String detail, Status status, Delta previous, Delta yearAgo) { }
-    public record WorkoutRow(String label, String current, String previous, Delta previousDelta, String yearAgo, Delta yearAgoDelta) { }
-    public record NutritionTable(List<NutrientRow> rows, boolean hasYearAgo, String note) { }
+    public record WorkoutRow(String label, String current, String previous, Delta previousDelta, String yearAgo, Delta yearAgoDelta, String target, Status status,
+        String previousTarget, Status previousStatus, String yearAgoTarget, Status yearAgoStatus) { }
+    public record NutritionTable(List<NutrientRow> rows, boolean hasYearAgo, String note, List<NutrientRow> references) { }
     public record NutrientRow(String key, String label, String current, String target, Status status, String previous,
-        String previousTarget, Delta previousDelta, String yearAgo, String yearAgoTarget, Delta yearAgoDelta, String coverage) { }
+        String previousTarget, Delta previousDelta, String yearAgo, String yearAgoTarget, Delta yearAgoDelta, String coverage, Status previousStatus, Status yearAgoStatus) { }
     public record WeeklyRoutineView(String name, String value, String dates) { }
     public record ReflectionTeaser(String title, String summary) { }
 

@@ -279,3 +279,39 @@ test('weekly nutrition remains optional for legacy snapshots and freezes every c
     assert.ok(models.WeeklyNutritionMeasure.required.includes('unavailableReason'));
     assert.equal(models.WeeklySummarySnapshot.properties.personalRecords.items.properties.subjectLabel.type[1], 'null');
 });
+
+
+test('weekly review v10 adds optional frozen rules, precise nutrition and dated plan evidence', () => {
+    const value = yaml.load(fs.readFileSync(path.resolve(__dirname, '../../docs/coach/coach-action.openapi.yaml'), 'utf8'));
+    const models = value.components.schemas;
+    assert.ok(!models.WeeklySummarySnapshot.required.includes('workoutTargets'));
+    assert.deepEqual(models.WeeklySummarySnapshot.properties.workoutTargets.oneOf, [
+        {$ref: '#/components/schemas/WeeklyWorkoutTargets'}, {type: 'null'}
+    ]);
+    for (const period of ['current', 'previous', 'yearAgo']) {
+        assert.equal(models.WeeklyWorkoutTargets.properties[period].$ref, '#/components/schemas/WeeklyWorkoutTargetPeriod');
+    }
+    const plan = models.WeeklyWorkoutTargetPeriod;
+    assert.equal(plan.properties.days.items.properties.evidence.$ref, '#/components/schemas/AssessmentWeeklyPlan');
+    for (const field of ['totalSessions', 'strengthSessions', 'cardioSessions', 'stretchingSessions', 'saunaSessions', 'activeCardioSeconds']) {
+        assert.deepEqual(plan.properties[field].type, ['integer', 'null']);
+        assert.ok(plan.required.includes(field));
+    }
+    const rules = models.WeeklyEmailGoals.properties.rules;
+    for (const field of ['bodyFatStages', 'sleepStages']) {
+        assert.ok(!rules.required.includes(field));
+        assert.deepEqual(rules.properties[field].type, ['array', 'null']);
+        assert.equal(rules.properties[field].items.$ref, '#/components/schemas/WeeklyClassificationRule');
+    }
+    assert.ok(!rules.required.includes('nutrientAssessmentVersion'));
+    assert.match(rules.properties.bodyFatStages.description, /strict value > threshold/);
+    assert.match(rules.properties.sleepStages.description, /value >= threshold/);
+    for (const field of ['assessmentAverage', 'assessmentTarget']) {
+        assert.ok(!models.WeeklyNutritionMeasure.required.includes(field));
+        assert.deepEqual(models.WeeklyNutritionMeasure.properties[field].type, ['number', 'null']);
+    }
+    assert.deepEqual(models.WeeklyClassificationRule.required, ['label', 'threshold', 'color']);
+    assert.deepEqual(models.AverageSleep.properties.statusScore.type, ['integer', 'null']);
+    assert.equal(models.AverageSleep.properties.statusScore.maximum, 4);
+    assert.match(rules.properties.sleepStages.description, /Require saved statusScore/);
+});

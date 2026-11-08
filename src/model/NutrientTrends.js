@@ -7,7 +7,7 @@ export function nutrientValue(item, field) {
 
 export function nutrientCoverage(item, field) {
     const nutrients = item?.nutrients;
-    return nutrients?.[field.coverageKey] ?? (field.key === 'epaDhaMilligrams' ? null : {
+    return nutrients?.[field.coverageKey] ?? (['epaDhaMilligrams', 'alaMilligrams'].includes(field.key) ? null : {
         foodsWithValues: nutrients?.foodsWithValues ?? 0, estimatedFoods: nutrients?.estimatedFoods ?? 0
     });
 }
@@ -58,37 +58,50 @@ export function nutrientMinimumStatus(rows, field, target) {
 }
 
 export function omega3TrendStatus(rows, field, targets) {
-    const direct = targets.omega3?.value;
-    if (direct != null) {
-        const status = nutrientMinimumStatus(rows, field, direct);
-        return {...status, label: status.className === 'target-met'
-            ? 'Stored total omega-3 is at or above the personal total omega-3 minimum'
-            : 'Stored total omega-3 is below the personal total omega-3 minimum'};
-    }
-    const epaDha = targets.epaDha?.value, ala = targets.ala?.value;
-    if (epaDha == null || ala == null) return {className: '', label: 'No compatible total omega-3 target or complete pair of subtype minima is available'};
-    const combined = cents(epaDha) + cents(ala);
-    const below = sumCents(rows, field) < BigInt(rows.length) * combined;
-    return {className: below ? 'target-missed' : '',
-        label: `Stored total omega-3 is ${below ? 'below' : 'at or above'} the combined EPA+DHA and ALA minima (${roundedCentsLabel(combined, 1n)} mg/day); this does not establish either subtype goal`};
+    return combinedOmegaStatus(omegaFields.map(component => {
+        const covered = rows.filter(row => isNutrientCovered(row, component));
+        const target = targets[component.targetKey]?.value;
+        return !covered.length || target == null ? null : nutrientMinimumStatus(covered, component, target).className;
+    }));
 }
 
-export function dailyNutrientStatus(summary, field, targets) {
+const omegaFields = [
+    {key: 'epaDhaMilligrams', coverageKey: 'epaDhaCoverage', targetKey: 'epaDha'},
+    {key: 'alaMilligrams', coverageKey: 'alaCoverage', targetKey: 'ala'}
+];
+
+function combinedOmegaStatus(statuses) {
+    if (statuses.includes('target-missed')) return {className: 'target-missed', label: 'Below goal'};
+    if (statuses.every(status => status === 'target-met')) return {className: 'target-met', label: 'Goal met'};
+    return {className: '', label: 'Assessment unavailable'};
+}
+
+export function nutrientTargetStatus(rows, field, targets) {
+    if (field.key === 'omega3Milligrams') return omega3TrendStatus(rows, field, targets);
+    const key = {vitaminDMicrograms: 'vitaminD', magnesiumMilligrams: 'magnesium', fiberGrams: 'fiber'}[field.key];
+    const target = targets[key];
+    if (target?.value == null || !rows.length) return null;
+    if (key === 'vitaminD' && target.source !== 'PERSONAL') return {className: '', label: 'Reference only'};
+    return nutrientMinimumStatus(rows, field, target.value);
+}
+
+function dailyMinimumStatus(summary, field, target, completed) {
+    if (summary[field.key] == null || target == null) return null;
+    const status = nutrientMinimumStatus([{nutrients: summary}], field, target);
+    const coverage = nutrientCoverage({nutrients: summary}, field);
+    const partial = !completed || summary.totalFoods === 0 || summary.mealsWithoutFoods > 0 || coverage?.foodsWithValues !== summary.totalFoods;
+    return partial && status.className === 'target-missed'
+        ? {className: '', label: 'Partial recorded total; the minimum is not yet established.'} : status;
+}
+
+export function dailyNutrientStatus(summary, field, targets, completed = true) {
     if (summary[field.key] == null || !targets) return null;
-    const rows = [{nutrients: summary}];
-    let status;
-    if (field.key === 'omega3Milligrams') status = omega3TrendStatus(rows, field, targets);
-    else {
-        const key = {vitaminDMicrograms: 'vitaminD', magnesiumMilligrams: 'magnesium', fiberGrams: 'fiber'}[field.key];
-        const target = targets[key]?.value;
-        if (target == null) return null;
-        status = nutrientMinimumStatus(rows, field, target);
+    if (field.key === 'omega3Milligrams') {
+        return combinedOmegaStatus(omegaFields.map(component => dailyMinimumStatus(summary, component, targets[component.targetKey]?.value, completed)?.className));
     }
-    const partial = summary.mealsWithoutFoods > 0 || summary[field.coverageKey].foodsWithValues < summary.totalFoods;
-    if (partial && status.className === 'target-missed') {
-        return {...status, label: 'Partial recorded total; the minimum is not yet established.'};
-    }
-    return status;
+    const key = {vitaminDMicrograms: 'vitaminD', magnesiumMilligrams: 'magnesium', fiberGrams: 'fiber'}[field.key];
+    if (key === 'vitaminD' && targets.vitaminD?.value != null && targets.vitaminD.source !== 'PERSONAL') return {className: '', label: 'Reference only'};
+    return dailyMinimumStatus(summary, field, targets[key]?.value, completed);
 }
 
 export function macroTargetStatus(rows, field, fatPercentage) {
@@ -123,7 +136,7 @@ export function meanMacroTargetLabel(rows, field, fatPercentage) {
     return roundedCentsLabel(numerator, days * (field.targetKey === 'fat' ? 900n : 400n));
 }
 
-export function nutrientChartData(summaries, from, to, field) {
+export function nutrientChartData(summaries, from, to, field, targets = null) {
     const rows = new Map(summaries.map(item => [dayjs(item.date).format('YYYY-MM-DD'), item]));
     const days = dayjs(to).diff(dayjs(from), 'day') + 1;
     const labels = Array.from({length: days}, (_, i) => dayjs(from).add(i, 'day'));
@@ -133,12 +146,14 @@ export function nutrientChartData(summaries, from, to, field) {
     });
     const pointColors = labels.map(day => {
         const row = rows.get(day.format('YYYY-MM-DD'));
-        return nutrientCoverage(row, field)?.estimatedFoods ? '#d69e2e' : '#2f855a';
+        const status = row?.nutrients && dailyNutrientStatus(row.nutrients, field, targets);
+        return status?.className === 'target-met' ? '#2f855a' : status?.className === 'target-missed' ? '#c05621' : '#3273b9';
     });
-    const datasets = [{label: `${field.label} (${field.unit})`, data, spanGaps: false, borderColor: '#2f855a', backgroundColor: '#2f855a', pointBackgroundColor: pointColors, pointBorderColor: pointColors, pointRadius: 4, tension: 0.25,
+    const pointStyle = labels.map(day => nutrientCoverage(rows.get(day.format('YYYY-MM-DD')), field)?.estimatedFoods ? 'rectRot' : 'circle');
+    const datasets = [{label: `${field.label} (${field.unit})`, data, spanGaps: false, borderColor: '#3273b9', backgroundColor: '#3273b9', pointBackgroundColor: pointColors, pointBorderColor: pointColors, pointStyle, pointRadius: 4, tension: 0.25,
         pointLabels: labels.map(day => {
             const row = rows.get(day.format('YYYY-MM-DD'));
-            return row && isNutrientCovered(row, field) ? `${nutrientValue(row, field)} ${field.unit}${nutrientCoverage(row, field)?.estimatedFoods ? ' (includes estimates)' : ''}` : null;
+            return row && isNutrientCovered(row, field) ? `${nutrientValue(row, field)} ${field.unit}${nutrientCoverage(row, field)?.estimatedFoods ? ' (includes estimates)' : ''}${chartStatusLabel(row, field, targets)}` : null;
         })}];
     if (field.key === 'fiberGrams') {
         const partial = labels.map(day => {
@@ -155,7 +170,12 @@ export function nutrientChartData(summaries, from, to, field) {
     return {labels: labels.map(day => day.format('D MMM')), datasets};
 }
 
-export function nutrientChartRows(summaries, from, to, field) {
+function chartStatusLabel(row, field, targets) {
+    const status = dailyNutrientStatus(row.nutrients, field, targets);
+    return status ? ` · ${status.label}` : '';
+}
+
+export function nutrientChartRows(summaries, from, to, field, targets = null) {
     const rows = new Map(summaries.map(item => [dayjs(item.date).format('YYYY-MM-DD'), item]));
     const days = dayjs(to).diff(dayjs(from), 'day') + 1;
     return Array.from({length: days}, (_, i) => {
@@ -173,10 +193,10 @@ export function nutrientChartRows(summaries, from, to, field) {
             return {date: day.format('YYYY-MM-DD'), description: field.kind === 'macro' ? 'incomplete macros'
                 : `incomplete nutrient coverage (${coverage?.foodsWithValues ?? 0}/${nutrients?.totalFoods ?? 0} foods; ${nutrients?.mealsWithoutFoods ?? 0} meals without foods)`};
         }
-        return {date: day.format('YYYY-MM-DD'), description: `${nutrientValue(item, field)} ${field.unit}${nutrientCoverage(item, field)?.estimatedFoods ? ' (includes estimates)' : ''}`};
+        return {date: day.format('YYYY-MM-DD'), description: `${nutrientValue(item, field)} ${field.unit}${nutrientCoverage(item, field)?.estimatedFoods ? ' (includes estimates)' : ''}${chartStatusLabel(item, field, targets)}`};
     });
 }
 
-export function nutrientChartDescription(summaries, from, to, field) {
-    return nutrientChartRows(summaries, from, to, field).map(row => `${row.date}: ${row.description}`).join('; ');
+export function nutrientChartDescription(summaries, from, to, field, targets = null) {
+    return nutrientChartRows(summaries, from, to, field, targets).map(row => `${row.date}: ${row.description}`).join('; ');
 }

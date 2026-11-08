@@ -4507,6 +4507,11 @@ components:
     AverageSleep:
       type: object
       properties:
+        statusScore:
+          type: [integer, "null"]
+          minimum: 0
+          maximum: 4
+          description: "Saved four-criterion score from at least seven distinct complete nights: mean in-bed >=7h, asleep >=6h, mean efficiency >=85%, circular midpoint deviation <60min. Absent/null keeps sleep duration goal feedback only; never infer a score from duration."
         totalSleepSeconds:
           type:
             - number
@@ -4756,6 +4761,11 @@ components:
       type: object
       required: [schemaVersion, periodStart, fridayDate, progress, outcomes, routines, goalEvidence, personalRecords, warnings]
       properties:
+        workoutTargets:
+          description: Dated plan evidence frozen in schema 10+. Unknown or ambiguous days leave aggregate targets null; never substitute today's plan.
+          oneOf:
+            - $ref: "#/components/schemas/WeeklyWorkoutTargets"
+            - type: "null"
         emailGoals:
           description: Goals and versioned email rules captured when this report was saved, not goals proven applicable before capture. Absent/null in older snapshots; never substitute current settings.
           oneOf:
@@ -4827,6 +4837,49 @@ components:
         warnings:
           type: array
           items: {type: string}
+    WeeklyWorkoutTargets:
+      type: object
+      additionalProperties: false
+      required: [current, previous, yearAgo]
+      properties:
+        current: {$ref: "#/components/schemas/WeeklyWorkoutTargetPeriod"}
+        previous: {$ref: "#/components/schemas/WeeklyWorkoutTargetPeriod"}
+        yearAgo: {$ref: "#/components/schemas/WeeklyWorkoutTargetPeriod"}
+    WeeklyWorkoutTargetPeriod:
+      type: object
+      additionalProperties: false
+      required: [days, totalSessions, strengthSessions, cardioSessions, stretchingSessions, saunaSessions, activeCardioSeconds]
+      properties:
+        days:
+          type: array
+          maxItems: 7
+          items:
+            type: object
+            additionalProperties: false
+            required: [date, evidence]
+            properties:
+              date: {type: string, format: date}
+              evidence: {$ref: "#/components/schemas/AssessmentWeeklyPlan"}
+        totalSessions: {type: [integer, "null"], minimum: 0}
+        strengthSessions:
+          type: [integer, "null"]
+          minimum: 0
+          description: Sessions with planned TRAINING exercises tracked as REPS or SECONDS; categories count independently within mixed sessions.
+        cardioSessions: {type: [integer, "null"], minimum: 0}
+        stretchingSessions: {type: [integer, "null"], minimum: 0}
+        saunaSessions: {type: [integer, "null"], minimum: 0}
+        activeCardioSeconds:
+          type: [integer, "null"]
+          minimum: 0
+          description: Sum of planned TRAINING CARDIO segment durations, excluding warm-up, stretching and sauna. Null if any dated plan or required duration is unknown; zero is known no planned cardio.
+    WeeklyClassificationRule:
+      type: object
+      additionalProperties: false
+      required: [label, threshold, color]
+      properties:
+        label: {type: string}
+        threshold: {type: number}
+        color: {type: string}
     WeeklyEmailGoals:
       type: object
       required: [capturedAt, weeklyAverageCalorieMaximum, inShapeBodyFatLimit, rules]
@@ -4839,6 +4892,17 @@ components:
           required: [version, sleepMinimumSeconds, sleepBasis, moodGoodMinimum, moodNeutralMinimum, bloodPressureStages]
           properties:
             version: {type: integer}
+            bodyFatStages:
+              type: [array, "null"]
+              description: Version 2 ordered body-fat classifications; use the first strict value > threshold match. No match is unclassified. Absent in legacy snapshots; never infer stages from current settings.
+              items: {$ref: "#/components/schemas/WeeklyClassificationRule"}
+            sleepStages:
+              type: [array, "null"]
+              description: Version 2 ordered four-criterion sleep score classifications (4,3,2,1,0); use the first score value >= threshold match. Require saved statusScore; absent/null score keeps the captured minimum duration goal comparison, never a duration-derived classification.
+              items: {$ref: "#/components/schemas/WeeklyClassificationRule"}
+            nutrientAssessmentVersion:
+              type: integer
+              description: Version 1 keeps default vitamin D reference-only and personal goals comparable. Omega-3 requires separate EPA+DHA and ALA minima; a supported shortfall wins, both met are needed for success, otherwise unknown. Partial subtotals cannot prove shortfall.
             sleepMinimumSeconds: {type: integer}
             sleepBasis: {type: string}
             moodGoodMinimum: {type: number}
@@ -4899,6 +4963,12 @@ components:
         label: {type: string}
         unit: {type: string, enum: [g, mg, µg]}
         average: {type: [number, "null"]}
+        assessmentAverage:
+          type: [number, "null"]
+          description: Unrounded complete-day mean captured in schema 10+ for status comparisons; display average is unchanged. If absent/null, only the older captured average is available.
+        assessmentTarget:
+          type: [number, "null"]
+          description: Unrounded target for the same eligible dates, captured in schema 10+. If absent/null, use the captured target; never fetch today's settings to recolor a saved report.
         eligibleDays: {type: integer, minimum: 0, maximum: 7}
         recordedDays: {type: integer, minimum: 0, maximum: 7}
         coveredFoods: {type: integer, minimum: 0}

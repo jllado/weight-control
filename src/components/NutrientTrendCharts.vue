@@ -4,7 +4,7 @@
     <p v-else-if="error" role="alert">{{ error }}</p>
     <p v-else-if="!fieldsWithData.length">No completed days with recorded nutrient values in the selected period.</p>
     <template v-else>
-      <p class="trend-legend">Green points are sourced values; amber points include food estimates. Outlined Fiber points are partial lower bounds. Missing days are left blank.</p>
+      <p class="trend-legend">Daily values · Green: goal met · Amber: below goal · Blue: reference or unavailable assessment. Current targets apply. Diamonds include estimates; outlined Fiber points are partial totals.</p>
       <div v-for="field in fieldsWithData" :key="field.key" class="trend-chart">
         <h4>{{ field.label }} ({{ field.unit }})</h4>
         <div class="chart-canvas"><Chart class="nutrient-line-chart" type="line" :data="chart(field)" :options="options" :canvasProps="{role: 'img', 'aria-label': `${field.label} nutrient trend`, 'aria-describedby': `nutrient-chart-${field.key}`}" /></div>
@@ -22,7 +22,7 @@ import {coveredNutrientDays, partialNutrientDays, nutrientChartData, nutrientCha
 export default {
   props: {date: {type: [String, Date], required: true}, chartType: {type: String, required: true}, mealRevision: {type: Number, required: true}, completed: {type: Boolean, required: true}},
   data() {
-    return {fields: trendNutrientFields, summaries: [], loading: true, error: null, requestId: 0, options: {responsive: true, maintainAspectRatio: false,
+    return {fields: trendNutrientFields, summaries: [], targets: null, loading: true, error: null, requestId: 0, options: {responsive: true, maintainAspectRatio: false,
       plugins: {legend: {display: false}, tooltip: {callbacks: {label: context => context.dataset.pointLabels[context.dataIndex]}}},
       scales: {y: {beginAtZero: true}, x: {ticks: {autoSkip: true, maxTicksLimit: 12}}}}};
   },
@@ -50,13 +50,19 @@ export default {
       this.error = null;
       const from = this.chartType === 'monthly' ? dayjs(this.dateKey).subtract(89, 'day').format('YYYY-MM-DD') : null;
       try {
-        const summaries = await nutritionService.get_daily_summaries(from, from ? this.dateKey : undefined);
-        if (requestId === this.requestId) this.summaries = summaries;
+        const [summaries, targetResponse] = await Promise.all([
+          nutritionService.get_daily_summaries(from, from ? this.dateKey : undefined),
+          nutritionService.get_targets(this.dateKey).catch(() => null)
+        ]);
+        if (requestId === this.requestId) {
+          this.summaries = summaries;
+          this.targets = targetResponse?.targets ?? null;
+        }
       } catch (error) { if (requestId === this.requestId) this.error = error.message; }
       finally { if (requestId === this.requestId) this.loading = false; }
     },
-    chart(field) { return nutrientChartData(this.summaries, this.periodStart, this.dateKey, field); },
-    chartDescription(field) { return nutrientChartDescription(this.summaries, this.periodStart, this.dateKey, field); }
+    chart(field) { return nutrientChartData(this.summaries, this.periodStart, this.dateKey, field, this.targets); },
+    chartDescription(field) { return nutrientChartDescription(this.summaries, this.periodStart, this.dateKey, field, this.targets); }
   }
 };
 </script>

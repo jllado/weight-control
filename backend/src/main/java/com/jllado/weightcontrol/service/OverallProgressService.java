@@ -1,6 +1,5 @@
 package com.jllado.weightcontrol.service;
 
-import com.jllado.weightcontrol.api.dto.CoachDtos.RecoveryContext;
 import com.jllado.weightcontrol.api.dto.OverallProgressDtos.MetricContribution;
 import com.jllado.weightcontrol.api.dto.OverallProgressDtos.OverallProgressResponse;
 import com.jllado.weightcontrol.domain.*;
@@ -116,33 +115,10 @@ public class OverallProgressService {
     }
 
     private MetricResult sleepChange(List<Sleep> current, List<Sleep> previous) {
-        List<Sleep> validCurrent = completeSleeps(current), validPrevious = completeSleeps(previous);
+        List<Sleep> validCurrent = SleepStatusCalculator.completeSleeps(current), validPrevious = SleepStatusCalculator.completeSleeps(previous);
         if (validCurrent.stream().map(Sleep::getSleepDate).distinct().count() < 7 || validPrevious.stream().map(Sleep::getSleepDate).distinct().count() < 7) return null;
-        double change = averageSleepScore(validCurrent) - averageSleepScore(validPrevious);
+        double change = SleepStatusCalculator.score(validCurrent) - SleepStatusCalculator.score(validPrevious);
         return new MetricResult(change, "Existing four-criterion sleep score changed by " + round(change) + " points.");
-    }
-
-    private List<Sleep> completeSleeps(List<Sleep> sleeps) {
-        return sleeps.stream().filter(s -> s.getBedtimeStart() != null && s.getBedtimeEnd() != null && s.getTotalSleepDuration() != null).toList();
-    }
-
-    private double averageSleepScore(List<Sleep> sleeps) {
-        double inBed = sleeps.stream().mapToLong(s -> java.time.Duration.between(s.getBedtimeStart(), s.getBedtimeEnd()).getSeconds()).average().orElse(0);
-        double total = sleeps.stream().mapToInt(Sleep::getTotalSleepDuration).average().orElse(0);
-        double efficiency = sleeps.stream().mapToDouble(s -> s.getTotalSleepDuration() * 100d / java.time.Duration.between(s.getBedtimeStart(), s.getBedtimeEnd()).getSeconds()).average().orElse(0);
-        double[] midpointMinutes = sleeps.stream().mapToDouble(s -> {
-            long seconds = java.time.Duration.between(s.getBedtimeStart(), s.getBedtimeEnd()).getSeconds();
-            var local = s.getBedtimeStart().atZoneSameInstant(DateTimes.USER_ZONE);
-            return (local.getHour() * 60 + local.getMinute() + seconds / 120d) % 1440;
-        }).toArray();
-        double meanSin = Arrays.stream(midpointMinutes).map(m -> Math.sin(m * 2 * Math.PI / 1440)).average().orElseThrow();
-        double meanCos = Arrays.stream(midpointMinutes).map(m -> Math.cos(m * 2 * Math.PI / 1440)).average().orElseThrow();
-        double midpoint = (Math.atan2(meanSin, meanCos) * 1440 / (2 * Math.PI) + 1440) % 1440;
-        double deviation = Math.sqrt(Arrays.stream(midpointMinutes).map(m -> {
-            double d = ((m - midpoint + 720) % 1440 + 1440) % 1440 - 720;
-            return d * d;
-        }).average().orElseThrow());
-        return (inBed >= RecoveryContext.MINIMUM_TIME_IN_BED_SECONDS ? 1 : 0) + (total >= RecoveryContext.MINIMUM_TOTAL_SLEEP_SECONDS ? 1 : 0) + (efficiency >= 85 ? 1 : 0) + (deviation < 60 ? 1 : 0);
     }
 
     private MetricResult workoutChange(List<Workout> current, List<Workout> previous) {

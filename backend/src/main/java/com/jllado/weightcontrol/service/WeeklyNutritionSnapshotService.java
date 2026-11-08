@@ -64,7 +64,9 @@ public class WeeklyNutritionSnapshotService {
         return new Measure(key, label, "g", mean(eligible.stream().map(value).toList()), eligible.size(),
             (int) days.stream().filter(day -> value.apply(day) != null).count(), 0, 0, 0,
             completeTargets ? meanTarget(key, eligible, byDate, allocations) : null,
-            key.equals("protein") ? MacroTargetComparison.MINIMUM : MacroTargetComparison.MAXIMUM, unavailable);
+            key.equals("protein") ? MacroTargetComparison.MINIMUM : MacroTargetComparison.MAXIMUM, unavailable,
+            meanRaw(eligible.stream().map(value).toList()),
+            completeTargets ? meanRawTarget(key, eligible, byDate, allocations) : null);
     }
 
     private BigDecimal meanTarget(String key, List<DailyNutritionSummary> eligible,
@@ -74,6 +76,14 @@ public class WeeklyNutritionSnapshotService {
             .map(target -> BigDecimal.valueOf(target.macroTargets().calorieBudget()).multiply(target.fatPercentage()))
             .reduce(BigDecimal.ZERO, BigDecimal::add)
             .divide(BigDecimal.valueOf(900L * eligible.size()), 2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal meanRawTarget(String key, List<DailyNutritionSummary> eligible,
+        Map<LocalDate, DatedTarget> byDate, List<MacroTargetValue> allocations) {
+        if (!key.equals("fat")) return meanRaw(allocations.stream().map(MacroTargetValue::value).toList());
+        return eligible.stream().map(day -> byDate.get(day.date()))
+            .map(target -> BigDecimal.valueOf(target.macroTargets().calorieBudget()).multiply(target.fatPercentage()))
+            .reduce(BigDecimal.ZERO, BigDecimal::add).divide(BigDecimal.valueOf(900L * eligible.size()), java.math.MathContext.DECIMAL128);
     }
 
     private Measure nutrient(String key, String label, String unit, List<DailyNutritionSummary> days,
@@ -88,7 +98,12 @@ public class WeeklyNutritionSnapshotService {
             recorded.stream().mapToInt(summary -> coverage.apply(summary).foodsWithValues()).sum(),
             recorded.stream().mapToInt(NutrientSummary::totalFoods).sum(),
             recorded.stream().mapToInt(summary -> coverage.apply(summary).estimatedFoods()).sum(),
-            target.value(), MacroTargetComparison.MINIMUM, null);
+            target.value(), MacroTargetComparison.MINIMUM, null, meanRaw(eligible.stream().map(value).toList()), target.value());
+    }
+
+    private BigDecimal meanRaw(List<BigDecimal> values) {
+        return values.isEmpty() ? null : values.stream().reduce(BigDecimal.ZERO, BigDecimal::add)
+            .divide(BigDecimal.valueOf(values.size()), java.math.MathContext.DECIMAL128);
     }
 
     private BigDecimal mean(List<BigDecimal> values) {
