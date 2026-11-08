@@ -907,3 +907,7 @@ Workout plan targets expose optional nonnegative whole `restSeconds` through app
 ## Weekly review navigation and current actions
 
 The app uses scrollable review/measurement tabs, displays both saved comparison periods, explains absent historical workout targets, and reads all current actions for today in Europe/Madrid through the existing Actions API. Review cards are read-only; Home and Actions retain their existing controls. Saved snapshots, recommendation activation, email and Coach contracts remain unchanged; no GPT publication is required.
+
+## Minor first calorie breach
+
+New calorie-only warnings tolerate the first raw seven-day excess of at most 5% only when the preceding completed seven-day window met the same goal. Consecutive excesses and first excesses above 5% remain eligible; repeated reviews of one date never advance persistence, and missing evidence cannot prove a first breach. Keep exact goal status, other supported concerns and existing warning history unchanged. The shared creation check covers standalone and DAILY/WEEKLY writes with atomic reflection rollback. Deploy the application before publishing the matching private GPT instructions; verify the exact published configuration and fresh read-only boundary scenarios.

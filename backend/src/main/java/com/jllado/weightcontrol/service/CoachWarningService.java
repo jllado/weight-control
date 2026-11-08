@@ -23,13 +23,15 @@ public class CoachWarningService {
     private final EntityManager entityManager;
     private final ObjectMapper mapper;
     private final WarningMetricEvaluator metricEvaluator;
+    private final WarningCreationEligibility creationEligibility;
 
-    public CoachWarningService(CoachWarningRepository warnings, CoachWarningRevisionRepository revisions, EntityManager entityManager, ObjectMapper mapper, WarningMetricEvaluator metricEvaluator) {
+    public CoachWarningService(CoachWarningRepository warnings, CoachWarningRevisionRepository revisions, EntityManager entityManager, ObjectMapper mapper, WarningMetricEvaluator metricEvaluator, WarningCreationEligibility creationEligibility) {
         this.warnings = warnings;
         this.revisions = revisions;
         this.entityManager = entityManager;
         this.mapper = mapper;
         this.metricEvaluator = metricEvaluator;
+        this.creationEligibility = creationEligibility;
     }
 
     @Transactional(readOnly = true)
@@ -80,6 +82,7 @@ public class CoachWarningService {
             return current(existing.get());
         }
         if (progress.goalStatus() == WarningGoalStatus.MET) throw new BadRequestException("A new warning must have an unmet or unknown goal");
+        creationEligibility.validate(user, request.type(), request.content().metricsReview());
         if (warnings.existsByUserAndTypeAndStatus(user, request.type(), CoachWarningStatus.ACTIVE)) throw conflict("This warning type is already active; retrieve and update it");
         CoachWarning warning = new CoachWarning();
         warning.setUser(user);
