@@ -11,6 +11,8 @@ import com.jllado.weightcontrol.security.SessionCookieService;
 import com.jllado.weightcontrol.service.*;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -39,6 +41,30 @@ class WorkoutPlanControllerTest {
         mvc.perform(put("/api/chatgpt-actions/coach/active-plan?target=WORKOUT").header("Authorization", "Bearer plan-test-token").contentType("application/json").content("{}")).andExpect(status().isBadRequest());
         verifyNoInteractions(plans, notifications);
     }
+    @ParameterizedTest
+    @ValueSource(strings = {"-1", "1.5", "2147483648"})
+    void rejectsInvalidRestSecondsBeforeAppOrCoachWrites(String restSeconds) throws Exception {
+        when(users.findByEmail("plan@example.com")).thenReturn(Optional.of(new com.jllado.weightcontrol.domain.User()));
+        String plan = planWithRest(restSeconds);
+        mvc.perform(post("/api/workout-plans").with(user("owner")).contentType("application/json").content(plan))
+            .andExpect(status().isBadRequest());
+        mvc.perform(put("/api/workout-plans/1").with(user("owner")).contentType("application/json")
+            .content("{\"plan\":" + plan + ",\"updateToken\":\"token\"}"))
+            .andExpect(status().isBadRequest());
+        mvc.perform(put("/api/chatgpt-actions/coach/active-plan?target=WORKOUT")
+            .header("Authorization", "Bearer plan-test-token").contentType("application/json")
+            .content("{\"plan\":" + plan + ",\"confirmed\":true,\"saunaSchemaVersion\":1}"))
+            .andExpect(status().isBadRequest());
+        verifyNoInteractions(plans, notifications);
+    }
+
+    private String planWithRest(String restSeconds) {
+        var days = java.util.Arrays.stream(java.time.DayOfWeek.values()).map(day -> day == java.time.DayOfWeek.MONDAY
+            ? "{\"day\":\"MONDAY\",\"rest\":false,\"sessions\":[{\"lines\":[{\"exerciseId\":1,\"segments\":[{\"repetitions\":8}],\"restSeconds\":" + restSeconds + "}]}]}"
+            : "{\"day\":\"" + day + "\",\"rest\":true,\"sessions\":[]}").collect(java.util.stream.Collectors.joining(","));
+        return "{\"startDate\":\"2026-09-14\",\"reviewDate\":\"2026-10-26\",\"days\":[" + days + "]}";
+    }
+
     @Test void returnsEmptyCurrentPlanForAuthenticatedOwner() throws Exception {
         var owner = new com.jllado.weightcontrol.domain.User(); when(currentUser.requireUser()).thenReturn(owner);
         when(plans.current(owner)).thenReturn(Optional.empty());

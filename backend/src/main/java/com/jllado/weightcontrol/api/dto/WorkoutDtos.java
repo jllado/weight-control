@@ -55,9 +55,11 @@ public final class WorkoutDtos {
             this(day, rest, note, lines, null);
         }
     }
-    public record WorkoutPlanLineRequest(@NotNull Long exerciseId, @NotEmpty List<@NotNull @jakarta.validation.Valid WorkoutSegmentRequest> segments, StretchingUnit stretchingUnit, @jakarta.validation.constraints.Size(max = 36) String supersetGroupId) {
+    public record WorkoutPlanLineRequest(@NotNull Long exerciseId, @NotEmpty List<@NotNull @jakarta.validation.Valid WorkoutSegmentRequest> segments, StretchingUnit stretchingUnit, @jakarta.validation.constraints.Size(max = 36) String supersetGroupId,
+        @jakarta.validation.constraints.PositiveOrZero @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer restSeconds) {
         public WorkoutPlanLineRequest { if (stretchingUnit == null) stretchingUnit = StretchingUnit.SECONDS; }
-        public WorkoutPlanLineRequest(Long exerciseId, List<WorkoutSegmentRequest> segments, StretchingUnit stretchingUnit) { this(exerciseId, segments, stretchingUnit, null); }
+        public WorkoutPlanLineRequest(Long exerciseId, List<WorkoutSegmentRequest> segments, StretchingUnit stretchingUnit, String supersetGroupId) { this(exerciseId, segments, stretchingUnit, supersetGroupId, null); }
+        public WorkoutPlanLineRequest(Long exerciseId, List<WorkoutSegmentRequest> segments, StretchingUnit stretchingUnit) { this(exerciseId, segments, stretchingUnit, null, null); }
     }
     public record WorkoutPlanUpdateRequest(@NotNull @jakarta.validation.Valid WorkoutPlanRequest plan, @NotBlank String updateToken) { }
     public record CoachWorkoutPlanUpdateRequest(

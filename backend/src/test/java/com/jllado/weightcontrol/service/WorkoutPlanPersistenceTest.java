@@ -39,6 +39,66 @@ class WorkoutPlanPersistenceTest {
     @Autowired com.jllado.weightcontrol.repository.CoachingPlanRepository coachingPlans;
     @Autowired com.jllado.weightcontrol.repository.WorkoutPlanRepository workoutPlans;
 
+    @Test void preservesPerSessionRestAndZeroThroughAppAndCoachReplacement() throws Exception {
+        var owner = user();
+        var training = exercise(ExerciseTrackingMode.REPS, ExerciseType.TRAINING);
+        var stretch = exercise(ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING);
+        var base = week(List.of());
+        var sessions = List.of(
+            new WorkoutPlanSessionRequest("Early", null, List.of(restLine(training, 0), restLine(stretch, 20))),
+            new WorkoutPlanSessionRequest("Late", null, List.of(restLine(training, 45), restLine(stretch, 0))),
+            new WorkoutPlanSessionRequest("Default", null, List.of(restLine(training, null), restLine(stretch, null))));
+        var days = new ArrayList<>(base.days());
+        days.set(0, new WorkoutPlanDayRequest(DayOfWeek.MONDAY, false, null, null, sessions));
+        var request = new WorkoutPlanRequest(base.startDate(), base.reviewDate(), base.notes(), days);
+        var created = service.create(owner, request);
+
+        assertPlanRest(json.valueToTree(service.get(owner, created.id())).path("days"));
+        assertPlanRest(json.readTree(jdbc.queryForObject("select days_json from workout_plans where id = ?", String.class, created.id())));
+        var updated = service.update(owner, created.id(), new WorkoutPlanUpdateRequest(request, created.updateToken()));
+        service.updateConfirmed(owner, new CoachWorkoutPlanUpdateRequest(request, updated.updateToken(), true, 1));
+        assertPlanRest(json.valueToTree(service.editContext(owner)).path("plan").path("days"));
+        var coach = context.getHealthContext(owner, base.startDate(), base.startDate(), Set.of(CoachDomain.WORKOUT_PLAN), OffsetDateTime.now());
+        assertPlanRest(json.valueToTree(((CoachDtos.WorkoutPlanContext) coach.data().get(CoachDomain.WORKOUT_PLAN)).plan()).path("days"));
+        assertThrows(NotFoundException.class, () -> service.get(user(), created.id()));
+        service.create(owner, week(List.of()));
+        assertNotNull(service.get(owner, created.id()).archivedAt());
+        assertPlanRest(json.valueToTree(service.get(owner, created.id())).path("days"));
+    }
+
+    @Test void readsLegacyMissingAndExplicitNullRestWithoutTurningEitherIntoZero() throws Exception {
+        var owner = user();
+        var training = exercise(ExerciseTrackingMode.REPS, ExerciseType.TRAINING);
+        var created = service.create(owner, week(List.of(restLine(training, null))));
+        var persistedDays = json.readTree(jdbc.queryForObject("select days_json from workout_plans where id = ?", String.class, created.id()));
+        var target = (com.fasterxml.jackson.databind.node.ObjectNode) persistedDays.get(0).path("sessions").get(0).path("lines").get(0);
+        target.remove("restSeconds");
+        jdbc.update("update workout_plans set days_json = ? where id = ?", json.writeValueAsString(persistedDays), created.id());
+        var legacy = json.valueToTree(service.get(owner, created.id())).path("days").get(0).path("sessions").get(0).path("lines").get(0);
+        assertTrue(legacy.path("restSeconds").isNull());
+        target.putNull("restSeconds");
+        jdbc.update("update workout_plans set days_json = ? where id = ?", json.writeValueAsString(persistedDays), created.id());
+        assertTrue(json.valueToTree(service.get(owner, created.id())).path("days").get(0).path("sessions").get(0).path("lines").get(0).path("restSeconds").isNull());
+    }
+
+    private WorkoutPlanLineRequest restLine(Exercise exercise, Integer restSeconds) throws Exception {
+        var segment = exercise.getExerciseType() == ExerciseType.STRETCHING
+            ? new WorkoutSegmentRequest(null, 30, null, null, null, null, null, null, null) : reps(8);
+        var line = (com.fasterxml.jackson.databind.node.ObjectNode) json.valueToTree(new WorkoutPlanLineRequest(exercise.getId(), List.of(segment), null));
+        line.put("restSeconds", restSeconds);
+        return json.readerFor(WorkoutPlanLineRequest.class).without(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES).readValue(line);
+    }
+
+    private void assertPlanRest(com.fasterxml.jackson.databind.JsonNode days) {
+        var sessions = days.get(0).path("sessions");
+        assertEquals(json.getNodeFactory().numberNode(0), sessions.get(0).path("lines").get(0).path("restSeconds"));
+        assertEquals(json.getNodeFactory().numberNode(20), sessions.get(0).path("lines").get(1).path("restSeconds"));
+        assertEquals(json.getNodeFactory().numberNode(45), sessions.get(1).path("lines").get(0).path("restSeconds"));
+        assertEquals(json.getNodeFactory().numberNode(0), sessions.get(1).path("lines").get(1).path("restSeconds"));
+        assertTrue(sessions.get(2).path("lines").get(0).path("restSeconds").isNull());
+        assertTrue(sessions.get(2).path("lines").get(1).path("restSeconds").isNull());
+    }
+
     @Test void preservesSupersetMembershipInPlansAndCoachContext() throws Exception {
         var owner = user();
         var first = exercise(ExerciseTrackingMode.REPS, ExerciseType.TRAINING);

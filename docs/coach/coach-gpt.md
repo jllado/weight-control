@@ -137,6 +137,10 @@ Four fresh banana/kiwi and mixed-breakfast drafts on actual Instant (`gpt-6`) an
 
 This verifies the requested presentation and consent distinction, not hidden payload completeness, nutrient provenance, every catalog side effect or confirmed persistence. The earlier source/estimate limitations remain unresolved; the technical JSON follow-up itself retained proxy caveats and recalculated the kiwi. No health writes or outbound test notifications were used. Temporary test conversations and their evidence are handled separately from real user conversations and data.
 
+## Planned exercise rest
+
+Plan exercise occurrences carry optional whole `restSeconds` independently in each session. Zero means no rest; absent/null selects the guided default (zero for stretching, otherwise the existing normal preference, initially 60 seconds). Explicit positive values override either default. Preserve these settings during full-plan replacements. Current guided-workout overrides remain local and do not change the saved plan. The additive Action schema supplies these field rules; the existing confirmation, full-plan preservation and readback instructions remain unchanged.
+
 ## Instructions
 
 ```text

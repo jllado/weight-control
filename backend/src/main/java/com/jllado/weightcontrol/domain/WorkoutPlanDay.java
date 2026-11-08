@@ -15,9 +15,10 @@ public record WorkoutPlanDay(DayOfWeek day, boolean rest, String note, List<Sess
         public Session { saunaRoundsMinutes = saunaRoundsMinutes == null ? List.of() : List.copyOf(saunaRoundsMinutes); }
         public Session(String name, String note, List<Target> lines) { this(name, note, lines, false, List.of()); }
     }
-    public record Target(Long exerciseId, String exerciseName, String exerciseDescription, ExerciseTrackingMode trackingMode, ExerciseType exerciseType, CardioMetric cardioMetric, List<Segment> segments, StretchingUnit stretchingUnit, String supersetGroupId) {
+    public record Target(Long exerciseId, String exerciseName, String exerciseDescription, ExerciseTrackingMode trackingMode, ExerciseType exerciseType, CardioMetric cardioMetric, List<Segment> segments, StretchingUnit stretchingUnit, String supersetGroupId, Integer restSeconds) {
         public Target { if (stretchingUnit == null) stretchingUnit = StretchingUnit.SECONDS; }
-        public Target(Long exerciseId, String exerciseName, String exerciseDescription, ExerciseTrackingMode trackingMode, ExerciseType exerciseType, CardioMetric cardioMetric, List<Segment> segments, StretchingUnit stretchingUnit) { this(exerciseId, exerciseName, exerciseDescription, trackingMode, exerciseType, cardioMetric, segments, stretchingUnit, null); }
+        public Target(Long exerciseId, String exerciseName, String exerciseDescription, ExerciseTrackingMode trackingMode, ExerciseType exerciseType, CardioMetric cardioMetric, List<Segment> segments, StretchingUnit stretchingUnit, String supersetGroupId) { this(exerciseId, exerciseName, exerciseDescription, trackingMode, exerciseType, cardioMetric, segments, stretchingUnit, supersetGroupId, null); }
+        public Target(Long exerciseId, String exerciseName, String exerciseDescription, ExerciseTrackingMode trackingMode, ExerciseType exerciseType, CardioMetric cardioMetric, List<Segment> segments, StretchingUnit stretchingUnit) { this(exerciseId, exerciseName, exerciseDescription, trackingMode, exerciseType, cardioMetric, segments, stretchingUnit, null, null); }
     }
     public record Segment(Integer repetitions, Integer durationSeconds, BigDecimal weight, BigDecimal speedKph, BigDecimal cadenceRpm, BigDecimal distanceKm, BigDecimal inclinePercent, Integer resistanceLevel, Integer breaths) { }
 }

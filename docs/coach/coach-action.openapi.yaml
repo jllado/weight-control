@@ -983,6 +983,7 @@ components:
         stretchingUnit: {type: string, enum: [SECONDS, BREATHS], default: SECONDS, description: "Per-exercise hold unit; BREATHS is allowed only for STRETCHING. All holds share this unit."}
         exerciseId: {type: integer, format: int64}
         supersetGroupId: {type: [string, "null"], maxLength: 36, description: Shared ID groups adjacent exercises into a superset; members require equal segment counts.}
+        restSeconds: {type: [integer, "null"], minimum: 0, maximum: 2147483647, description: "Rest seconds for this exercise in this session; 0 skips rest. Null or omitted uses no rest for stretching, otherwise the guided preference (initially 60). Positive values also apply to stretching. Preserve each occurrence on replacement."}
         segments:
           type: array
           minItems: 1
@@ -1042,6 +1043,7 @@ components:
           type: array
           items: {$ref: "#/components/schemas/WorkoutPlanSegment"}
         supersetGroupId: {type: [string, "null"], maxLength: 36}
+        restSeconds: {type: [integer, "null"], minimum: 0, maximum: 2147483647, description: "Rest seconds for this exercise in this session; 0 skips rest. Null or omitted uses no rest for stretching, otherwise the guided preference (initially 60). Positive values also apply to stretching. Preserve each occurrence on replacement."}
     PlannedDay:
       type: object
       additionalProperties: false
@@ -1137,6 +1139,7 @@ components:
                           exerciseType: {type: string, enum: [TRAINING, WARM_UP, STRETCHING]}
                           cardioMetric: {type: [string, "null"], enum: [SPEED_KPH, CADENCE_RPM, null]}
                           supersetGroupId: {type: [string, "null"], maxLength: 36}
+                          restSeconds: {type: [integer, "null"], minimum: 0, maximum: 2147483647, description: "Rest seconds for this exercise in this session; 0 skips rest. Null or omitted uses no rest for stretching, otherwise the guided preference (initially 60). Positive values also apply to stretching. Preserve each occurrence on replacement."}
                           segments:
                             type: array
                             items: {$ref: "#/components/schemas/WorkoutPlanSegment"}
