@@ -25,7 +25,12 @@
               <InputText v-model="filterModel.value" type="text" @input="filterCallback()" class="p-column-filter" placeholder="Search" />
             </template>
           </Column>
-          <Column header="Cadence"><template #body="routine">{{ routine.data.isWeekly() ? 'Weekly' : 'Daily' }}</template></Column>
+          <Column header="Cadence" field="cadence" :showFilterMenu="false" :pt="{headerFilterClearButton: {'aria-label': 'Clear cadence filter'}}">
+            <template #body="routine">{{ routine.data.isWeekly() ? 'Weekly' : 'Daily' }}</template>
+            <template #filter="{ filterModel, filterCallback }">
+              <Dropdown v-model="filterModel.value" @change="filterCallback()" :options="[{label: 'All', value: null}, {label: 'Daily', value: 'DAILY'}, {label: 'Weekly', value: 'WEEKLY'}]" optionLabel="label" optionValue="value" placeholder="All" aria-label="Filter by cadence" class="p-column-filter routine-cadence-filter" />
+            </template>
+          </Column>
           <Column header="Type" headerStyle="width: 250px" >
             <template #body="routine" >
               {{ routine.data.typeValues() }}
@@ -170,7 +175,8 @@ export default {
   },
   data() {
     const filters = ref({
-      name: { value: null, matchMode: FilterMatchMode.CONTAINS }
+      name: { value: null, matchMode: FilterMatchMode.CONTAINS },
+      cadence: { value: null, matchMode: FilterMatchMode.EQUALS }
     });
     const locale = {
       firstDayOfWeek: 1,
@@ -396,6 +402,9 @@ export default {
 </script>
 
 <style scoped>
+.routine-cadence-filter {
+  min-width: 8rem;
+}
 .routine-analytics-content {
   width: min(100%, 64rem);
   margin: 0 auto;
