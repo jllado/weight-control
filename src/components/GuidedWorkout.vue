@@ -40,7 +40,7 @@ export default {
     currentSegment() { return this.currentStep ? this.currentLine.segments[this.currentStep.segmentIndex] : null; },
     plannedSegment() { return this.currentStep ? this.guidedWorkoutState.draft.plannedTargetsBySegmentKey?.[this.currentSegment.guidedSegmentKey] || null : null; },
     nextPlannedSegment() { return this.nextStep ? this.guidedWorkoutState.draft.plannedTargetsBySegmentKey?.[this.nextLine.segments[this.nextStep.segmentIndex].guidedSegmentKey] || null : null; },
-    currentSetEstimate() { return formatElapsedValue(this.guidedWorkoutState.draft.estimatedSecondsByLine[this.currentStep.lineIndex][this.currentStep.segmentIndex] * 1000); },
+    currentSetEstimate() { return formatElapsedValue(this.currentSetTargetMilliseconds); },
     nextSetEstimate() { return formatElapsedValue(this.guidedWorkoutState.draft.estimatedSecondsByLine[this.nextStep.lineIndex][this.nextStep.segmentIndex] * 1000); },
     currentExerciseEstimate() {
       const estimates = this.guidedWorkoutState.draft.estimatedSecondsByLine[this.currentStep.lineIndex];
@@ -73,10 +73,19 @@ export default {
     },
     currentDurationBased() { return !!this.plannedSegment && this.currentLine.stretchingUnit !== 'BREATHS' && (this.currentLine.trackingMode === 'SECONDS' || this.currentLine.trackingMode === 'CARDIO'); },
     nextDurationBased() { return !!this.nextPlannedSegment && this.nextLine.stretchingUnit !== 'BREATHS' && (this.nextLine.trackingMode === 'SECONDS' || this.nextLine.trackingMode === 'CARDIO'); },
-    setElapsed() {
+    setElapsedMilliseconds() {
       const timer = this.guidedWorkoutState.draft.exerciseTimer;
-      return formatElapsedValue(timer.pendingMilliseconds + (timer.startedAt == null ? 0 : Math.max(0, this.now - timer.startedAt)));
+      return timer.pendingMilliseconds + (timer.startedAt == null ? 0 : Math.max(0, this.now - timer.startedAt));
     },
+    setElapsed() { return formatElapsedValue(this.setElapsedMilliseconds); },
+    currentSetTargetMilliseconds() {
+      return (this.currentDurationBased ? this.plannedSegment.durationSeconds : this.guidedWorkoutState.draft.estimatedSecondsByLine[this.currentStep.lineIndex][this.currentStep.segmentIndex]) * 1000;
+    },
+    setTimeStatus() {
+      if (this.setElapsedMilliseconds > this.currentSetTargetMilliseconds) return 'danger';
+      return this.setElapsedMilliseconds >= this.currentSetTargetMilliseconds * .8 ? 'warning' : null;
+    },
+    setTimeStatusLabel() { return `${this.setTimeStatus === 'danger' ? 'Over' : 'Near'} ${this.currentDurationBased ? 'planned time' : 'estimate'}`; },
     exerciseElapsed() {
       const timer = this.guidedWorkoutState.draft?.exerciseTimer;
       if (!this.currentLine || !timer || timer.lineIndex !== this.currentStep.lineIndex) return '00:00:00';

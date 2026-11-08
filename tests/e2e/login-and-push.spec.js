@@ -17375,3 +17375,85 @@ test('guided Rest now stays available with zero rest and a deferred after-set ch
     expect((await draft()).preparedRest).toBeNull();
     expect((await draft()).currentStep).toBe(current);
 });
+
+for (const scenario of [
+    {name: 'repetition estimate', exercise: 0, segment: {repetitions: 10}, target: 30000, wording: 'estimate'},
+    {name: 'planned timed set', exercise: 3, segment: {durationSeconds: 10}, target: 10000, wording: 'planned time'},
+    {name: 'planned cardio interval', exercise: 4, segment: {durationSeconds: 10}, target: 10000, wording: 'planned time'},
+    {name: 'breath estimate', exercise: 2, segment: {breaths: 2}, extra: {stretchingUnit: 'BREATHS'}, target: 45000, wording: 'estimate'}
+]) {
+    test(`set time warning follows raw boundaries for ${scenario.name}`, async ({page}, testInfo) => {
+        const state = await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[scenario.exercise], [scenario.segment], scenario.extra)]);
+        // Planned duration must win over a different rough catalog estimate.
+        if (scenario.wording === 'planned time') state.exercises[scenario.exercise].estimatedSecondsPerSet = 90;
+        const guided = await startEstimatedPlan(page);
+        await guided.getByRole('button', {name: 'Pause', exact: true}).click();
+        for (const [milliseconds, cue, background] of [
+            [scenario.target * .8 - 1, null, 'rgba(0, 0, 0, 0)'],
+            [scenario.target * .8, `Near ${scenario.wording}`, 'rgb(255, 186, 1)'],
+            [scenario.target * .9, `Near ${scenario.wording}`, 'rgb(255, 186, 1)'],
+            [scenario.target, `Near ${scenario.wording}`, 'rgb(255, 186, 1)'],
+            [scenario.target + 1, `Over ${scenario.wording}`, 'rgb(233, 18, 36)']
+        ]) {
+            await guided.getByRole('button', {name: 'Close', exact: true}).click();
+            await page.evaluate(milliseconds => {
+                const key = 'guided-workout-v1:jllado@gmail.com';
+                const draft = JSON.parse(localStorage.getItem(key));
+                draft.exerciseTimer.pendingMilliseconds = milliseconds;
+                localStorage.setItem(key, JSON.stringify(draft));
+            }, milliseconds);
+            await page.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
+            const timer = guided.getByRole('timer', {name: 'Set elapsed time', exact: true});
+            const status = guided.locator('#guided-set-time-status');
+            if (cue) {
+                await expect(status).toHaveText(cue);
+                await expect(timer).toHaveAccessibleDescription(cue);
+            } else await expect(status).toHaveCount(0);
+            await expect(timer).toHaveCSS('background-color', background);
+            await expect(timer).toHaveText(`00:00:${String(Math.floor(milliseconds / 1000)).padStart(2, '0')}`);
+            if (milliseconds === scenario.target || milliseconds === scenario.target + 1) {
+                for (const width of [390, 1280]) {
+                    await page.setViewportSize({width, height: 900});
+                    await guided.locator('.guided-card').screenshot({path: testInfo.outputPath(`set-warning-${scenario.exercise}-${milliseconds}-${width}.png`)});
+                    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+                }
+            }
+        }
+    });
+}
+
+test('set time warning freezes during rest and pause, survives reload and resets for the next set', async ({page}) => {
+    await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[0], [{repetitions: 10}, {repetitions: 20}])]);
+    await page.route(url => url.pathname.startsWith('/workouts'), route => route.request().resourceType() === 'document' ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')}) : route.fallback());
+    const guided = await startEstimatedPlan(page);
+    await page.clock.fastForward(25000);
+    const status = guided.locator('#guided-set-time-status');
+    await expect(status).toHaveText('Near estimate');
+    await guided.getByRole('button', {name: 'Rest now', exact: true}).click();
+    await page.clock.fastForward(10000);
+    await expect(status).toHaveText('Near estimate');
+    await page.reload();
+    await page.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
+    await expect(status).toHaveText('Near estimate');
+    await guided.getByRole('button', {name: 'View rest timer', exact: true}).click();
+    await page.getByRole('dialog', {name: 'Rest', exact: true}).getByRole('button', {name: 'Continue', exact: true}).click();
+    await page.clock.fastForward(6000);
+    await expect(status).toHaveText('Over estimate');
+    await guided.getByRole('button', {name: 'Pause', exact: true}).click();
+    const elapsed = await guided.getByRole('timer', {name: 'Set elapsed time', exact: true}).textContent();
+    await page.clock.fastForward(10000);
+    await expect(guided.getByRole('timer', {name: 'Set elapsed time', exact: true})).toHaveText(elapsed);
+    await expect(status).toHaveText('Over estimate');
+    await guided.getByRole('button', {name: 'Edit set', exact: true}).click();
+    const edit = page.getByRole('dialog', {name: 'Edit current set', exact: true});
+    await edit.getByLabel('Repetitions', {exact: true}).fill('100');
+    await edit.getByRole('button', {name: 'Apply', exact: true}).click();
+    await expect(status).toHaveText('Over estimate');
+    await expect(guided.locator('.guided-card')).toContainText('Estimated set time 00:00:30');
+    await completeGuidedSetWithoutRest(page, guided);
+    await expect(status).toHaveCount(0);
+    await expect(guided.locator('.guided-card')).toContainText('Estimated set time 00:01:00');
+    await guided.getByRole('button', {name: 'Resume', exact: true}).click();
+    await page.clock.fastForward(49000);
+    await expect(status).toHaveText('Near estimate');
+});

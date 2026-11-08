@@ -33,9 +33,9 @@
       <p v-if="!session.reviewing && !session.guidedTimer" class="guided-progress" role="status">{{ session.progressLabel }}</p>
       <template v-if="!session.reviewing">
         <template v-if="session.currentStep">
-          <GuidedExerciseSummary :line="session.currentLine" :setIndex="session.currentStep.segmentIndex" :target="session.currentTarget" :plannedTarget="!!session.plannedSegment" :timeLabel="session.currentDurationBased ? 'Planned duration' : 'Estimated set time'" :timeValue="session.currentDurationBased ? session.formatElapsed(session.plannedSegment.durationSeconds * 1000) : session.currentSetEstimate">
+          <GuidedExerciseSummary :line="session.currentLine" :setIndex="session.currentStep.segmentIndex" :target="session.currentTarget" :plannedTarget="!!session.plannedSegment" :timeLabel="session.currentDurationBased ? 'Planned duration' : 'Estimated set time'" :timeValue="session.currentSetEstimate">
             <template #action><Button ref="editButton" label="Edit set" class="p-button-outlined" @click="session.openEdit" /></template>
-            <template #elapsed><div class="guided-set-elapsed"><span>Set elapsed</span><strong v-if="session.guidedTimer" role="timer" aria-live="off" aria-label="Set elapsed time">{{ session.setElapsed }}</strong><strong v-else>Untimed</strong></div></template>
+            <template #elapsed><div class="guided-set-elapsed"><span>Set elapsed</span><strong v-if="session.guidedTimer" class="guided-set-clock" :class="session.setTimeStatus ? `guided-set-time-${session.setTimeStatus}` : null" role="timer" aria-live="off" aria-label="Set elapsed time" :aria-describedby="session.setTimeStatus ? 'guided-set-time-status' : null">{{ session.setElapsed }}</strong><strong v-else>Untimed</strong><small v-if="session.guidedTimer && session.setTimeStatus" id="guided-set-time-status" role="status">{{ session.setTimeStatusLabel }}</small></div></template>
           </GuidedExerciseSummary>
           <small class="guided-active-help">Active time · excludes rest and pauses. Estimates are rough.</small>
           <div class="guided-exercise-times"><span v-if="session.guidedTimer" role="timer" aria-live="off" :aria-label="`${session.phaseLabel} elapsed time`">Phase {{ session.phaseElapsed }} · includes rest</span><span class="guided-exercise-time" role="timer" aria-live="off">Exercise time {{ session.exerciseElapsed }}</span><span class="guided-estimate">Estimated total {{ session.currentExerciseEstimate }}</span></div>
@@ -194,6 +194,9 @@ h1 { font-size: 1.5rem; margin: 0; overflow-wrap: anywhere; }
 .guided-set-elapsed { display: grid; gap: .25rem; min-width: 0; }
 .guided-set-elapsed span { color: #59636e; }
 .guided-set-elapsed strong { font-size: 1.6rem; font-variant-numeric: tabular-nums; }
+.guided-set-clock { justify-self: start; padding: .15rem .35rem; border-radius: 3px; }
+.guided-set-time-warning { background-color: #ffba01; color: #333333; }
+.guided-set-time-danger { background-color: #e91224; color: #ffffff; }
 .guided-active-help { display: block; color: #59636e; margin-top: .5rem; }
 .guided-rest-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; margin: .75rem 0; padding: .75rem 0; border-top: 1px solid #d6d6d6; border-bottom: 1px solid #d6d6d6; color: #59636e; }
 .guided-set-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: .5rem; flex: 1 1 100%; }
