@@ -151,7 +151,7 @@ public class WeeklySummaryEmailViewFactory {
             WeeklySummaryPresentationMapper.create(snapshot,
                 reflection == null ? null : com.jllado.weightcontrol.api.dto.WeeklyReflectionDtos.WeeklyReflectionResponse.from(reflection),
                 reflection == null ? null : "weekly:" + reflection.getId()),
-            visualSummary(snapshot, reflection)
+            visualSummary(snapshot, reflection == null ? null : com.jllado.weightcontrol.api.dto.WeeklyReflectionDtos.WeeklyReflectionResponse.from(reflection))
         );
     }
 
@@ -171,7 +171,7 @@ public class WeeklySummaryEmailViewFactory {
             new WeeklySummarySnapshot.OutcomeMeasurements(outcomeWeight, outcomePressure), List.of(), null, List.of(), List.of());
     }
 
-    private VisualSummary visualSummary(WeeklySummarySnapshot snapshot, WeeklyReflection reflection) {
+    public VisualSummary visualSummary(WeeklySummarySnapshot snapshot, com.jllado.weightcontrol.api.dto.WeeklyReflectionDtos.WeeklyReflectionResponse reflection) {
         var current = snapshot.progress().currentPeriod();
         var previous = snapshot.progress().previousComparablePeriod();
         var year = snapshot.progress().yearAgoComparablePeriod();
@@ -198,7 +198,7 @@ public class WeeklySummaryEmailViewFactory {
             + (rules == null ? "Target unavailable" : "Goal ≥ " + duration(BigDecimal.valueOf(rules.sleepMinimumSeconds())) + " · " + rules.sleepBasis());
         var cards = List.of(
             new OverviewCard("sleep", "Average sleep", sleep == null ? UNAVAILABLE : duration(sleep), sleepDetail,
-                sleep == null ? neutral(UNAVAILABLE) : rules == null ? neutral("Target unavailable") : goalStatus(sleep, BigDecimal.valueOf(rules.sleepMinimumSeconds()), false, "Sleep goal met", "Below sleep goal"),
+                sleepStatus(current.sleep(), rules),
                 visualDelta(minutes(sleep), minutes(sleepSeconds(previous)), "min", 0, false), visualDelta(minutes(sleep), minutes(sleepSeconds(year)), "min", 0, false)),
             new OverviewCard("calories", "Calories/day", amount(calorie, "kcal", 0), current.calories().entryCount() + "/7 days · "
                 + (goals == null ? "Target unavailable" : "Goal ≤ " + amount(goals.weeklyAverageCalorieMaximum(), "kcal/day", 0)),
@@ -217,18 +217,18 @@ public class WeeklySummaryEmailViewFactory {
                 bp == null ? "Friday–Sunday · No measurement" : "Measured " + bp.measuredDate().format(RANGE_END_DATE), pressureStatus(bp, rules), unavailableDelta(), unavailableDelta())
         );
         var workouts = List.of(
-            workoutRow("Total sessions", BigDecimal.valueOf(current.workouts().workoutCount()), BigDecimal.valueOf(previous.workouts().workoutCount()), BigDecimal.valueOf(year.workouts().workoutCount()), "", false, false, false),
-            workoutRow("Strength sessions", number(current.workouts().strengthSessionCount()), number(previous.workouts().strengthSessionCount()), number(year.workouts().strengthSessionCount()), "", false, false, false),
-            workoutRow("Cardio sessions", number(current.workouts().cardioSessionCount()), number(previous.workouts().cardioSessionCount()), number(year.workouts().cardioSessionCount()), "", false, false, false),
-            workoutRow("Stretching sessions", number(current.workouts().stretchingSessionCount()), number(previous.workouts().stretchingSessionCount()), number(year.workouts().stretchingSessionCount()), "", false, false, false),
+            workoutRow("Total sessions", BigDecimal.valueOf(current.workouts().workoutCount()), BigDecimal.valueOf(previous.workouts().workoutCount()), BigDecimal.valueOf(year.workouts().workoutCount()), "", false, false, false, snapshot.workoutTargets(), WeeklyWorkoutTargets.Period::totalSessions),
+            workoutRow("Strength sessions", number(current.workouts().strengthSessionCount()), number(previous.workouts().strengthSessionCount()), number(year.workouts().strengthSessionCount()), "", false, false, false, snapshot.workoutTargets(), WeeklyWorkoutTargets.Period::strengthSessions),
+            workoutRow("Cardio sessions", number(current.workouts().cardioSessionCount()), number(previous.workouts().cardioSessionCount()), number(year.workouts().cardioSessionCount()), "", false, false, false, snapshot.workoutTargets(), WeeklyWorkoutTargets.Period::cardioSessions),
+            workoutRow("Stretching sessions", number(current.workouts().stretchingSessionCount()), number(previous.workouts().stretchingSessionCount()), number(year.workouts().stretchingSessionCount()), "", false, false, false, snapshot.workoutTargets(), WeeklyWorkoutTargets.Period::stretchingSessions),
             workoutRow("Active cardio minutes", minutes(number(current.workouts().activeCardioSeconds())), minutes(number(previous.workouts().activeCardioSeconds())), minutes(number(year.workouts().activeCardioSeconds())), "min",
-                Boolean.FALSE.equals(current.workouts().cardioDurationComplete()), Boolean.FALSE.equals(previous.workouts().cardioDurationComplete()), Boolean.FALSE.equals(year.workouts().cardioDurationComplete()))
+                Boolean.FALSE.equals(current.workouts().cardioDurationComplete()), Boolean.FALSE.equals(previous.workouts().cardioDurationComplete()), Boolean.FALSE.equals(year.workouts().cardioDurationComplete()), snapshot.workoutTargets(), WeeklyWorkoutTargets.Period::activeCardioSeconds)
         );
         var weekly = snapshot.weeklyRoutines() == null ? List.<WeeklyRoutineView>of() : snapshot.weeklyRoutines().stream()
             .map(routine -> new WeeklyRoutineView(routine.name(), routine.completedWeeks() + "/" + routine.eligibleWeeks() + " weeks",
                 routine.checkinDates().isEmpty() ? "No check-ins" : routine.checkinDates().stream().map(date -> date.format(SUBJECT_DATE)).collect(java.util.stream.Collectors.joining(", ")))).toList();
         return new VisualSummary(new PeriodHeaders(periodLabel(current), periodLabel(previous), periodLabel(year)), hero, cards, workouts, nutritionTable(snapshot.nutrition()), weekly,
-            reflection == null ? null : new ReflectionTeaser(reflection.getTitle(), reflection.getSummary()),
+            reflection == null ? null : new ReflectionTeaser(reflection.title(), reflection.summary()),
             goals == null ? "Personal targets unavailable for this report" : "Goals saved with report · " + goals.capturedAt().atZone(DateTimes.USER_ZONE).toLocalDate().format(RANGE_END_DATE));
     }
 
@@ -247,8 +247,22 @@ public class WeeklySummaryEmailViewFactory {
             + (goals == null || goals.inShapeBodyFatLimit() == null ? "Target unavailable" : "Goal ≤ " + goals.inShapeBodyFatLimit().stripTrailingZeros().toPlainString() + "%");
     }
     private Status bodyFatStatus(BigDecimal fat, WeeklySummarySnapshot.EmailGoals goals) {
-        return fat == null ? neutral("Body fat unavailable") : goals == null ? neutral("Target unavailable")
-            : goalStatus(fat, goals.inShapeBodyFatLimit(), true, "Body-fat goal met", "Above body-fat goal");
+        if (fat == null) return neutral("Body fat unavailable");
+        if (goals == null) return neutral("Target unavailable");
+        var rules = goals.rules();
+        if (rules != null && rules.bodyFatStages() != null)
+            return rules.bodyFatStages().stream().filter(stage -> fat.compareTo(stage.threshold()) > 0)
+                .findFirst().map(stage -> new Status(stage.label(), stage.color())).orElse(neutral("Not classified"));
+        return goalStatus(fat, goals.inShapeBodyFatLimit(), true, "Body-fat goal met", "Above body-fat goal");
+    }
+    private Status sleepStatus(AverageSleep sleep, WeeklySummarySnapshot.FixedRules rules) {
+        BigDecimal value = sleep == null ? null : sleep.totalSleepSeconds();
+        if (value == null) return neutral(UNAVAILABLE);
+        if (rules == null) return neutral("Target unavailable");
+        if (rules.sleepStages() != null && sleep.statusScore() != null)
+            return rules.sleepStages().stream().filter(stage -> BigDecimal.valueOf(sleep.statusScore()).compareTo(stage.threshold()) >= 0)
+                .findFirst().map(stage -> new Status(stage.label(), stage.color())).orElseThrow();
+        return goalStatus(value, BigDecimal.valueOf(rules.sleepMinimumSeconds()), false, "Sleep goal met", "Below sleep goal");
     }
     private Status moodStatus(BigDecimal value, WeeklySummarySnapshot.FixedRules rules) {
         if (value == null) return neutral(UNAVAILABLE);
@@ -273,10 +287,29 @@ public class WeeklySummaryEmailViewFactory {
         return new Delta(change + (unit.isEmpty() ? "" : " " + unit), !higherBetter || difference.signum() == 0 ? NEUTRAL_COLOR : difference.signum() > 0 ? MET_COLOR : MISSED_COLOR);
     }
     private WorkoutRow workoutRow(String label, BigDecimal current, BigDecimal previous, BigDecimal year, String unit,
-        boolean currentPartial, boolean previousPartial, boolean yearPartial) {
+        boolean currentPartial, boolean previousPartial, boolean yearPartial, WeeklyWorkoutTargets plans,
+        java.util.function.Function<WeeklyWorkoutTargets.Period, Integer> measure) {
+        BigDecimal target = workoutTarget(plans == null ? null : plans.current(), measure, unit);
+        BigDecimal previousTarget = workoutTarget(plans == null ? null : plans.previous(), measure, unit);
+        BigDecimal yearTarget = workoutTarget(plans == null ? null : plans.yearAgo(), measure, unit);
         return new WorkoutRow(label, partialAmount(current, unit, currentPartial), partialAmount(previous, unit, previousPartial),
             currentPartial || previousPartial ? unavailableDelta() : visualDelta(current, previous, unit, unit.equals("min") ? 2 : 0, false),
-            partialAmount(year, unit, yearPartial), currentPartial || yearPartial ? unavailableDelta() : visualDelta(current, year, unit, unit.equals("min") ? 2 : 0, false));
+            partialAmount(year, unit, yearPartial), currentPartial || yearPartial ? unavailableDelta() : visualDelta(current, year, unit, unit.equals("min") ? 2 : 0, false),
+            workoutTargetLabel(target, unit), workoutStatus(current, target, currentPartial),
+            workoutTargetLabel(previousTarget, unit), workoutStatus(previous, previousTarget, previousPartial),
+            workoutTargetLabel(yearTarget, unit), workoutStatus(year, yearTarget, yearPartial));
+    }
+    private BigDecimal workoutTarget(WeeklyWorkoutTargets.Period period,
+        java.util.function.Function<WeeklyWorkoutTargets.Period, Integer> measure, String unit) {
+        BigDecimal value = period == null ? null : number(measure.apply(period));
+        return unit.equals("min") ? minutes(value) : value;
+    }
+    private String workoutTargetLabel(BigDecimal target, String unit) {
+        return target == null ? "Plan unavailable" : "≥ " + amount(target, unit, unit.equals("min") ? 2 : 0);
+    }
+    private Status workoutStatus(BigDecimal actual, BigDecimal target, boolean partial) {
+        return target == null ? neutral("Plan unavailable")
+            : assessmentStatus(NutrientAssessment.compare(actual, target, MacroTargetComparison.MINIMUM, !partial));
     }
     private String partialAmount(BigDecimal value, String unit, boolean partial) { return value == null ? UNAVAILABLE : (partial ? "≥ " : "") + (unit.equals("min") ? value.setScale(2, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString() + " min" : amount(value, unit, 0)) + (partial ? " · Partial coverage" : ""); }
 
@@ -285,20 +318,33 @@ public class WeeklySummaryEmailViewFactory {
         var labels = List.of("Protein", "Carbs", "Fat", "Vitamin D", "Total omega-3", "Fiber", "Magnesium");
         var units = List.of("g", "g", "g", "µg", "mg", "g", "mg");
         var rows = new ArrayList<NutrientRow>();
-        boolean hasYear = false;
-        for (int index = 0; index < keys.size(); index++) {
-            String key = keys.get(index), label = labels.get(index), unit = units.get(index);
-            var current = nutrition == null ? null : nutrientMeasure(nutrition.current(), key);
-            var previous = nutrition == null ? null : nutrientMeasure(nutrition.previous(), key);
-            var year = nutrition == null ? null : nutrientMeasure(nutrition.yearAgo(), key);
-            hasYear |= year != null && year.average() != null;
-            rows.add(new NutrientRow(key, label, nutrientAmount(current), nutrientTarget(current), nutrientStatus(current), baselineNutrientAmount(previous), nutrientTarget(previous),
-                nutrientDelta(current, previous, unit), baselineNutrientAmount(year), nutrientTarget(year), nutrientDelta(current, year, unit),
-                current == null ? "No captured nutrient evidence" : (current.eligibleDays() < 7 ? "Partial coverage · " : "") + current.eligibleDays() + "/7 complete days"
-                    + (current.totalFoods() == 0 ? "" : " · " + current.coveredFoods() + "/" + current.totalFoods() + " foods")
-                    + (current.estimatedFoods() == 0 ? "" : " · estimates")));
+        for (int index = 0; index < keys.size(); index++)
+            rows.add(nutrientRow(nutrition, keys.get(index), labels.get(index), units.get(index)));
+        var references = new ArrayList<NutrientRow>();
+        if (nutrition != null) {
+            references.add(nutrientRow(nutrition, "epaDha", "EPA+DHA", "mg"));
+            references.add(nutrientRow(nutrition, "ala", "ALA", "mg"));
+            var total = nutrientMeasure(nutrition.current(), "omega3");
+            if (total != null && total.target() != null)
+                references.add(nutrientRow(nutrition, "legacyOmega3", "Legacy total omega-3 goal", "mg"));
         }
-        return new NutritionTable(rows, hasYear, nutrition == null ? "Nutrient evidence and targets were not captured in this report." : hasYear ? "Targets captured with report; baselines retain their own saved targets." : "52-week nutrient comparison unavailable; targets captured with report.");
+        boolean hasYear = nutrition != null && nutrition.yearAgo() != null && nutrition.yearAgo().measures().stream().anyMatch(measure -> measure.average() != null);
+        return new NutritionTable(rows, hasYear, nutrition == null ? "Nutrient evidence and targets were not captured in this report." : "Targets captured with report; averages use complete recorded days.", references);
+    }
+    private NutrientRow nutrientRow(WeeklyNutritionSnapshot nutrition, String key, String label, String unit) {
+        String measureKey = key.equals("legacyOmega3") ? "omega3" : key;
+        var current = nutrition == null ? null : nutrientMeasure(nutrition.current(), measureKey);
+        var previous = nutrition == null ? null : nutrientMeasure(nutrition.previous(), measureKey);
+        var year = nutrition == null ? null : nutrientMeasure(nutrition.yearAgo(), measureKey);
+        return new NutrientRow(key, label, nutrientAmount(current), nutrientTarget(nutrition, current, key),
+            nutrientStatus(nutrition, nutrition == null ? null : nutrition.current(), current, key),
+            baselineNutrientAmount(previous), nutrientTarget(nutrition, previous, key), nutrientDelta(current, previous, unit),
+            baselineNutrientAmount(year), nutrientTarget(nutrition, year, key), nutrientDelta(current, year, unit),
+            current == null ? "No captured nutrient evidence" : (current.eligibleDays() < 7 ? "Partial coverage · " : "") + current.eligibleDays() + "/7 complete days"
+                + (current.totalFoods() == 0 ? "" : " · " + current.coveredFoods() + "/" + current.totalFoods() + " foods")
+                + (current.estimatedFoods() == 0 ? "" : " · estimates"),
+            nutrientStatus(nutrition, nutrition == null ? null : nutrition.previous(), previous, key),
+            nutrientStatus(nutrition, nutrition == null ? null : nutrition.yearAgo(), year, key));
     }
     private WeeklyNutritionSnapshot.Measure nutrientMeasure(WeeklyNutritionSnapshot.Period period, String key) {
         return period == null ? null : period.measures().stream().filter(measure -> measure.key().equals(key)).findFirst().orElse(null);
@@ -313,11 +359,27 @@ public class WeeklySummaryEmailViewFactory {
         return measure == null || measure.target() == null || measure.comparison() == null || measure.unavailableReason() != null ? "Target unavailable"
             : (measure.comparison() == MacroTargetComparison.MINIMUM ? "≥ " : "≤ ") + amount(measure.target(), measure.unit(), 2);
     }
-    private Status nutrientStatus(WeeklyNutritionSnapshot.Measure measure) {
-        if (measure == null || measure.average() == null) return neutral(UNAVAILABLE);
-        if (measure.target() == null || measure.comparison() == null || measure.unavailableReason() != null) return neutral("Target unavailable");
-        return goalStatus(measure.average(), measure.target(), measure.comparison() == MacroTargetComparison.MAXIMUM, "Goal met",
-            measure.comparison() == MacroTargetComparison.MAXIMUM ? "Above goal" : "Below goal");
+    private String nutrientTarget(WeeklyNutritionSnapshot nutrition, WeeklyNutritionSnapshot.Measure measure, String key) {
+        if (key.equals("omega3")) return nutrition == null ? "Target unavailable" : "See report references";
+        if (key.equals("vitaminD") && nutrition != null && nutrition.targets() != null
+            && nutrition.targets().vitaminD().source() == com.jllado.weightcontrol.api.dto.NutritionDtos.NutrientTargetSource.EFSA_AI)
+            return measure == null || measure.target() == null ? "Reference unavailable" : amount(measure.target(), measure.unit(), 2) + " reference";
+        return nutrientTarget(measure);
+    }
+    private Status assessmentStatus(NutrientAssessment.Result result) { return new Status(result.label(), result.color()); }
+    private Status nutrientStatus(WeeklyNutritionSnapshot nutrition, WeeklyNutritionSnapshot.Period period,
+        WeeklyNutritionSnapshot.Measure measure, String key) {
+        if (key.equals("omega3")) {
+            var epa = nutrientMeasure(period, "epaDha"); var ala = nutrientMeasure(period, "ala");
+            return assessmentStatus(NutrientAssessment.omega3(epa == null ? null : epa.valueForAssessment(), epa == null ? null : epa.targetForAssessment(), true,
+                ala == null ? null : ala.valueForAssessment(), ala == null ? null : ala.targetForAssessment(), true));
+        }
+        if (measure == null) return neutral(UNAVAILABLE);
+        if (key.equals("vitaminD"))
+            return assessmentStatus(NutrientAssessment.vitaminD(measure.valueForAssessment(), measure.targetForAssessment(),
+                nutrition.targets() == null ? null : nutrition.targets().vitaminD().source(), true));
+        if (measure.unavailableReason() != null) return neutral("Target unavailable");
+        return assessmentStatus(NutrientAssessment.compare(measure.valueForAssessment(), measure.targetForAssessment(), measure.comparison(), true));
     }
     private Delta nutrientDelta(WeeklyNutritionSnapshot.Measure current, WeeklyNutritionSnapshot.Measure baseline, String unit) {
         return visualDelta(current == null ? null : current.average(), baseline == null ? null : baseline.average(), unit, 2, false);

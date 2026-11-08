@@ -30,6 +30,32 @@ class WeeklyMetricsCalculatorTest {
     private final WeeklyMetricsCalculator calculator = new WeeklyMetricsCalculator();
 
     @Test
+    void weeklySleepStatusUsesAllFourCriteriaAndRequiresSevenCompleteDates() {
+        LocalDate end = LocalDate.of(2026, 10, 23);
+        List<Sleep> complete = end.minusDays(6).datesUntil(end.plusDays(1)).map(date -> {
+            Sleep sleep = new Sleep(); sleep.setSleepDate(date);
+            sleep.setBedtimeStart(date.minusDays(1).atTime(23, 0).atZone(DateTimes.USER_ZONE).toOffsetDateTime());
+            sleep.setBedtimeEnd(date.atTime(6, 0).atZone(DateTimes.USER_ZONE).toOffsetDateTime());
+            sleep.setTotalSleepDuration(21600);
+            return sleep;
+        }).toList();
+        assertEquals(4, sleepAverage(end, complete).statusScore());
+        complete.forEach(sleep -> sleep.setBedtimeEnd(sleep.getBedtimeStart().plusHours(6)));
+        assertEquals(3, sleepAverage(end, complete).statusScore());
+        complete.forEach(sleep -> sleep.setBedtimeEnd(sleep.getBedtimeStart().plusHours(8)));
+        assertEquals(3, sleepAverage(end, complete).statusScore());
+        assertNull(sleepAverage(end, complete.subList(0, 6)).statusScore());
+        complete.getFirst().setBedtimeStart(null);
+        assertNull(sleepAverage(end, complete).statusScore());
+    }
+
+    private WeeklyMetrics.AverageSleep sleepAverage(LocalDate end, List<Sleep> sleeps) {
+        return calculator.progress(user(), end, new WeeklyMetricsCalculator.Input(
+            List.of(), List.of(), List.of(), List.of(), sleeps, List.of(), List.of(), List.of(), List.of(), List.of()
+        )).currentPeriod().sleep();
+    }
+
+    @Test
     void completeWeekUsesOpportunityWeightedCompletionAndRecordedDayAverages() {
         User user = user();
         LocalDate end = LocalDate.of(2026, 8, 14);

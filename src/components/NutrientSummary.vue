@@ -8,6 +8,10 @@
       <p>{{ summary[selectedField.key] == null ? 'No value recorded.' : `${partial(selectedField) ? 'Partial total' : 'Total'}: ${format(summary[selectedField.key])} ${selectedField.unit}` }}</p>
       <p>{{ summary[selectedField.coverageKey].foodsWithValues }} of {{ summary.totalFoods }} foods have a value.</p>
       <p v-if="targetStatus(selectedField)">{{ targetStatus(selectedField).label }}</p>
+      <dl v-if="daily && selectedField.key === 'omega3Milligrams' && targets" class="omega-references">
+        <div v-for="reference in omegaReferences" :key="reference.key"><dt>{{ reference.label }}</dt><dd>{{ reference.value == null ? 'Not recorded' : `${format(reference.value)} mg` }} · {{ reference.target == null ? 'No target' : `minimum ${format(reference.target)} mg/day` }}</dd></div>
+      </dl>
+      <p v-if="daily && selectedField.key === 'omega3Milligrams' && targets?.omega3?.value != null">Historical total target: {{ format(targets.omega3.value) }} mg/day; separate from the overall assessment.</p>
       <p v-if="summary[selectedField.coverageKey].estimatedFoods">Includes estimates.</p>
       <p v-if="summary.mealsWithoutFoods">{{ summary.mealsWithoutFoods }} meal(s) have no foods recorded.</p>
     </Dialog>
@@ -19,16 +23,20 @@ import nutritionService from '../services/NutritionService';
 import {dailyNutrientStatus} from '../model/NutrientTrends';
 import {nutrientFields, dailyNutrientFields, formatNutritionValue} from '../model/Dish';
 export default {
-  props: {date: {type: [String, Date], default: null}, summary: {type: Object, required: true}, compact: {type: Boolean, default: false}, daily: {type: Boolean, default: false}},
+  props: {date: {type: [String, Date], default: null}, summary: {type: Object, required: true}, compact: {type: Boolean, default: false}, daily: {type: Boolean, default: false}, completed: {type: Boolean, default: false}},
   data() { return {selectedField: null, detailTrigger: null, targets: null, requestId: 0}; },
   computed: {
     fields() { return this.daily ? dailyNutrientFields : nutrientFields; },
-    dateKey() { return this.daily ? dayjs(this.date).format('YYYY-MM-DD') : null; }
+    dateKey() { return this.daily ? dayjs(this.date).format('YYYY-MM-DD') : null; },
+    omegaReferences() { return [
+      {key: 'epaDha', label: 'EPA+DHA', value: this.summary.epaDhaMilligrams, target: this.targets.epaDha?.value},
+      {key: 'ala', label: 'ALA', value: this.summary.alaMilligrams, target: this.targets.ala?.value}
+    ]; }
   },
   watch: {dateKey: {immediate: true, handler() { this.loadTargets(); }}},
   methods: {
     format: formatNutritionValue,
-    targetStatus(field) { return this.daily ? dailyNutrientStatus(this.summary, field, this.targets) : null; },
+    targetStatus(field) { return this.daily ? dailyNutrientStatus(this.summary, field, this.targets, this.completed) : null; },
     async loadTargets() {
       const requestId = ++this.requestId;
       this.targets = null;

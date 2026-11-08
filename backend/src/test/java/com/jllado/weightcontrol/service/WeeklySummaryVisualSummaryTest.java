@@ -14,15 +14,53 @@ class WeeklySummaryVisualSummaryTest {
     private WeeklySummaryEmailView.VisualSummary visual(WeeklySummarySnapshot snapshot) {
         return factory.create(new User(),snapshot,null,"https://weight.example").visualSummary();
     }
+    @Test void nutrientStatusesUseCapturedSourcesAndIndependentSubtypeEvidence() throws Exception {
+        ObjectNode json = mapper.valueToTree(WeeklySummaryEmailFixtures.populated());
+        ObjectNode targets = ((ObjectNode) json.get("nutrition")).putObject("targets");
+        targets.putObject("vitaminD").put("value", 15).put("source", "EFSA_AI").put("referenceValue", 15);
+        var measures = (com.fasterxml.jackson.databind.node.ArrayNode) json.at("/nutrition/current/measures");
+        measures.addObject().put("key", "epaDha").put("label", "EPA+DHA").put("unit", "mg").put("average", 249).put("target", 250).put("eligibleDays", 7).put("comparison", "MINIMUM");
+        measures.addObject().put("key", "ala").put("label", "ALA").put("unit", "mg").put("average", 1000).put("target", 1000).put("eligibleDays", 7).put("comparison", "MINIMUM");
+        var snapshot = mapper.treeToValue(json, WeeklySummarySnapshot.class);
+        var table = visual(snapshot).nutrition();
+        assertEquals("Reference only", table.rows().get(3).status().label());
+        assertEquals("Below goal", table.rows().get(4).status().label());
+        assertEquals(2, table.references().size());
+        ((ObjectNode) targets.get("vitaminD")).put("source", "PERSONAL");
+        assertEquals("Below goal", visual(mapper.treeToValue(json, WeeklySummarySnapshot.class)).nutrition().rows().get(3).status().label());
+        assertEquals(table, WeeklySummaryPresentationMapper.create(snapshot, null, null).visualSummary().nutrition());
+    }
+    @Test void newClassificationRulesRespectStrictBodyFatBoundariesAndLegacyRulesStayFrozen() throws Exception {
+        ObjectNode json = mapper.valueToTree(WeeklySummaryEmailFixtures.populated());
+        ((ObjectNode) json.at("/progress/currentPeriod/weight")).put("fatPercentage", 13);
+        assertEquals("COMPETITION", visual(mapper.treeToValue(json, WeeklySummarySnapshot.class)).overview().get(2).status().label());
+        var rules = (ObjectNode) json.at("/emailGoals/rules");
+        rules.remove("bodyFatStages"); rules.remove("sleepStages"); rules.put("version", 1);
+        assertEquals("Body-fat goal met", visual(mapper.treeToValue(json, WeeklySummarySnapshot.class)).overview().get(2).status().label());
+        assertEquals("Sleep goal met", visual(mapper.treeToValue(json, WeeklySummarySnapshot.class)).overview().getFirst().status().label());
+        assertNull(mapper.treeToValue(json, WeeklySummarySnapshot.class).workoutTargets());
+    }
+
+    @Test void sleepClassificationRequiresCapturedFourCriterionScoreRatherThanDurationBands() throws Exception {
+        ObjectNode json = mapper.valueToTree(WeeklySummaryEmailFixtures.populated());
+        var sleep = (ObjectNode) json.at("/progress/currentPeriod/sleep");
+        sleep.put("totalSleepSeconds", 21600).put("statusScore", 3);
+        assertEquals("GOOD", visual(mapper.treeToValue(json, WeeklySummarySnapshot.class)).overview().getFirst().status().label());
+        sleep.put("statusScore", 4);
+        assertEquals("EXCELLENT", visual(mapper.treeToValue(json, WeeklySummarySnapshot.class)).overview().getFirst().status().label());
+        sleep.remove("statusScore");
+        assertEquals("Sleep goal met", visual(mapper.treeToValue(json, WeeklySummarySnapshot.class)).overview().getFirst().status().label());
+    }
+
     @Test void sixCardsUseCapturedInclusiveGoalsAndKeepKilogramComparisonsNeutral() {
         var snapshot = WeeklySummaryEmailFixtures.populated(); var view = visual(snapshot);
         assertEquals(List.of("sleep","calories","weight","mood","weekendWeight","bloodPressure"),view.overview().stream().map(WeeklySummaryEmailView.OverviewCard::key).toList());
         assertEquals("Sleep goal met",view.overview().get(0).status().label());
         assertTrue(view.overview().get(0).detail().contains("recorded nights"));
         assertEquals("Within calorie ceiling",view.overview().get(1).status().label());
-        assertEquals("Body-fat goal met",view.overview().get(2).status().label());
+        assertEquals("EXCELLENT",view.overview().get(2).status().label());
         assertEquals("Good",view.overview().get(3).status().label());
-        assertEquals("Above body-fat goal",view.overview().get(4).status().label());
+        assertEquals("GOOD",view.overview().get(4).status().label());
         assertEquals("NORMAL",view.overview().get(5).status().label());
         assertTrue(view.overview().get(4).detail().contains("2026"));
         assertTrue(view.overview().get(4).detail().contains("17.001%"));
@@ -49,7 +87,7 @@ class WeeklySummaryVisualSummaryTest {
         User changed = new User(); changed.setWeeklyAverageCalorieMaximum(500);changed.setInShapeBodyFatLimit(BigDecimal.ONE);
         var view = factory.create(changed,snapshot,null,"https://weight.example").visualSummary();
         assertEquals("Within calorie ceiling",view.overview().get(1).status().label());
-        assertEquals("Body-fat goal met",view.overview().get(2).status().label());
+        assertEquals("EXCELLENT",view.overview().get(2).status().label());
         ObjectNode json = mapper.valueToTree(snapshot);json.remove("emailGoals");json.put("schemaVersion",8);
         var legacy = mapper.treeToValue(json,WeeklySummarySnapshot.class);
         assertNull(legacy.emailGoals());assertEquals(8,legacy.schemaVersion());
@@ -82,6 +120,38 @@ class WeeklySummaryVisualSummaryTest {
         assertEquals("91.5 min",rows.get(4).current());assertEquals("90 min",rows.get(4).previous());
         assertEquals("+1.5 min",rows.get(4).previousDelta().text());assertEquals("-28.5 min",rows.get(4).yearAgoDelta().text());
     }
+    @Test void workoutPeriodsUseTheirOwnCapturedTargetsAndActualValues() throws Exception {
+        ObjectNode json = mapper.valueToTree(WeeklySummaryEmailFixtures.populated());
+        json.set("workoutTargets", mapper.valueToTree(new WeeklyWorkoutTargets(
+            new WeeklyWorkoutTargets.Period(List.of(), 5, 3, 3, 4, 0, 5490),
+            new WeeklyWorkoutTargets.Period(List.of(), 6, 3, 3, 4, 0, 6000),
+            new WeeklyWorkoutTargets.Period(List.of(), 4, 2, 2, 1, 0, 3600))));
+        var rows = visual(mapper.treeToValue(json, WeeklySummarySnapshot.class)).workouts();
+        var strength = rows.get(1);
+        assertEquals("≥ 3", strength.target()); assertEquals("Goal met", strength.status().label());
+        assertEquals("≥ 3", strength.previousTarget()); assertEquals("Below goal", strength.previousStatus().label());
+        assertEquals("≥ 2", strength.yearAgoTarget()); assertEquals("Goal met", strength.yearAgoStatus().label());
+        var cardio = rows.get(4);
+        assertEquals("≥ 91.50 min", cardio.target()); assertEquals("Goal met", cardio.status().label());
+        assertEquals("≥ 100.00 min", cardio.previousTarget()); assertEquals("Below goal", cardio.previousStatus().label());
+        assertEquals("≥ 60.00 min", cardio.yearAgoTarget()); assertEquals("Goal met", cardio.yearAgoStatus().label());
+    }
+    @Test void workoutBaselineUnknownPlansAndPartialDurationsStayNeutral() throws Exception {
+        ObjectNode json = mapper.valueToTree(WeeklySummaryEmailFixtures.populated());
+        json.set("workoutTargets", mapper.valueToTree(new WeeklyWorkoutTargets(
+            new WeeklyWorkoutTargets.Period(List.of(), 5, 3, 3, 4, 0, 5490),
+            new WeeklyWorkoutTargets.Period(List.of(), null, null, null, null, null, null),
+            new WeeklyWorkoutTargets.Period(List.of(), 6, 4, 3, 2, 0, 9000))));
+        ((ObjectNode) json.at("/progress/yearAgoComparablePeriod/workouts")).put("cardioDurationComplete", false);
+        var rows = visual(mapper.treeToValue(json, WeeklySummarySnapshot.class)).workouts();
+        assertEquals("Plan unavailable", rows.get(1).previousTarget());
+        assertEquals("#486277", rows.get(1).previousStatus().color());
+        assertEquals("Goal met", rows.get(1).yearAgoStatus().label());
+        assertEquals("Not available", rows.get(4).yearAgoStatus().label());
+        assertEquals("#486277", rows.get(4).yearAgoStatus().color());
+        assertEquals("Not available", rows.get(4).yearAgoDelta().text());
+    }
+
     @Test void partialCardioPreventsUnsupportedDeltaAndPreservesMeasuredMinutes() throws Exception {
         ObjectNode json=mapper.valueToTree(WeeklySummaryEmailFixtures.populated());
         ((ObjectNode)json.at("/progress/currentPeriod/workouts")).put("activeCardioSeconds",90).put("cardioDurationComplete",false);
@@ -98,8 +168,8 @@ class WeeklySummaryVisualSummaryTest {
         assertEquals("Goal met",rows.get(0).status().label());assertEquals("Above goal",rows.get(1).status().label());
         assertEquals("≥ 125.00 g",rows.get(0).target());assertEquals("≥ 120.00 g",rows.get(0).previousTarget());
         assertTrue(rows.get(0).previous().contains("7/7 days"));
-        assertEquals("0.00 µg",rows.get(3).current());assertEquals("Below goal",rows.get(3).status().label());
-        assertTrue(rows.get(4).current().startsWith("≈ "));assertEquals("Target unavailable",rows.get(4).target());
+        assertEquals("0.00 µg",rows.get(3).current());assertEquals("Not available",rows.get(3).status().label());
+        assertTrue(rows.get(4).current().startsWith("≈ "));assertEquals("See report references",rows.get(4).target());
         assertEquals("#486277",rows.get(4).status().color());
         assertEquals("Not available",rows.get(5).current());assertTrue(rows.get(5).coverage().contains("Partial coverage"));
         assertEquals(1,rows.get(5).coverage().split("Partial coverage",-1).length - 1);
@@ -154,7 +224,7 @@ class WeeklySummaryVisualSummaryTest {
         var goals=WeeklySummaryService.captureEmailGoals(user);
         user.setWeeklyAverageCalorieMaximum(1000);user.setInShapeBodyFatLimit(BigDecimal.ONE);
         assertEquals(new BigDecimal("2500"),goals.weeklyAverageCalorieMaximum());assertEquals(new BigDecimal("17.123"),goals.inShapeBodyFatLimit());
-        assertEquals(1,goals.rules().version());assertEquals(21600,goals.rules().sleepMinimumSeconds());
+        assertEquals(2,goals.rules().version());assertEquals(21600,goals.rules().sleepMinimumSeconds());
         assertEquals(BigDecimal.valueOf(4),goals.rules().moodGoodMinimum());
         assertEquals(List.of("CRISIS","HYPER","HIGH","ELEVATED","NORMAL"),goals.rules().bloodPressureStages().stream().map(WeeklySummarySnapshot.BloodPressureRule::label).toList());
         assertNotNull(goals.capturedAt());

@@ -23,12 +23,28 @@ public record WeeklySummarySnapshot(
     List<String> warnings,
     WeeklyNutritionSnapshot nutrition,
     List<WeeklyRoutineProgress> weeklyRoutines,
-    EmailGoals emailGoals
+    EmailGoals emailGoals,
+    WeeklyWorkoutTargets workoutTargets
 ) {
 
     public record EmailGoals(Instant capturedAt, BigDecimal weeklyAverageCalorieMaximum, BigDecimal inShapeBodyFatLimit, FixedRules rules) { }
     public record FixedRules(int version, int sleepMinimumSeconds, String sleepBasis, BigDecimal moodGoodMinimum,
-        BigDecimal moodNeutralMinimum, List<BloodPressureRule> bloodPressureStages) { }
+        BigDecimal moodNeutralMinimum, List<BloodPressureRule> bloodPressureStages,
+        List<ClassificationRule> bodyFatStages, List<ClassificationRule> sleepStages, int nutrientAssessmentVersion) {
+        public FixedRules(int version, int sleepMinimumSeconds, String sleepBasis, BigDecimal moodGoodMinimum,
+            BigDecimal moodNeutralMinimum, List<BloodPressureRule> bloodPressureStages) {
+            this(version, sleepMinimumSeconds, sleepBasis, moodGoodMinimum, moodNeutralMinimum, bloodPressureStages, null, null, 0);
+        }
+    }
+    public record ClassificationRule(String label, BigDecimal threshold, String color) { }
+
+    public WeeklySummarySnapshot(int schemaVersion, LocalDate periodStart, LocalDate fridayDate,
+        WeeklyMetrics.Progress progress, OutcomeMeasurements outcomes, BackPainSummary backPain,
+        List<RoutineProgress> routines, GoalEvidence goalEvidence, List<PersonalRecordSnapshot> personalRecords,
+        List<String> warnings, WeeklyNutritionSnapshot nutrition, List<WeeklyRoutineProgress> weeklyRoutines, EmailGoals emailGoals) {
+        this(schemaVersion, periodStart, fridayDate, progress, outcomes, backPain, routines, goalEvidence, personalRecords,
+            warnings, nutrition, weeklyRoutines, emailGoals, null);
+    }
     public record BloodPressureRule(String label, Integer systolicAbove, Integer diastolicAbove, String color) { }
 
     public WeeklySummarySnapshot(int schemaVersion, LocalDate periodStart, LocalDate fridayDate,

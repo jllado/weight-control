@@ -14,5 +14,14 @@ public record WeeklyNutritionSnapshot(Instant capturedAt, String targetLabel, Nu
     public record DatedTarget(LocalDate date, MacroTargetsResponse macroTargets, BigDecimal fatPercentage) { }
     public record Measure(String key, String label, String unit, BigDecimal average, int eligibleDays,
         int recordedDays, int coveredFoods, int totalFoods, int estimatedFoods, BigDecimal target,
-        MacroTargetComparison comparison, String unavailableReason) { }
+        MacroTargetComparison comparison, String unavailableReason, BigDecimal assessmentAverage, BigDecimal assessmentTarget) {
+        public Measure(String key, String label, String unit, BigDecimal average, int eligibleDays,
+            int recordedDays, int coveredFoods, int totalFoods, int estimatedFoods, BigDecimal target,
+            MacroTargetComparison comparison, String unavailableReason) {
+            this(key, label, unit, average, eligibleDays, recordedDays, coveredFoods, totalFoods, estimatedFoods, target,
+                comparison, unavailableReason, null, null);
+        }
+        public BigDecimal valueForAssessment() { return assessmentAverage == null ? average : assessmentAverage; }
+        public BigDecimal targetForAssessment() { return assessmentTarget == null ? target : assessmentTarget; }
+    }
 }

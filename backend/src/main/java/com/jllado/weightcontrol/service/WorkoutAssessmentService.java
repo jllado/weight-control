@@ -85,7 +85,7 @@ public class WorkoutAssessmentService {
         var weeklyPlans = weeklyPlans(user, workoutDate);
         return new WorkoutAssessmentContextResponse(
             new AssessmentDayData(workoutDate, sessions.stream().map(AssessmentWorkoutData::from).toList()),
-            weeklyPlanEvidence(workoutDate, weeklyPlans),
+            WorkoutPlanEvidenceResolver.resolve(workoutDate, weeklyPlans),
             CoachingPlanResponse.from(plan),
             healthConstraintRepository.findActiveOverlapping(user, today, today).stream()
                 .map(this::toHealthConstraintData)
@@ -148,26 +148,6 @@ public class WorkoutAssessmentService {
     private List<WorkoutPlan> weeklyPlans(User user, LocalDate date) {
         return workoutPlanRepository.findAssessmentCandidates(user, date, date.atStartOfDay(DateTimes.USER_ZONE).toInstant(),
             date.plusDays(1).atStartOfDay(DateTimes.USER_ZONE).toInstant());
-    }
-
-    private AssessmentWeeklyPlanData weeklyPlanEvidence(LocalDate date, List<WorkoutPlan> plans) {
-        if (plans.isEmpty()) return new AssessmentWeeklyPlanData("UNAVAILABLE", null, null, null, null);
-        if (plans.size() != 1) return new AssessmentWeeklyPlanData("AMBIGUOUS", null, null, null, null);
-        var plan = plans.getFirst();
-        var dayStart = date.atStartOfDay(DateTimes.USER_ZONE).toInstant();
-        var dayEnd = date.plusDays(1).atStartOfDay(DateTimes.USER_ZONE).toInstant();
-        if (!plan.getUpdatedAt().isBefore(dayEnd))
-            return new AssessmentWeeklyPlanData("HISTORICAL_VERSION_UNAVAILABLE", plan.getStartDate(), plan.getReviewDate(), plan.getUpdatedAt(), null);
-        if (plan.getUpdatedAt().isAfter(dayStart) || (plan.getArchivedAt() != null && plan.getArchivedAt().isBefore(dayEnd)))
-            return new AssessmentWeeklyPlanData("AMBIGUOUS", plan.getStartDate(), plan.getReviewDate(), plan.getUpdatedAt(), null);
-        var day = plan.getDays().stream().filter(candidate -> candidate.day() == date.getDayOfWeek()).findFirst().orElseThrow();
-        var sessions = day.sessions().stream().map(session -> {
-            var targets = session.lines().stream().map(WorkoutPlanSessionEvidence::snapshot).toList();
-            return new AssessmentPlannedSessionData(session.name(), session.note(), WorkoutPlanSessionEvidence.key(session.name(), targets, session.saunaRoundsMinutes()),
-                targets, session.saunaSession(), session.saunaRoundsMinutes());
-        }).toList();
-        return new AssessmentWeeklyPlanData("AVAILABLE", plan.getStartDate(), plan.getReviewDate(), plan.getUpdatedAt(),
-            new AssessmentPlannedDayData(day.day(), day.rest(), day.note(), sessions));
     }
 
     private String contextToken(List<Workout> sessions, List<WorkoutPlan> plans) {

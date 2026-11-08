@@ -79,7 +79,7 @@ import org.springframework.data.domain.Sort;
 public class WeeklySummaryService {
 
     private static final int YEAR_COMPARISON_WEEKS = 52;
-    static final int SNAPSHOT_SCHEMA_VERSION = 9;
+    static final int SNAPSHOT_SCHEMA_VERSION = 10;
     private static final Logger LOG = LoggerFactory.getLogger(WeeklySummaryService.class);
 
     private final WeightRepository weightRepository;
@@ -105,6 +105,7 @@ public class WeeklySummaryService {
     private final ObjectMapper objectMapper;
     private final AppProperties properties;
     private final WeeklyNutritionSnapshotService nutritionSnapshots;
+    private final WeeklyWorkoutTargetService workoutTargets;
 
     public WeeklySummaryService(
         WeightRepository weightRepository,
@@ -129,7 +130,8 @@ public class WeeklySummaryService {
         CoachingPlanRepository coachingPlanRepository,
         ObjectMapper objectMapper,
         AppProperties properties,
-        WeeklyNutritionSnapshotService nutritionSnapshots
+        WeeklyNutritionSnapshotService nutritionSnapshots,
+        WeeklyWorkoutTargetService workoutTargets
     ) {
         this.weightRepository = weightRepository;
         this.bloodPressureRepository = bloodPressureRepository;
@@ -154,6 +156,7 @@ public class WeeklySummaryService {
         this.objectMapper = objectMapper;
         this.properties = properties;
         this.nutritionSnapshots = nutritionSnapshots;
+        this.workoutTargets = workoutTargets;
     }
 
     @Transactional
@@ -457,19 +460,33 @@ public class WeeklySummaryService {
             outcomeWarnings(outcomes),
             nutritionSnapshots.capture(user, fridayDate),
             weeklyRoutineProgress(user, periodStart, fridayDate),
-            captureEmailGoals(user)
+            captureEmailGoals(user),
+            workoutTargets.capture(user, fridayDate)
         );
     }
 
     static WeeklySummarySnapshot.EmailGoals captureEmailGoals(User user) {
         return new WeeklySummarySnapshot.EmailGoals(Instant.now(), BigDecimal.valueOf(user.getWeeklyAverageCalorieMaximum()), user.getInShapeBodyFatLimit(),
-            new WeeklySummarySnapshot.FixedRules(1, 21600, "Average of recorded nights", BigDecimal.valueOf(4), BigDecimal.valueOf(3), List.of(
+            new WeeklySummarySnapshot.FixedRules(2, 21600, "Average of recorded nights", BigDecimal.valueOf(4), BigDecimal.valueOf(3), List.of(
                 new WeeklySummarySnapshot.BloodPressureRule("CRISIS", 180, 120, "#c53030"),
                 new WeeklySummarySnapshot.BloodPressureRule("HYPER", 140, 90, "#c05621"),
                 new WeeklySummarySnapshot.BloodPressureRule("HIGH", 130, 80, "#975a16"),
                 new WeeklySummarySnapshot.BloodPressureRule("ELEVATED", 120, null, "#317db6"),
                 new WeeklySummarySnapshot.BloodPressureRule("NORMAL", null, null, "#2f855a")
-            )));
+            ), List.of(
+                classification("OBESITY", 35, "#c53030"), classification("OVERWEIGHT", 30, "#c05621"),
+                classification("BAD_SHAPE", 25, "#975a16"), classification("NORMAL", 22, "#6b8e23"),
+                classification("GOOD", 17, "#6b8e23"), classification("EXCELLENT", 13, "#2f855a"),
+                classification("COMPETITION", 9, "#6b8e23"), classification("LOW_FAT", 5, "#c53030")
+            ), List.of(
+                classification("EXCELLENT", 4, "#2f855a"), classification("GOOD", 3, "#6b8e23"),
+                classification("FAIR", 2, "#975a16"), classification("POOR", 1, "#c05621"),
+                classification("BAD", 0, "#c53030")
+            ), 1));
+    }
+
+    private static WeeklySummarySnapshot.ClassificationRule classification(String label, int threshold, String color) {
+        return new WeeklySummarySnapshot.ClassificationRule(label, BigDecimal.valueOf(threshold), color);
     }
 
     BackPainSummary backPainSummary(User user, LocalDate periodStart, LocalDate periodEnd) {

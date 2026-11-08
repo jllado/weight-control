@@ -78,8 +78,14 @@ public final class WeeklyMetrics {
         BigDecimal awakeSeconds,
         BigDecimal averageHeartRate,
         BigDecimal averageHrv,
-        int nightCount
+        int nightCount,
+        Integer statusScore
     ) {
+
+        public AverageSleep(BigDecimal totalSleepSeconds, BigDecimal deepSleepSeconds, BigDecimal remSleepSeconds,
+            BigDecimal lightSleepSeconds, BigDecimal awakeSeconds, BigDecimal averageHeartRate, BigDecimal averageHrv, int nightCount) {
+            this(totalSleepSeconds, deepSleepSeconds, remSleepSeconds, lightSleepSeconds, awakeSeconds, averageHeartRate, averageHrv, nightCount, null);
+        }
 
         public AverageSleep(BigDecimal totalSleepSeconds, BigDecimal deepSleepSeconds, BigDecimal remSleepSeconds, BigDecimal awakeSeconds, BigDecimal averageHeartRate, BigDecimal averageHrv, int nightCount) {
             this(totalSleepSeconds, deepSleepSeconds, remSleepSeconds, null, awakeSeconds, averageHeartRate, averageHrv, nightCount);

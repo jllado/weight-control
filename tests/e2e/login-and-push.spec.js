@@ -72,7 +72,7 @@ function plain(value) {
     return JSON.parse(JSON.stringify(value));
 }
 
-const {googleClientScript, profile, dashboard, dashboardDailyStatus, dashboardWeek} = require('../fixtures/dashboard.cjs');
+const {googleClientScript, profile, dashboard, dashboardDailyStatus, dashboardWeek, nutrientTargetsForDate} = require('../fixtures/dashboard.cjs');
 
 const dashboardWeights = [{
     id: 1,
@@ -598,6 +598,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
         if (path === '/api/auth/google') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({email: 'jllado@gmail.com', displayName: 'Jordi', authenticated: true})});
         }
+        if (path === '/api/nutrition/targets') return route.fulfill({json: nutrientTargetsForDate(new URL(request.url()).searchParams.get('asOf'))});
         if (path === '/api/profile') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(profile)});
         }
@@ -12333,6 +12334,7 @@ test('guided exercise progress excludes omitted and skipped exercises', async ({
 });
 
 test('guided workout alternates superset rounds, resumes the current set, and saves actual values with planned targets', async ({page, context}, testInfo) => {
+    test.setTimeout(60000);
     await page.clock.install({time: new Date('2026-09-27T12:00:00')});
     const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, sessions: []}));
     const cardioRecords = [
@@ -12753,6 +12755,7 @@ test('guided workout edits weight for timed strength sets while preserving plann
 
 test('guided workout records exercise time, distinguishes skipped work from unlogged work, and keeps superset flow', async ({page}, testInfo) => {
     await page.clock.install({time: new Date('2026-09-27T12:00:00')});
+    await page.clock.pauseAt(new Date('2026-09-27T12:00:01'));
     const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, sessions: []}));
     const state = await mockWeeklyPlans(page, {id: 1, startDate: '2026-09-27', reviewDate: '2026-10-26', updateToken: 'guided-skip-token', days, notes: ''});
     const group = '6f4d5d80-a643-4a6f-955f-54445ea62c39';
@@ -12801,9 +12804,11 @@ test('guided workout records exercise time, distinguishes skipped work from unlo
     await page.clock.fastForward(7000);
     await expect(guided.locator('.guided-exercise-time')).toContainText(/00:00:1[23]/);
     await completeGuidedSetWithoutRest(page, guided);
+    await page.clock.runFor(300);
     await expect(guided.locator('.guided-card h2')).toHaveText(state.exercises[3].name);
     await page.clock.fastForward(4000);
     await completeGuidedSetWithoutRest(page, guided);
+    await page.clock.runFor(300);
     await expect(guided.locator('.guided-card h2')).toHaveText(state.exercises[0].name);
     await page.clock.fastForward(5000);
     await guided.getByRole('button', {name: 'Remove', exact: true}).click();
@@ -12813,6 +12818,7 @@ test('guided workout records exercise time, distinguishes skipped work from unlo
     await expect(guided.locator('.guided-card h2')).toHaveText(state.exercises[4].name);
     await page.clock.fastForward(3000);
     await completeGuidedSetWithoutRest(page, guided);
+    await page.clock.runFor(300);
     await guided.getByRole('button', {name: 'Review', exact: true}).click();
     await expect(guided).toBeVisible();
     await expect(guided.getByRole('heading', {name: 'Review workout'})).toBeVisible();
@@ -12830,6 +12836,7 @@ test('guided workout records exercise time, distinguishes skipped work from unlo
     await guided.getByRole('button', {name: 'Edit workout', exact: true}).click();
     const reviewEditor = page.getByRole('dialog', {name: 'Workout', exact: true});
     await reviewEditor.getByRole('button', {name: 'Apply', exact: true}).click();
+    await page.clock.runFor(300);
     await expect(reviewEditor).toBeHidden();
     await expect(skippedLine).toContainText('Skipped · no time recorded');
 
@@ -13982,7 +13989,7 @@ test('dashboard keeps only compact 30-day nutrient averages below fasting in sta
     await expect(trends).toContainText('30 mg');
     await expect(trends).not.toContainText('30-day averages ending');
     await expect(trends.locator('.nutrient-trend-row > .p-col-5')).toHaveText([
-        'Trend Protein:', 'Trend Carbs:', 'Trend Fat:', 'Trend Vitamin D:', 'Trend Omega-3:', 'Trend Magnesium:', 'Trend Fiber:'
+        '30-day Protein:', '30-day Carbs:', '30-day Fat:', '30-day Vitamin D:', '30-day Omega-3:', '30-day Magnesium:', '30-day Fiber:'
     ]);
     await expect(trends).not.toContainText('7-day');
     await expect(trends.locator('.trend-change .sr-only, .trend-change-reason.sr-only')).toHaveCount(7);
@@ -14081,12 +14088,12 @@ test('daily totals and sparse nutrient trends separate complete Omega-3 from par
     const trends = page.getByRole('region', {name: 'Nutrient trends'});
     await expect(trends.getByRole('heading')).toHaveCount(0);
     await expect(trends.locator('.nutrient-trend-row')).toHaveCount(7);
-    const omega = trends.locator('.nutrient-trend-row').filter({hasText: 'Trend Omega-3:'});
+    const omega = trends.locator('.nutrient-trend-row').filter({hasText: '30-day Omega-3:'});
     await expect(omega).toContainText('1000 mg/day');
     await expect(omega.locator('.trend-sample')).toContainText('1 fully covered day');
     await expect(omega.locator('.trend-change > span[aria-hidden="true"]')).toHaveText('−1000');
-    await expect(omega.locator('.trend-change')).toHaveClass(/bad/);
-    const fiberTrend = trends.locator('.nutrient-trend-row').filter({hasText: 'Trend Fiber:'});
+    await expect(omega.locator('.trend-change')).not.toHaveClass(/good|bad/);
+    const fiberTrend = trends.locator('.nutrient-trend-row').filter({hasText: '30-day Fiber:'});
     await expect(fiberTrend.locator('.trend-average')).toHaveText('—');
     await expect(fiberTrend.locator('.trend-sample')).toContainText('zero fully covered days');
     await expect(fiberTrend.locator('.trend-change')).toHaveCount(0);
@@ -14146,7 +14153,7 @@ test('daily nutrient values match trend colors while preserving partial totals',
     let failTargets = false;
     await page.route('**/api/nutrition/targets?*', route => route.fulfill(failTargets
         ? {status: 503, json: {message: 'Targets unavailable'}}
-        : {json: {targets: {vitaminD: {value: 15}, magnesium: {value: 350}, fiber: {value: 25},
+        : {json: {targets: {vitaminD: {value: 15, source: 'EFSA_AI'}, magnesium: {value: 350}, fiber: {value: 25},
             omega3: {value: null}, epaDha: {value: 250}, ala: {value: 1600}},
         overrides: {macros: {proteinGrams: null, fatPercentage: null}}}}));
     await openSpaRoute(page, '/');
@@ -14156,13 +14163,13 @@ test('daily nutrient values match trend colors while preserving partial totals',
     const magnesium = daily.getByRole('button', {name: /^Magnesium details:/});
     const omega = daily.getByRole('button', {name: /^Omega-3 details:/});
     const fiber = daily.getByRole('button', {name: /^Fiber details:/});
-    await expect(vitamin).toHaveClass(/target-missed/);
+    await expect(vitamin).not.toHaveClass(/target-/);
     await expect(magnesium).toHaveClass(/target-met/);
-    await expect(omega).toHaveClass(/target-missed/);
+    await expect(omega).not.toHaveClass(/target-/);
     await expect(omega).toHaveText('≥ 571.13 mg');
     await expect(fiber).toHaveClass(/target-missed/);
     await omega.click();
-    await expect(page.getByRole('dialog', {name: 'Omega-3 details'})).toContainText('minimum is not yet established');
+    await expect(page.getByRole('dialog', {name: 'Omega-3 details'})).toContainText('Assessment unavailable');
     await page.keyboard.press('Escape');
     await expect(omega).toBeFocused();
     const meal = page.getByRole('region', {name: 'Meal nutrients'});
@@ -14170,7 +14177,7 @@ test('daily nutrient values match trend colors while preserving partial totals',
     for (const width of [376, 390, 1280]) {
         await page.setViewportSize({width, height: 950});
         await expect(magnesium).toHaveCSS('color', 'rgb(47, 133, 90)');
-        await expect(omega).toHaveCSS('color', 'rgb(192, 86, 33)');
+        await expect(fiber).toHaveCSS('color', 'rgb(192, 86, 33)');
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await daily.screenshot({path: testInfo.outputPath(`daily-nutrient-colors-${width}.png`)});
     }
@@ -14181,10 +14188,12 @@ test('daily nutrient values match trend colors while preserving partial totals',
     await expect(daily.locator('.target-met, .target-missed')).toHaveCount(0);
 });
 
-test('total omega-3 trend uses a one-sided combined minimum and an independent signed delta', async ({page}, testInfo) => {
+test('omega-3 trends assess independent nutrient evidence and keep signed deltas neutral', async ({page}, testInfo) => {
     await mockAuthenticatedDashboard(page, '2026-08-12', {dashboardResponse: {...dashboard, anchorDate: '2026-08-12',
         dailyStatus: dashboardDailyStatus('2026-08-12'), lastCompletedDashboardDate: '2026-08-12'}});
     const nutrients = value => ({omega3Milligrams: value, totalFoods: 1, mealsWithoutFoods: 0,
+        epaDhaMilligrams: 250, alaMilligrams: 1500,
+        epaDhaCoverage: {foodsWithValues: 1}, alaCoverage: {foodsWithValues: 1},
         omega3Coverage: {foodsWithValues: 1, estimatedFoods: 1}});
     let dailyRows = [
         {date: '2026-07-13', completed: true, nutrients: nutrients(2000)},
@@ -14194,16 +14203,15 @@ test('total omega-3 trend uses a one-sided combined minimum and an independent s
     let targets = {targets: {omega3: {value: null}, epaDha: {value: 250}, ala: {value: 1600}},
         overrides: {macros: {proteinGrams: null, fatPercentage: null}}};
     await page.route('**/api/nutrition/targets?*', route => route.fulfill({json: targets}));
-    const trend = () => page.getByRole('region', {name: 'Nutrient trends'}).locator('.nutrient-trend-row').filter({hasText: 'Trend Omega-3:'});
+    const trend = () => page.getByRole('region', {name: 'Nutrient trends'}).locator('.nutrient-trend-row').filter({hasText: '30-day Omega-3:'});
     async function openTrends() {
         await openSpaRoute(page, '/');
         await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
     }
     await openTrends();
     await expect(trend().locator('.trend-average')).toHaveClass(/target-missed/);
-    await expect(trend().locator('.sr-only[role="status"]')).toContainText('1850 mg/day');
-    await expect(trend().locator('.sr-only[role="status"]')).toContainText('does not establish either subtype goal');
-    await expect(trend().locator('.trend-change')).toHaveClass(/bad/);
+    await expect(trend().locator('.sr-only[role="status"]')).toHaveText('Below goal');
+    await expect(trend().locator('.trend-change')).not.toHaveClass(/good|bad/);
     await expect(trend().locator('.trend-change > span[aria-hidden="true"]')).toHaveText('−1000');
     for (const width of [376, 390, 1280]) {
         await page.setViewportSize({width, height: 950});
@@ -14219,37 +14227,73 @@ test('total omega-3 trend uses a one-sided combined minimum and an independent s
     targets = {...targets, targets: {...targets.targets, omega3: {value: 900}}};
     await page.reload();
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
-    await expect(trend().locator('.trend-average')).toHaveClass(/target-met/);
-    await expect(trend().locator('.sr-only[role="status"]')).toContainText('personal total omega-3 minimum');
+    await expect(trend().locator('.trend-average')).toHaveClass(/target-missed/);
+    await expect(trend().locator('.sr-only[role="status"]')).toHaveText('Below goal');
 
     targets = {...targets, targets: {omega3: {value: null}, epaDha: {value: 250}, ala: {value: null}}};
     await page.reload();
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
     await expect(trend().locator('.trend-average')).not.toHaveClass(/target-/);
-    await expect(trend().locator('.sr-only[role="status"]')).toContainText('No compatible total omega-3 target');
-    await expect(trend().locator('.trend-change')).toHaveClass(/bad/);
+    await expect(trend().locator('.sr-only[role="status"]')).toHaveText('Assessment unavailable');
+    await expect(trend().locator('.trend-change')).not.toHaveClass(/good|bad/);
 
     targets = {...targets, targets: {omega3: {value: null}, epaDha: {value: 250}, ala: {value: 1600}}};
     dailyRows = [{date: '2026-07-13', completed: true, nutrients: nutrients(1000)},
-        {date: '2026-08-12', completed: true, nutrients: nutrients(2000)}];
+        {date: '2026-08-12', completed: true, nutrients: {...nutrients(2000), alaMilligrams: 1600}}];
     await page.reload();
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
-    await expect(trend().locator('.trend-average')).not.toHaveClass(/target-/);
-    await expect(trend().locator('.trend-change')).toHaveClass(/good/);
+    await expect(trend().locator('.trend-average')).toHaveClass(/target-met/);
+    await expect(trend().locator('.trend-change')).not.toHaveClass(/good|bad/);
     await expect(trend().locator('.trend-change > span[aria-hidden="true"]')).toHaveText('+1000');
 
     dailyRows = [{date: '2026-07-13', completed: true, nutrients: nutrients(2000)},
-        {date: '2026-08-12', completed: true, nutrients: nutrients(2000)}];
+        {date: '2026-08-12', completed: true, nutrients: {...nutrients(2000), alaMilligrams: 1600}}];
     await page.reload();
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
     await expect(trend().locator('.trend-change > span[aria-hidden="true"]')).toHaveText('0');
     await expect(trend().locator('.trend-change')).not.toHaveClass(/good|bad/);
 
-    dailyRows = [{date: '2026-08-12', completed: true, nutrients: nutrients(2000)}];
+    dailyRows = [{date: '2026-08-12', completed: true, nutrients: {...nutrients(2000), alaMilligrams: 1600}}];
     await page.reload();
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
     await expect(trend().locator('.trend-change > span[aria-hidden="true"]')).toHaveText('—');
     await expect(trend().locator('.trend-change')).not.toHaveClass(/good|bad/);
+});
+
+test('omega-3 trend assessment remains independent of missing total values and total coverage', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-12', {dashboardResponse: {...dashboard, anchorDate: '2026-08-12',
+        dailyStatus: dashboardDailyStatus('2026-08-12'), lastCompletedDashboardDate: '2026-08-12'}});
+    const complete = {omega3Milligrams: null, totalFoods: 2, mealsWithoutFoods: 0, omega3Coverage: {foodsWithValues: 0},
+        epaDhaMilligrams: 250, alaMilligrams: 1600, epaDhaCoverage: {foodsWithValues: 2}, alaCoverage: {foodsWithValues: 2}};
+    let nutrients = complete;
+    let completed = true;
+    await page.route('**/api/nutrition/daily-summaries?*', route => route.fulfill({json: [
+        {date: '2026-07-13', completed: true, nutrients: {...complete, epaDhaMilligrams: 0}},
+        {date: '2026-08-12', completed, nutrients}
+    ]}));
+    await page.route('**/api/nutrition/targets?*', route => route.fulfill({json: {
+        targets: {omega3: {value: 1}, epaDha: {value: 250}, ala: {value: 1600}}, overrides: {macros: {proteinGrams: null, fatPercentage: null}}
+    }}));
+    const trend = page.getByRole('region', {name: 'Nutrient trends'}).locator('.nutrient-trend-row').filter({hasText: '30-day Omega-3:'});
+    for (const scenario of [
+        {nutrients: complete, label: 'Goal met', className: 'target-met'},
+        {nutrients: {...complete, omega3Milligrams: 3000, epaDhaMilligrams: 200}, label: 'Below goal', className: 'target-missed'},
+        {nutrients: {...complete, alaMilligrams: 1500}, label: 'Below goal', className: 'target-missed'},
+        {nutrients: {...complete, epaDhaMilligrams: 200, epaDhaCoverage: {foodsWithValues: 1}}, label: 'Assessment unavailable'},
+        {nutrients: {...complete, epaDhaMilligrams: null}, label: 'Assessment unavailable'},
+        {nutrients: complete, completed: false, label: 'Assessment unavailable'}
+    ]) {
+        nutrients = scenario.nutrients;
+        completed = scenario.completed !== false;
+        await openSpaRoute(page, '/');
+        await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
+        await expect(trend.locator('.trend-average')).toHaveText('—');
+        await expect(trend.locator('[role="status"]')).toHaveText(scenario.label);
+        if (scenario.className) await expect(trend.locator('.trend-average')).toHaveClass(new RegExp(scenario.className));
+        else await expect(trend.locator('.trend-average')).not.toHaveClass(/target-/);
+        await expect(trend.locator('.trend-sample')).toContainText('zero fully covered days in current 30 days');
+        await expect(trend.locator('.trend-change')).toHaveCount(0);
+    }
 });
 
 test('nutrient trends show signed numeric deltas for covered days', async ({page}, testInfo) => {
@@ -14285,7 +14329,7 @@ test('nutrient trends show signed numeric deltas for covered days', async ({page
     await expect(rows.nth(0).locator('.trend-change')).toHaveClass(/good/);
     await expect(rows.nth(1).locator('.trend-change')).toHaveClass(/bad/);
     await expect(rows.nth(2).locator('.trend-change')).toHaveClass(/bad/);
-    await expect(rows.nth(3).locator('.trend-change')).toHaveClass(/bad/);
+    await expect(rows.nth(3).locator('.trend-change')).not.toHaveClass(/good|bad/);
     await expect(page.locator('.trend-calorie-change')).toBeVisible();
     const typography = await page.locator('.trend-calorie-change, .nutrient-trend-row .trend-change').evaluateAll(elements => elements.map(element => ({fontSize: getComputedStyle(element).fontSize, lineHeight: getComputedStyle(element).lineHeight, gap: getComputedStyle(element).marginLeft})));
     expect(typography.slice(1).every(style => style.fontSize === typography[0].fontSize && style.lineHeight === typography[0].lineHeight && style.gap === typography[0].gap)).toBe(true);
@@ -14335,7 +14379,7 @@ test('nutrient trends name the missing current period accessibly when only prior
 test('nutrient target settings save, reload, and clear personal overrides', async ({page}, testInfo) => {
     await mockAuthenticatedDashboard(page, '2026-08-12');
     await openSpaRoute(page, '/settings');
-    const vitaminD = page.getByLabel('Vitamin D (µg)', {exact: true});
+    const vitaminD = page.getByLabel('Vitamin D personal goal (µg/day, optional)', {exact: true});
     await expect(vitaminD).toBeVisible();
     await vitaminD.fill('20');
     await page.getByLabel('Protein minimum (g/day)', {exact: true}).fill('115');
@@ -14363,15 +14407,15 @@ test('nutrient target settings save, reload, and clear personal overrides', asyn
     expect(saved.ala.value).toBe(1600);
     expect(saved.fiber.value).toBe(25);
     await openSpaRoute(page, '/settings');
-    await expect(page.getByLabel('Vitamin D (µg)', {exact: true})).toHaveValue('20');
+    await expect(page.getByLabel('Vitamin D personal goal (µg/day, optional)', {exact: true})).toHaveValue('20');
     await expect(page.getByLabel('Protein minimum (g/day)', {exact: true})).toHaveValue('115');
     await expect(page.getByText('243.75 g/day for today')).toBeVisible();
-    await page.getByLabel('Vitamin D (µg)', {exact: true}).fill('');
+    await page.getByLabel('Vitamin D personal goal (µg/day, optional)', {exact: true}).fill('');
     requestPromise = page.waitForRequest(request => request.url().includes('/api/nutrition/targets') && request.method() === 'PUT');
     await page.getByRole('button', {name: 'Save nutrient targets'}).click();
     expect((await requestPromise).postDataJSON().vitaminDMicrograms).toBeNull();
     await openSpaRoute(page, '/settings');
-    await expect(page.getByLabel('Vitamin D (µg)', {exact: true})).toHaveValue('');
+    await expect(page.getByLabel('Vitamin D personal goal (µg/day, optional)', {exact: true})).toHaveValue('');
 });
 
 test('carbohydrate draft uses half-up precision and matches saved dated budget', async ({page}) => {
@@ -14621,9 +14665,9 @@ test('nutrient settings wait for reads and protect pending drafts with accessibl
     await expect(page.getByRole('status').filter({hasText: 'Loading nutrient targets'})).toContainText('Loading nutrient targets');
     await expect(page.getByRole('button', {name: 'Save nutrient targets'})).toHaveCount(0);
     releaseRead();
-    const vitaminD = page.getByLabel('Vitamin D (µg)', {exact: true});
+    const vitaminD = page.getByLabel('Vitamin D personal goal (µg/day, optional)', {exact: true});
     await expect(vitaminD).toBeVisible();
-    await expect(vitaminD).toHaveAccessibleDescription('Blank: adult EFSA reference of 15 µg/day.');
+    await expect(vitaminD).toHaveAccessibleDescription('Blank: 15 µg/day reference only, without goal colors.');
     await expect(page.getByLabel('Omega-3 (EPA+DHA) minimum (mg/day)', {exact: true})).toBeVisible();
     await vitaminD.fill('20');
     const panel = page.locator('.p-panel').filter({has: page.getByRole('button', {name: 'Save nutrient targets'})});

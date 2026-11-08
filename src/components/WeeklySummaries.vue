@@ -103,59 +103,103 @@
           <ul><li v-for="warning in detail.snapshot.warnings" :key="warning">{{ warning }}</li></ul>
         </div>
 
-        <section v-if="detail.presentation" class="detail-section">
-          <h3>Your week at a glance</h3>
-          <p class="comparison-caption">{{ format_period(detail.periodStart, detail.fridayDate) }}</p>
-          <div class="weekly-highlights">
-            <article v-for="highlight in detail.presentation.highlights.filter(row => row.key !== 'records')" :key="highlight.key" class="weekly-highlight">
-              <span>{{ highlight.label }}</span><strong>{{ highlight.value }}</strong>
-              <small>{{ highlight.comparison }}</small>
-              <div class="highlight-bar" aria-hidden="true"><span :style="{width: highlight.currentWidth + '%'}"></span></div>
-              <div class="highlight-bar highlight-bar--previous" aria-hidden="true"><span :style="{width: highlight.previousWidth + '%'}"></span></div>
-              <small>{{ highlight.coverage }}</small>
-            </article>
-          </div>
-          <p class="comparison-caption">Blue: this week · Grey: previous week</p>
-        </section>
-
-        <section v-if="detail.presentation" class="detail-section">
-          <h3>Next steps</h3>
-          <p v-if="!detail.presentation.recommendations.length" class="empty-note">No recommendations in this saved report yet.</p>
-          <article v-for="action in detail.presentation.recommendations" :key="action.sourceKey" class="weekly-recommendation">
-            <h4>{{ action.wording }}</h4><p>{{ action.provenance.join(' · ') }}</p>
-            <router-link :to="{path: '/actions', query: {source: action.sourceKey}}" class="p-button p-component p-button-outlined recommendation-link">Activate action</router-link>
-          </article>
-        </section>
-
+        <div class="review-content">
+          <WeeklyReviewTabs id="weekly-review" v-model="review_tab" label="Weekly review" :tabs="review_tabs" />
+          <section id="weekly-review-panel-overview" role="tabpanel" aria-labelledby="weekly-review-tab-overview" :hidden="review_tab !== 'overview'">
+            <section class="routine-hero" aria-label="Daily routine completion">
+              <div class="section-heading"><h3>Daily routines</h3><Button label="View all routines" class="p-button-outlined p-button-sm" @click="open_measurements('routines')" /></div>
+              <div class="routine-hero-columns"><div><div class="routine-score"><strong>{{ routine_hero.value }}</strong><span>{{ routine_hero.completed }}/{{ routine_hero.opportunities }} opportunities</span></div>
+              <div class="routine-comparisons"><span v-for="(change, index) in [routine_hero.previous, routine_hero.yearAgo]" :key="index" :style="{color: change?.color}">{{ change?.text }} <small>vs {{ index ? '52 weeks ago' : 'last week' }}</small></span></div>
+              <div v-if="routine_hero.days.length" class="routine-days"><div v-for="day in routine_hero.days" :key="day.label"><span>{{ day.label }}</span><div class="routine-track"><span :style="{width: day.width + '%', backgroundColor: day.status.color}"></span></div><strong>{{ day.value }}</strong></div></div>
+              </div><div><h4 v-if="routine_hero.watchouts.length">Needs attention</h4>
+              <div class="routine-attention-list"><div v-for="routine in routine_hero.watchouts" :key="routine.name" class="routine-attention"><strong>{{ routine.name }}</strong><span>{{ routine.value }}</span></div></div>
+              </div></div><p v-if="!routine_hero.opportunities" class="empty-note">No active routine opportunities this week.</p>
+            </section>
+            <section class="detail-section">
+              <div class="section-heading"><h3>Your week at a glance</h3><div class="comparison-picker"><label for="weekly-baseline">Compare with</label><select id="weekly-baseline" v-model="baseline"><option value="previous">Last week</option><option value="yearAgo">52 weeks ago</option></select></div></div>
+              <div v-if="visual" class="weekly-highlights"><article v-for="card in average_cards" :key="card.key" class="weekly-highlight"><span>{{ card.label }}</span><strong :style="{color: card.key === 'weight' ? undefined : card.status.color}">{{ card.value }}</strong><small>{{ card.detail }}</small><span class="review-status" :style="{color: card.status.color}">{{ card.key === 'weight' ? 'Body fat · ' : '' }}{{ card.status.label }}</span><small :style="{color: card[baseline].color}">{{ card[baseline].text }} · {{ baseline === 'previous' ? 'vs last week' : 'vs 52 weeks ago' }}</small></article></div>
+              <div v-else-if="detail.presentation" class="weekly-highlights"><article v-for="highlight in detail.presentation.highlights.filter(row => !['records', 'routines'].includes(row.key))" :key="highlight.key" class="weekly-highlight"><span>{{ highlight.label }}</span><strong>{{ highlight.value }}</strong><small>{{ highlight.comparison }}</small><small>{{ highlight.coverage }}</small></article></div>
+              <Button label="Explore measurements" icon="pi pi-arrow-right" class="p-button-outlined p-button-sm section-link" @click="open_measurements('body')" />
+            </section>
+            <section v-if="visual" class="detail-section"><div class="section-heading"><h3>Weekend readings</h3><span>{{ outcome_window(detail.fridayDate) }} · selected measurements</span></div><div class="weekly-highlights weekend-readings"><article v-for="card in weekend_cards" :key="card.key" class="weekly-highlight"><span>{{ card.label }}</span><strong :style="{color: card.key === 'weekendWeight' ? undefined : card.status.color}">{{ card.value }}</strong><small>{{ card.detail }}</small><span class="review-status" :style="{color: card.status.color}">{{ card.key === 'weekendWeight' ? 'Body fat · ' : '' }}{{ card.status.label }}</span></article></div></section>
+            <section class="detail-section"><div class="section-heading"><h3>Workout activity</h3><Button label="Training details" class="p-button-text p-button-sm" @click="open_measurements('training')" /></div><WeeklyMetricTable label="Workout activity overview" :periods="comparison_periods" :rows="workout_table_rows.filter(row => row.label !== 'Total sessions')" /></section>
+            <section class="detail-section"><div class="section-heading"><h3>Nutrition</h3><Button label="Comparisons & details" class="p-button-text p-button-sm" @click="open_measurements('nutrition')" /></div><WeeklyMetricTable label="Nutrition daily averages" :periods="comparison_periods" :rows="nutrition_table_rows" compactCurrent><template #target="{row}"><Button v-if="row.key === 'omega3'" label="View references" class="p-button-text p-button-sm" @click="open_omega_references" /><span v-else>{{ row.cells[0].target || 'Not available' }}</span></template></WeeklyMetricTable></section>
+            <section class="detail-section reflection-teaser"><h3>{{ detail.reflection?.title || 'Weekly reflection' }}</h3><p>{{ detail.reflection?.summary || 'Review your saved evidence and choose next-week priorities.' }}</p><Button label="Reflection & actions" class="p-button-outlined" @click="review_tab = 'reflection'" /></section>
+          </section>
+          <section id="weekly-review-panel-measurements" role="tabpanel" aria-labelledby="weekly-review-tab-measurements" :hidden="review_tab !== 'measurements'">
+            <WeeklyReviewTabs id="weekly-measurements" v-model="measurement_tab" label="Measurement groups" :tabs="measurement_tabs" />
+            <p class="comparison-caption">Saturday–Friday averages · changes show this week minus each comparison period.</p>
+            <section v-for="tab in measurement_tabs" :id="'weekly-measurements-panel-' + tab.key" :key="tab.key" role="tabpanel" :aria-labelledby="'weekly-measurements-tab-' + tab.key" :hidden="measurement_tab !== tab.key">
+              <template v-if="tab.key === 'body'">
+                <WeeklyMetricTable label="Weekly recorded metrics" :periods="comparison_periods" :rows="measurement_groups.body" />
         <section class="detail-section">
-          <h3>Personal records <small v-if="detail.presentation">{{ detail.presentation.highlights.find(row => row.key === 'records').value }}</small></h3>
-          <ul v-if="detail.snapshot.personalRecords.length" class="record-list">
-            <li v-for="record in detail.snapshot.personalRecords" :key="`${record.label}-${record.subjectLabel}-${record.date}`">
-              <strong>{{ record.label }}<span v-if="record.subjectLabel"> — {{ record.subjectLabel }}</span></strong><span>{{ format_record_value(record.value, record.unit) }} · {{ format_date(record.date) }}</span>
-            </li>
-          </ul>
-          <p v-else class="empty-note">No new personal records this week.</p>
-        </section>
-
-        <section class="detail-section">
-          <h3>Detailed measurements</h3>
           <h4 class="outcome-heading">Selected outcome readings</h4>
           <p class="comparison-caption">{{ outcome_window(detail.fridayDate) }}</p>
           <div class="outcome-grid">
             <article class="outcome-item">
               <span>Weight</span>
-              <strong>{{ outcome_weight(detail.snapshot.outcomes.weight) }}</strong>
+              <strong>{{ outcome_weight(detail.snapshot.outcomes.weight) }}</strong><small v-if="outcome_status(detail.snapshot.outcomes.weight?.fatPercentage, 'bodyFat')" :style="{color: outcome_status(detail.snapshot.outcomes.weight?.fatPercentage, 'bodyFat').color}">Body fat · {{ outcome_status(detail.snapshot.outcomes.weight?.fatPercentage, 'bodyFat').label }}</small>
               <small v-if="detail.snapshot.outcomes.weight">
                 {{ body_composition(detail.snapshot.outcomes.weight) }}
               </small>
             </article>
             <article class="outcome-item">
               <span>Blood pressure</span>
-              <strong>{{ outcome_blood_pressure(detail.snapshot.outcomes.bloodPressure) }}</strong>
+              <strong>{{ outcome_blood_pressure(detail.snapshot.outcomes.bloodPressure) }}</strong><small v-if="outcome_status(detail.snapshot.outcomes.bloodPressure, 'pressure')" :style="{color: outcome_status(detail.snapshot.outcomes.bloodPressure, 'pressure').color}">{{ outcome_status(detail.snapshot.outcomes.bloodPressure, 'pressure').label }}</small>
             </article>
           </div>
         </section>
 
+
+              </template>
+              <template v-else-if="tab.key === 'sleep'"><WeeklyMetricTable label="Sleep and mood measurements" :periods="comparison_periods" :rows="measurement_groups.sleep" /></template>
+              <template v-else-if="tab.key === 'training'">
+                <h3>Workout activity</h3><WeeklyMetricTable label="Weekly workout activity" group="Workout activity" :periods="comparison_periods" :rows="workout_table_rows" />
+                <WeeklyMetricTable label="Workout measurements" :periods="comparison_periods" :rows="measurement_groups.training" />
+        <section class="detail-section">
+          <h3>Back pain</h3><h4>Check-ins and episodes</h4>
+          <p v-if="!detail.snapshot.backPain" class="empty-note">Back-pain details were not included in this saved snapshot.</p>
+          <p v-else-if="detail.snapshot.backPain.checkInCount === 0" class="empty-note">No back-pain check-ins recorded.</p>
+          <template v-else>
+            <p>{{ detail.snapshot.backPain.checkInCount }} check-ins · {{ detail.snapshot.backPain.episodeCount }} pain episodes across {{ detail.snapshot.backPain.painDayCount }} days</p>
+            <dl class="back-pain-breakdown">
+              <template v-for="group in back_pain_groups" :key="group.label">
+                <div v-if="group.entries.length"><dt>{{ group.label }}</dt><dd>{{ group.entries.join(' · ') }}</dd></div>
+              </template>
+            </dl>
+          </template>
+        </section>
+
+
+              </template>
+              <template v-else-if="tab.key === 'nutrition'">
+                <h3>Nutrition · daily averages</h3>
+                <WeeklyMetricTable label="Weekly calories" :periods="comparison_periods" :rows="[measurement_groups.calories]" />
+                <WeeklyMetricTable label="Weekly nutrition evidence" :periods="comparison_periods" :rows="nutrition_table_rows"><template #cell="{row, index}"><Button v-if="row.key === 'omega3' && index === 0" label="View references" class="p-button-text p-button-sm" @click="show_omega_references" /></template></WeeklyMetricTable>
+                <details v-if="visual?.nutrition.references?.length" ref="omegaReferences" class="detail-section"><summary class="detail-section-summary"><strong>Omega-3 references</strong></summary><WeeklyMetricTable label="Omega-3 references" :periods="comparison_periods" :rows="omega_reference_rows" /></details>
+                <details class="detail-section"><summary class="detail-section-summary"><strong>Targets, coverage & estimates</strong></summary><p class="comparison-caption">{{ visual?.nutrition.note || 'Current targets captured when saved' }}</p><p v-if="!detail.snapshot.nutrition" class="empty-note">Nutrition details were not included in this saved snapshot.</p><p v-for="row in visual?.nutrition.rows || []" :key="row.key">{{ row.label }} · {{ row.coverage }}</p></details>
+              </template>
+              <template v-else-if="tab.key === 'routines'">
+                <h3>Daily routines</h3><div class="routine-search"><label for="weekly-routine-search">Find a routine</label><InputText id="weekly-routine-search" v-model="routine_search" placeholder="Find a routine" /></div>
+                <div v-if="filtered_routines.length" class="routine-list"><div v-for="routine in filtered_routines" :key="routine.name" class="routine-item" :class="{'routine-item--watch': Number(routine.percentage) < 60}"><strong>{{ routine.name }}</strong><div class="routine-track"><span :style="{width: routine.percentage + '%'}"></span></div><span>{{ routine.completedDays }}/{{ routine.eligibleDays }} days · {{ Number(routine.percentage).toFixed(0) }}%</span><span v-if="Number(routine.percentage) < 60" class="watch-label">Below 60%</span></div></div><p v-else class="empty-note">{{ routine_search ? 'No matching routines.' : 'No active routine opportunities this week.' }}</p>
+        <section v-if="detail.snapshot.weeklyRoutines" class="detail-section">
+          <h3>Weekly routines</h3><p class="comparison-caption">Saturday–Friday opportunities · separate from daily completion</p>
+          <div v-if="detail.snapshot.weeklyRoutines.length" class="routine-list">
+            <div v-for="routine in detail.snapshot.weeklyRoutines" :key="routine.name" class="routine-item">
+              <strong>{{ routine.name }}</strong>
+              <span>{{ routine.completedWeeks }}/{{ routine.eligibleWeeks }} weeks · {{ Number(routine.percentage).toFixed(0) }}%</span>
+              <span v-if="routine.checkinDates.length">Recorded {{ routine.checkinDates.map(format_date).join(', ') }}</span>
+            </div>
+          </div>
+          <p v-else class="empty-note">No active weekly routines.</p>
+        </section>
+
+
+              </template>
+              <template v-else><h3>Other recorded metrics</h3><WeeklyMetricTable label="Other weekly metrics" :periods="comparison_periods" :rows="other_table_rows" /></template>
+            </section>
+          </section>
+          <section id="weekly-review-panel-reflection" role="tabpanel" aria-labelledby="weekly-review-tab-reflection" :hidden="review_tab !== 'reflection'">
         <section class="weekly-reflection">
           <header class="section-heading"><div><div class="weekly-kicker">Weekly reflection</div><h3>{{ detail.reflection ? detail.reflection.title : 'No reflection saved yet' }}</h3></div><span v-if="detail.reflection" class="saved-label">Saved {{ format_timestamp(detail.reflection.generatedAt) }}</span></header>
           <p v-if="detail.reflection" class="reflection-summary">{{ detail.reflection.summary }}</p>
@@ -181,75 +225,29 @@
           </div>
         </section>
 
-        <details class="detail-section">
-          <summary class="detail-section-summary"><span class="weekly-kicker">Back pain</span><strong>Check-ins and episodes</strong></summary>
-          <p v-if="!detail.snapshot.backPain" class="empty-note">Back-pain details were not included in this saved snapshot.</p>
-          <p v-else-if="detail.snapshot.backPain.checkInCount === 0" class="empty-note">No back-pain check-ins recorded.</p>
-          <template v-else>
-            <p>{{ detail.snapshot.backPain.checkInCount }} check-ins · {{ detail.snapshot.backPain.episodeCount }} pain episodes across {{ detail.snapshot.backPain.painDayCount }} days</p>
-            <dl class="back-pain-breakdown">
-              <template v-for="group in back_pain_groups" :key="group.label">
-                <div v-if="group.entries.length"><dt>{{ group.label }}</dt><dd>{{ group.entries.join(' · ') }}</dd></div>
-              </template>
-            </dl>
-          </template>
-        </details>
 
-        <details class="detail-section">
-          <summary class="detail-section-summary"><span class="weekly-kicker">Compared periods</span><strong>Recorded metrics</strong></summary>
-          <div class="metrics-table" role="table" aria-label="Weekly recorded metrics">
-            <div class="metrics-row metrics-row--heading" role="row">
-              <span role="columnheader">Metric</span><span v-for="period in comparison_periods" :key="period.label" role="columnheader">{{ period.label }}<small>{{ period.dates }}</small></span>
-            </div>
-            <div v-for="group in metric_groups" :key="group.label" role="rowgroup" :aria-label="group.label || undefined">
-              <div v-if="group.label" class="metrics-group-heading" role="row"><strong role="rowheader" aria-colspan="4">{{ group.label }}</strong></div>
-              <div v-for="row in group.rows" :key="row.label" class="metrics-row" role="row">
-                <strong role="rowheader">{{ row.label }}</strong><span v-for="(value, index) in [row.current, row.previous, row.yearAgo]" :key="comparison_periods[index].label" role="cell" :class="{'metric-current': group.label && index === 0}" :data-period="comparison_periods[index].description" :aria-label="`${comparison_periods[index].description}: ${value}`">{{ value }}</span>
-              </div>
-            </div>
-          </div>
-        </details>
-
-        <details class="detail-section">
-          <summary class="detail-section-summary"><span class="weekly-kicker">Routine watch-outs</span><strong>Eligible check-in days</strong></summary>
-          <div v-if="detail.snapshot.routines.length" class="routine-list">
-            <div v-for="routine in detail.snapshot.routines" :key="routine.name" class="routine-item" :class="{'routine-item--watch': Number(routine.percentage) < 60}">
-              <strong>{{ routine.name }}</strong>
-              <span>{{ routine.completedDays }}/{{ routine.eligibleDays }} days · {{ Number(routine.percentage).toFixed(0) }}%</span>
-              <span v-if="Number(routine.percentage) < 60" class="watch-label">Below 60%</span>
-            </div>
-          </div>
-          <p v-else class="empty-note">No active routine opportunities this week.</p>
-        </details>
-
-        <details v-if="detail.snapshot.weeklyRoutines" class="detail-section">
-          <summary class="detail-section-summary"><span class="weekly-kicker">Weekly routines</span><strong>Saturday–Friday opportunities</strong></summary>
-          <div v-if="detail.snapshot.weeklyRoutines.length" class="routine-list">
-            <div v-for="routine in detail.snapshot.weeklyRoutines" :key="routine.name" class="routine-item">
-              <strong>{{ routine.name }}</strong>
-              <span>{{ routine.completedWeeks }}/{{ routine.eligibleWeeks }} weeks · {{ Number(routine.percentage).toFixed(0) }}%</span>
-              <span v-if="routine.checkinDates.length">Recorded {{ routine.checkinDates.map(format_date).join(', ') }}</span>
-            </div>
-          </div>
-          <p v-else class="empty-note">No active weekly routines.</p>
-        </details>
-
+            <section class="detail-section"><h3>Next-week priorities</h3><p v-if="!priority_actions.length" class="empty-note">No next-week priorities in this saved report yet.</p><article v-for="action in priority_actions" :key="action.sourceKey" class="weekly-recommendation"><h4>{{ action.wording }}</h4><p>{{ action.provenance.join(' · ') }}</p><router-link :to="{path: '/actions', query: {source: action.sourceKey}}" class="p-button p-component p-button-outlined recommendation-link">Activate action</router-link></article>
+              <details v-if="remaining_actions.length" class="more-recommendations"><summary class="detail-section-summary"><strong>More recommendations · {{ remaining_actions.length }}</strong></summary><article v-for="action in remaining_actions" :key="action.sourceKey" class="weekly-recommendation"><h4>{{ action.wording }}</h4><p>{{ action.provenance.join(' · ') }}</p><router-link :to="{path: '/actions', query: {source: action.sourceKey}}" class="p-button p-component p-button-outlined recommendation-link">Activate action</router-link></article></details>
+            </section>
         <details class="detail-section">
           <summary class="detail-section-summary"><span class="weekly-kicker">Goal context</span><strong>Plan evidence</strong></summary>
           <p v-if="detail.snapshot.goalEvidence.available">{{ detail.snapshot.goalEvidence.goal }}<span v-if="detail.snapshot.goalEvidence.startDate"> · Started {{ format_date(detail.snapshot.goalEvidence.startDate) }}</span><span v-if="detail.snapshot.goalEvidence.reviewDate"> · Review {{ format_date(detail.snapshot.goalEvidence.reviewDate) }}</span></p>
           <p v-else class="empty-note">{{ detail.snapshot.goalEvidence.unavailableReason }}</p>
         </details>
 
-        <details class="detail-section">
-          <summary class="detail-section-summary"><strong>Nutrition</strong><span>Current targets captured when saved</span></summary>
-          <p v-if="!detail.snapshot.nutrition" class="empty-note">Nutrition details were not included in this saved snapshot.</p>
-          <div v-else class="metrics-table" role="table" aria-label="Weekly nutrition evidence">
-            <div class="metrics-row metrics-row--heading" role="row"><span role="columnheader">Nutrient</span><span v-for="period in comparison_periods" :key="period.label" role="columnheader">{{ period.label }}<small>{{ period.dates }}</small></span></div>
-            <div v-for="row in detail.presentation.nutritionRows" :key="row.label" class="metrics-row" role="row">
-              <strong role="rowheader">{{ row.label }}</strong><span v-for="(value, index) in [row.current, row.previous, row.yearAgo]" :key="index" role="cell" :data-period="comparison_periods[index].description">{{ value }}</span>
-            </div>
-          </div>
-        </details>
+        <section class="detail-section">
+          <h3>Personal records <small v-if="detail.presentation">{{ detail.snapshot.personalRecords.length }} new</small></h3>
+          <ul v-if="detail.snapshot.personalRecords.length" class="record-list">
+            <li v-for="record in detail.snapshot.personalRecords" :key="`${record.label}-${record.subjectLabel}-${record.date}`">
+              <strong>{{ record.label }}<span v-if="record.subjectLabel"> — {{ record.subjectLabel }}</span></strong><span>{{ format_record_value(record.value, record.unit) }} · {{ format_date(record.date) }}</span>
+            </li>
+          </ul>
+          <p v-else class="empty-note">No new personal records this week.</p>
+        </section>
+
+
+          </section>
+        </div>
       </section>
 
       <section v-else-if="!is_detail_page && !preview?.snapshot" class="empty-state">
@@ -269,12 +267,18 @@ import {openCoach} from '@/services/CoachService';
 import {nextTick} from 'vue';
 import Paginator from 'primevue/paginator';
 import WarningReview from './WarningReview.vue';
+import WeeklyReviewTabs from './WeeklyReviewTabs.vue';
+import WeeklyMetricTable from './WeeklyMetricTable.vue';
+import {weeklyMeasurementGroups, visualTableRows, weeklyClassification} from '@/model/WeeklyReview';
 
 export default {
   name: 'WeeklySummaries',
-  components: {Paginator, WarningReview},
+  components: {Paginator, WarningReview, WeeklyReviewTabs, WeeklyMetricTable},
   data() {
     return {
+      review_tab: 'overview', measurement_tab: 'body', baseline: 'previous', routine_search: '',
+      review_tabs: [{key: 'overview', label: 'Overview'}, {key: 'measurements', label: 'Measurements'}, {key: 'reflection', label: 'Reflection & actions'}],
+      measurement_tabs: [{key: 'body', label: 'Body & pressure'}, {key: 'sleep', label: 'Sleep & mood'}, {key: 'training', label: 'Training & back pain'}, {key: 'nutrition', label: 'Nutrition'}, {key: 'routines', label: 'Routines'}, {key: 'other', label: 'Other metrics'}],
       archive: null,
       preview: null,
       detail: null,
@@ -290,6 +294,28 @@ export default {
     }
   },
   computed: {
+    average_cards() { return this.visual.overview.filter(card => !['weekendWeight', 'bloodPressure', 'weekendPressure'].includes(card.key)); },
+    weekend_cards() { return this.visual.overview.filter(card => ['weekendWeight', 'bloodPressure', 'weekendPressure'].includes(card.key)); },
+    visual() { return this.detail?.presentation?.visualSummary; },
+    measurement_groups() { return weeklyMeasurementGroups(this.detail.snapshot); },
+    filtered_routines() { return this.detail.snapshot.routines.filter(row => row.name.toLowerCase().includes(this.routine_search.toLowerCase())); },
+    priority_actions() { return (this.detail.presentation?.recommendations || []).filter(action => action.provenance.includes('Next week')).slice(0, 3); },
+    remaining_actions() { const keys = new Set(this.priority_actions.map(action => action.sourceKey)); return (this.detail.presentation?.recommendations || []).filter(action => !keys.has(action.sourceKey)); },
+    routine_hero() {
+      if (this.visual) return this.visual.routines;
+      const progress = this.detail.snapshot.progress;
+      const current = progress.currentPeriod.routineCompletion;
+      const change = period => ({text: current.percentage == null || period.routineCompletion.percentage == null ? 'Not available' : `${Number((current.percentage - period.routineCompletion.percentage).toFixed(1))} pp`});
+      return {value: current.percentage == null ? 'Not available' : `${Math.round(current.percentage)}%`, completed: current.completed, opportunities: current.opportunities, days: [], previous: change(progress.previousComparablePeriod), yearAgo: change(progress.yearAgoComparablePeriod), watchouts: [...this.detail.snapshot.routines].filter(row => Number(row.percentage) < 60).sort((a, b) => a.percentage - b.percentage || a.name.localeCompare(b.name)).slice(0, 3).map(row => ({name: row.name, value: `${row.completedDays}/${row.eligibleDays} days · ${Math.round(row.percentage)}%`}))};
+    },
+    workout_table_rows() { return this.visual ? visualTableRows(this.visual.workouts) : this.workout_rows.map(row => ({label: row.label, cells: [row.current, row.previous, row.yearAgo].map(value => ({value}))})); },
+    nutrition_table_rows() {
+      if (this.visual) return visualTableRows(this.visual.nutrition.rows);
+      if (this.detail.presentation?.nutritionRows?.length) return this.detail.presentation.nutritionRows.map(row => ({label: row.label, cells: [row.current, row.previous, row.yearAgo].map(value => ({value}))}));
+      return this.measurement_groups.nutrition;
+    },
+    omega_reference_rows() { return visualTableRows(this.visual.nutrition.references); },
+    other_table_rows() { return this.metric_rows.filter(row => ['Sickness', 'Wins and misses', 'Daily status completion', 'Routine completion'].includes(row.label)).map(row => ({label: row.label, cells: [row.current, row.previous, row.yearAgo].map(value => ({value}))})); },
     is_detail_page() {
       return Boolean(this.$route.params.fridayDate);
     },
@@ -325,82 +351,19 @@ export default {
       });
     },
     metric_rows() {
-      if (!this.detail) return [];
-      const {currentPeriod, previousComparablePeriod, yearAgoComparablePeriod} = this.detail.snapshot.progress;
-      const row = (label, current, previous, yearAgo) => ({label, current, previous, yearAgo});
-      const averageWeight = value => {
-        if (value?.weightKg == null) return 'Not recorded';
-        const parts = [`${Number(value.weightKg).toFixed(1)} kg · ${value.measurementCount} readings`];
-        if (value.fatKg != null) parts.push(`fat ${Number(value.fatKg).toFixed(1)} kg`);
-        if (value.fatPercentage != null) parts.push(`${Number(value.fatPercentage).toFixed(1)}% fat`);
-        if (value.muscleKg != null) parts.push(`muscle ${Number(value.muscleKg).toFixed(1)} kg`);
-        if (value.musclePercentage != null) parts.push(`${Number(value.musclePercentage).toFixed(1)}% muscle`);
-        return parts.join(' · ');
-      };
-      const bloodPressure = value => value == null ? 'Not recorded' : `${Math.round(value.systolic)} / ${Math.round(value.diastolic)} mmHg · ${value.measurementCount} readings`;
-      const mood = period => period.moodAverage == null ? 'Not recorded' : `${Number(period.moodAverage).toFixed(1)} / 5 · ${period.moodDayCount} days`;
-      const sleep = value => {
-        if (value == null) return 'Not recorded';
-        const parts = [`${(Number(value.totalSleepSeconds) / 3600).toFixed(1)} h · ${value.nightCount} nights`];
-        const duration = (label, seconds) => seconds == null ? null : `${label} ${(Number(seconds) / 3600).toFixed(1)} h`;
-        for (const item of [
-          duration('Deep', value.deepSleepSeconds),
-          duration('REM', value.remSleepSeconds),
-          duration('Light', value.lightSleepSeconds),
-          duration('Awake', value.awakeSeconds),
-          value.averageHeartRate == null ? null : `Average heart rate ${Math.round(value.averageHeartRate)} bpm`,
-          value.averageHrv == null ? null : `Average HRV ${Math.round(value.averageHrv)} ms`
-        ]) if (item) parts.push(item);
-        return parts.join(' · ');
-      };
-      const calories = value => {
-        const parts = [];
-        if (value.averageCalories != null) parts.push(`${Math.round(value.averageCalories)} kcal/day · ${value.entryCount} days`);
-        const macro = (label, average, count) => average == null ? null : `${label} ${Number(average).toFixed(1)} g/day · ${count} days`;
-        for (const item of [
-          macro('Protein', value.averageProteinGrams, value.proteinDayCount),
-          macro('Carbohydrate', value.averageCarbohydrateGrams, value.carbohydrateDayCount),
-          macro('Fat', value.averageFatGrams, value.fatDayCount)
-        ]) if (item) parts.push(item);
-        return parts.length ? parts.join(' · ') : 'Not recorded';
-      };
-      const workouts = value => {
-        const recorded = (count, label, valueText) => count === 0 ? `${label} not recorded` : `${label}: ${valueText} (${count} records)`;
-        return [
-          recorded(value.distanceReadingCount, 'Distance', `${Number(value.totalDistanceKm).toFixed(1)} km`),
-          recorded(value.calorieReadingCount, 'Workout energy', `${value.totalCalories} kcal`),
-          recorded(value.strengthSetCount, 'Strength volume', `${Number(value.strengthVolumeKg).toFixed(1)} kg`)
-        ].join(' · ');
-      };
-      const sickness = value => {
-        const types = Object.entries(value.sicknessesByType || {}).map(([type, count]) => `${type}: ${count}`).join(', ');
-        const severities = Object.entries(value.sicknessesBySeverity || {}).map(([level, count]) => `${level}: ${count}`).join(', ');
-        return types ? `Types ${types}${severities ? ` · Severity ${severities}` : ''}` : 'No sicknesses recorded';
-      };
-      const decisions = value => value.decisions.winRate == null ? 'No wins or misses recorded' : `${value.decisions.wins} wins · ${value.decisions.misses} misses · ${Math.round(value.decisions.winRate)}% wins`;
-      const routines = value => value.routineCompletion.percentage == null ? 'No opportunities' : `${value.routineCompletion.completed}/${value.routineCompletion.opportunities} · ${Math.round(value.routineCompletion.percentage)}%`;
-      const averageStatus = value => value == null ? 'Not recorded' : [
-        ['Routines', value.routinesPercentage],
-        ['Weight', value.weightPercentage],
-        ['Blood pressure', value.bloodPressurePercentage],
-        ['Flexibility', value.flexibilityPercentage],
-        ['Mind', value.mindPercentage]
-      ].map(([label, percentage]) => `${label} ${percentage == null ? 'not recorded' : `${Math.round(percentage)}%`}`).join(' · ');
+      const progress = this.detail.snapshot.progress;
+      const periods = [progress.currentPeriod, progress.previousComparablePeriod, progress.yearAgoComparablePeriod];
+      const row = (label, read) => { const values = periods.map(read); return {label, current: values[0], previous: values[1], yearAgo: values[2]}; };
       return [
-        row('Routine completion', routines(currentPeriod), routines(previousComparablePeriod), routines(yearAgoComparablePeriod)),
-        row('Average weight and body composition', averageWeight(currentPeriod.weight), averageWeight(previousComparablePeriod.weight), averageWeight(yearAgoComparablePeriod.weight)),
-        row('Average blood pressure', bloodPressure(currentPeriod.bloodPressure), bloodPressure(previousComparablePeriod.bloodPressure), bloodPressure(yearAgoComparablePeriod.bloodPressure)),
-        row('Mood', mood(currentPeriod), mood(previousComparablePeriod), mood(yearAgoComparablePeriod)),
-        row('Sleep', sleep(currentPeriod.sleep), sleep(previousComparablePeriod.sleep), sleep(yearAgoComparablePeriod.sleep)),
-        row('Nutrition', calories(currentPeriod.calories), calories(previousComparablePeriod.calories), calories(yearAgoComparablePeriod.calories)),
-        row('Workout measurements', workouts(currentPeriod.workouts), workouts(previousComparablePeriod.workouts), workouts(yearAgoComparablePeriod.workouts)),
-        row('Sickness', sickness(currentPeriod), sickness(previousComparablePeriod), sickness(yearAgoComparablePeriod)),
-        row('Wins and misses', decisions(currentPeriod), decisions(previousComparablePeriod), decisions(yearAgoComparablePeriod)),
-        row('Daily status completion', averageStatus(currentPeriod.dashboard), averageStatus(previousComparablePeriod.dashboard), averageStatus(yearAgoComparablePeriod.dashboard))
+        row('Routine completion', period => period.routineCompletion.percentage == null ? 'No opportunities' : `${period.routineCompletion.completed}/${period.routineCompletion.opportunities} · ${Math.round(period.routineCompletion.percentage)}%`),
+        row('Sickness', period => {
+          const types = Object.entries(period.sicknessesByType || {}).map(([type, count]) => `${type}: ${count}`).join(', ');
+          const severities = Object.entries(period.sicknessesBySeverity || {}).map(([level, count]) => `${level}: ${count}`).join(', ');
+          return types ? `Types ${types}${severities ? ` · Severity ${severities}` : ''}` : 'No sicknesses recorded';
+        }),
+        row('Wins and misses', period => period.decisions.winRate == null ? 'No wins or misses recorded' : `${period.decisions.wins} wins · ${period.decisions.misses} misses · ${Math.round(period.decisions.winRate)}% wins`),
+        row('Daily status completion', period => period.dashboard == null ? 'Not recorded' : [['Routines', 'routinesPercentage'], ['Weight', 'weightPercentage'], ['Blood pressure', 'bloodPressurePercentage'], ['Flexibility', 'flexibilityPercentage'], ['Mind', 'mindPercentage']].map(([label, field]) => `${label} ${period.dashboard[field] == null ? 'not recorded' : `${Math.round(period.dashboard[field])}%`}`).join(' · '))
       ];
-    },
-    metric_groups() {
-      return [{label: '', rows: this.metric_rows}, {label: 'Workout activity', rows: this.workout_rows}];
     },
     workout_rows() {
       if (!this.detail) return [];
@@ -417,7 +380,7 @@ export default {
       };
       const comparison = (baseline, field, label) => {
         let change = 'Not available';
-        if (current[field] != null && baseline[field] != null) {
+        if (current[field] != null && baseline[field] != null && !(field === 'activeCardioSeconds' && (current.cardioDurationComplete === false || baseline.cardioDurationComplete === false))) {
           const difference = current[field] - baseline[field];
           const number = field === 'activeCardioSeconds' ? minutes(difference) : difference;
           const unit = field === 'activeCardioSeconds' ? 'min' : Math.abs(difference) === 1 ? 'session' : 'sessions';
@@ -448,6 +411,10 @@ export default {
     await this.load();
   },
   methods: {
+    outcome_status(value, type) { return weeklyClassification(value, type, this.detail.snapshot.emailGoals?.rules, this.detail.snapshot.emailGoals); },
+    async open_measurements(tab) { this.measurement_tab = tab; this.review_tab = 'measurements'; await nextTick(); document.getElementById('weekly-measurements-tab-' + tab).focus(); },
+    async open_omega_references() { await this.open_measurements('nutrition'); await this.show_omega_references(); },
+    async show_omega_references() { await nextTick(); this.$refs.omegaReferences[0].open = true; this.$refs.omegaReferences[0].querySelector('summary').focus(); this.$refs.omegaReferences[0].scrollIntoView({block: 'center'}); },
     async load() {
       this.loading = true;
       this.error = null;
@@ -471,6 +438,7 @@ export default {
       }
     },
     async load_detail(fridayDate) {
+      if (this.detail?.fridayDate !== fridayDate) { this.review_tab = 'overview'; this.measurement_tab = 'body'; this.routine_search = ''; }
       this.detail = await weeklySummaryService.getSummary(fridayDate);
       if (this.is_detail_page) {
         await nextTick();
@@ -571,6 +539,35 @@ export default {
 </script>
 
 <style scoped>
+.review-content { padding: 0 1rem 1rem; }
+.review-content .detail-section, .review-content .weekly-reflection { padding: 1rem 0; }
+.review-content h3 { margin: .8rem 0; font-size: 1.1rem; }
+.routine-hero { padding: 1rem; margin-top: 1rem; border: 1px solid #cbdde9; border-radius: 4px; background: #f7fafc; }
+.routine-hero-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.5rem; }
+.routine-hero-columns h4 { margin-top: .6rem; }
+.routine-score { display: flex; align-items: baseline; flex-wrap: wrap; gap: .75rem; margin: .6rem 0; }
+.routine-score strong { font-size: 2.6rem; line-height: 1.1; }
+.routine-score span, .routine-attention span { color: #63717b; font-size: .85rem; }
+.routine-comparisons { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; }
+.routine-comparisons small { color: #63717b; }
+.routine-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .5rem; margin: 1rem 0; text-align: center; font-size: .75rem; }
+.routine-track { height: .4rem; background: #e1e7ec; margin: .4rem 0; overflow: hidden; border-radius: 2px; }
+.routine-track > span { display: block; height: 100%; background: #628da9; }
+.routine-attention-list { display: grid; gap: .45rem; }
+.routine-attention { display: flex; justify-content: space-between; gap: .5rem; padding: .55rem 0; border-top: 1px solid #e0e8ed; }
+.routine-attention strong { font-size: .88rem; }
+.routine-attention > * { min-width: 0; overflow-wrap: anywhere; }
+.comparison-picker { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem; font-size: .78rem; }
+.comparison-picker select { padding: .4rem; border: 1px solid #c5d0d8; border-radius: 3px; background: #fff; color: inherit; }
+.review-status { font-weight: 600; margin-top: .5rem; font-size: .8rem; }
+.section-link { margin-top: .8rem; }
+.more-recommendations { margin-top: 1rem; }
+.routine-search { display: grid; gap: .4rem; max-width: 25rem; }
+.routine-item > strong { flex: 1 1 15rem; overflow-wrap: anywhere; }
+.routine-item > .routine-track { flex: 1 1 5rem; }
+.reflection-teaser p { line-height: 1.5; }
+@media (max-width: 640px) { .routine-hero-columns { grid-template-columns: minmax(0, 1fr); gap: .5rem; } .review-content { padding: 0 .75rem .75rem; } .routine-hero { padding: .75rem; } .routine-hero .section-heading, .review-content .section-heading { align-items: flex-start; flex-wrap: wrap; } .routine-attention { flex-direction: column; gap: .25rem; } }
+
 .weekly-highlights { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
 .weekly-highlight { min-width: 0; padding: .8rem; border: 1px solid #dedede; border-radius: 4px; overflow-wrap: anywhere; }
 .weekly-highlight > span, .weekly-highlight > strong, .weekly-highlight > small { display: block; }
@@ -630,7 +627,7 @@ export default {
 .outcome-item small { color: #43525c; line-height: 1.4; }
 .warning-list { margin: 0.65rem 0 0; padding-left: 1.2rem; color: var(--amber); }
 .weekly-layout { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 0.8rem; }
-.weekly-layout--detail { max-width: 900px; margin: 0 auto; }
+.weekly-layout--detail { max-width: 1100px; margin: 0 auto; }
 .archive-card { padding: 0.85rem; }
 .section-heading h2 { font-size: 1.2rem; }
 .section-heading > span { color: var(--muted); font-size: 0.85rem; }
@@ -715,7 +712,7 @@ details[open] > .detail-section-summary::after { content: '−'; }
   .metrics-row > [role="cell"]::before { content: attr(data-period) ': '; color: var(--muted); font-size: 0.76rem; font-weight: 700; }
 }
 @media (max-width: 480px) {
-  .outcome-grid { grid-template-columns: 1fr; }
+  .outcome-grid, .weekend-readings { grid-template-columns: 1fr; }
   .preview-heading { align-items: flex-start; flex-direction: column; }
   .detail-section,
   .weekly-reflection { padding: 0.8rem; }

@@ -7,7 +7,7 @@
       <SaveFields :saving="saving">
         <div class="target-grid">
           <div>
-            <label for="vitaminDMicrograms">Vitamin D (µg)</label>
+            <label for="vitaminDMicrograms">Vitamin D personal goal (µg/day, optional)</label>
             <InputNumber inputId="vitaminDMicrograms" v-model="values.vitaminDMicrograms" :min="0.01" :max="99999999.99" :maxFractionDigits="2" :useGrouping="false" :inputProps="{'aria-describedby': 'vitaminD-reference'}" />
             <small id="vitaminD-reference">{{ referenceDescription('vitaminD', 'µg') }}</small>
           </div>
@@ -42,7 +42,8 @@
             <InputNumber inputId="fiber-target" v-model="values.fiber.value" :min="0.01" :max="99999999.99" :maxFractionDigits="2" :useGrouping="false" />
           </div>
         </div>
-        <p v-if="values.omega3Milligrams != null" class="legacy-target">Historical total omega-3 target: {{ values.omega3Milligrams }} mg/day (read only; separate from EPA+DHA).</p>
+        <p>Omega-3 feedback checks the EPA+DHA and ALA minima separately.</p>
+        <p v-if="values.omega3Milligrams != null" class="legacy-target">Historical total omega-3 target: {{ values.omega3Milligrams }} mg/day (read only; separate from the overall assessment).</p>
       </SaveFields>
       <Button class="target-save" :label="saving ? 'Saving…' : 'Save nutrient targets'" icon="pi pi-check" :loading="saving" :disabled="saving" :aria-busy="saving" @click="save" />
     </template>
@@ -80,6 +81,7 @@ export default {
   methods: {
     referenceDescription(key, unit) {
       const target = this.targets[key];
+      if (key === 'vitaminD' && target.referenceValue != null) return `Blank: ${target.referenceValue} ${unit}/day reference only, without goal colors.`;
       return target.referenceValue != null ? `Blank: adult EFSA reference of ${target.referenceValue} ${unit}/day.`
         : 'Blank: no reference for this profile; configure a personal target.';
     },

@@ -251,7 +251,7 @@ class WeeklySummaryServiceTest {
             .filter(card -> card.label().equals("Back pain"))
             .findFirst().orElseThrow();
 
-        assertEquals(9, snapshot.schemaVersion());
+        assertEquals(10, snapshot.schemaVersion());
         assertTrue(saved.getSnapshotJson().contains("\"subjectLabel\":\"Goblet squat\""));
         assertEquals(List.of("Heaviest load — Goblet squat", "Highest weight", "Longest routine streak — Evening stretch"),
             new WeeklySummaryEmailViewFactory().create(user, snapshot, null, "https://weight.example").records().stream()
@@ -985,7 +985,8 @@ class WeeklySummaryServiceTest {
             coachingPlanRepository,
             new ObjectMapper().findAndRegisterModules(),
             properties,
-            mock(WeeklyNutritionSnapshotService.class)
+            mock(WeeklyNutritionSnapshotService.class),
+            mock(WeeklyWorkoutTargetService.class)
         );
     }
 

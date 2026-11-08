@@ -169,7 +169,8 @@ public class WeeklyMetricsCalculator {
             averageInteger(sleeps.stream().map(Sleep::getAwakeTime).toList()),
             averageDecimal(sleeps.stream().map(Sleep::getAverageHeartRate).toList()),
             averageInteger(sleeps.stream().map(Sleep::getAverageHrv).toList()),
-            sleeps.size()
+            sleeps.size(),
+            SleepStatusCalculator.weeklyScore(sleeps)
         );
     }
 

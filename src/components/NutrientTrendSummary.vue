@@ -4,7 +4,7 @@
     <p v-else-if="error" role="alert">{{ error }}</p>
     <div v-else class="nutrient-trend-rows">
       <div v-for="field in fields" :key="field.key" class="nutrient-trend-row p-grid">
-        <div class="p-col-5">Trend {{ field.label }}:</div>
+        <div class="p-col-5">30-day {{ field.label }}:</div>
         <div class="p-col-7 nutrient-trend-result">
           <span class="trend-average" :class="targetStatus(field)?.className">{{ averageLabel(field) }}</span>
           <span v-if="targetStatus(field)?.label" class="sr-only" role="status">{{ targetStatus(field).label }}</span>
@@ -21,7 +21,7 @@ import dayjs from 'dayjs';
 import nutritionService from '../services/NutritionService';
 import {trendNutrientFields} from '../model/Dish';
 import {coveredNutrientDays, partialNutrientDays, nutrientCoverage, averageNutrientLabel, nutrientChangeLabel,
-  macroTargetStatus, nutrientMinimumStatus, omega3TrendStatus} from '../model/NutrientTrends';
+  macroTargetStatus, nutrientTargetStatus} from '../model/NutrientTrends';
 
 const fields = [
   {key: 'proteinGrams', label: 'Protein', unit: 'g', kind: 'macro', targetKey: 'protein'},
@@ -62,20 +62,22 @@ export default {
     },
     changeSummary(field) { return this.hasComparablePeriods(field) ? this.changeLabel(field) : '—'; },
     changeClass(field) {
-      if (!this.hasComparablePeriods(field) || (field.key !== 'omega3Milligrams' && !this.targetStatus(field)?.className)) return '';
+      if (!this.hasComparablePeriods(field) || field.key === 'omega3Milligrams' || !this.targetStatus(field)?.className) return '';
       const change = this.changeLabel(field);
       if (change === '0') return '';
       const minimum = field.targetKey !== 'carbohydrate' && field.targetKey !== 'fat';
       return change.startsWith('+') === minimum ? 'good' : 'bad';
     },
     targetStatus(field) {
+      if (!this.targets) return null;
+      if (field.key === 'omega3Milligrams') {
+        const evidence = this.summaries.filter(row => !dayjs(row.date).isBefore(dayjs(this.dateKey).subtract(29, 'day'), 'day') && !dayjs(row.date).isAfter(this.dateKey, 'day'));
+        return nutrientTargetStatus(evidence, field, this.targets.targets);
+      }
       const rows = this.currentRows(field);
-      if (!rows.length || !this.targets) return null;
+      if (!rows.length) return null;
       if (field.kind === 'macro') return macroTargetStatus(rows, field, this.targets.overrides.macros.fatPercentage);
-      if (field.key === 'omega3Milligrams') return omega3TrendStatus(rows, field, this.targets.targets);
-      const key = {vitaminDMicrograms: 'vitaminD', magnesiumMilligrams: 'magnesium', fiberGrams: 'fiber'}[field.key];
-      const target = this.targets.targets[key]?.value;
-      return target == null ? null : nutrientMinimumStatus(rows, field, target);
+      return nutrientTargetStatus(rows, field, this.targets.targets);
     },
     async load() {
       const requestId = ++this.requestId;
