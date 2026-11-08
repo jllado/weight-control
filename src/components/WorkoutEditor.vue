@@ -136,6 +136,11 @@
               <ExercisePicture @visibility-change="editorPictureOpen = $event" :src="exercises.find(exercise => exercise.id === line.exerciseId)?.imageUrl" :name="line.exerciseName" :description="line.exerciseDescription" />
               <small>{{ line.exerciseDescription }}</small>
             </div>
+            <div v-if="planning" class="p-col-12 p-md-6">
+              <label :for="`rest-${line.localId}`" class="p-d-block p-mb-2">Rest after each set (seconds)</label>
+              <InputNumber :inputId="`rest-${line.localId}`" v-model="line.restSeconds" :min="0" :max="2147483647" :maxFractionDigits="0" :useGrouping="false" :placeholder="line.exerciseType === ExerciseType.STRETCHING ? 'Default: no rest' : 'Default: normal rest'" :aria-describedby="`rest-help-${line.localId}`" />
+              <small :id="`rest-help-${line.localId}`" class="p-d-block">0 means no rest. Leave blank to use the default.</small>
+            </div>
             <div class="p-col-12 p-md-4" v-if="!planning && line.trackingMode === ExerciseTrackingMode.CARDIO">
               <label :for="`calories-${line.localId}`" class="p-d-block p-mb-2">Calories</label>
               <InputNumber :inputId="`calories-${line.localId}`" v-model="line.calories" :min="0" />
@@ -583,6 +588,7 @@ export default {
       if (!this.validateWorkoutForm('Workout not started')) return;
       const source = this.buildWorkoutPayload();
       source.lines = source.lines.map((line, index) => ({...line,
+        restSeconds: this.workout_form.lines[index].restSeconds,
         exerciseName: this.workout_form.lines[index].exerciseName,
         exerciseDescription: this.workout_form.lines[index].exerciseDescription,
         trackingMode: this.workout_form.lines[index].trackingMode,
@@ -769,6 +775,7 @@ export default {
           stretchingUnit: line.stretchingUnit ?? 'SECONDS',
           exerciseType,
           supersetGroupId: line.supersetGroupId ?? null,
+          restSeconds: line.restSeconds ?? null,
           calories: this.planning ? null : line.calories ?? null,
           averageHeartRate: this.planning ? null : line.averageHeartRate ?? null,
           exerciseDurationSeconds: this.planning ? null : line.exerciseDurationSeconds ?? null,
@@ -1260,6 +1267,7 @@ export default {
         exerciseId: line.exerciseId,
         exerciseType: line.exerciseType,
         supersetGroupId: line.supersetGroupId || undefined,
+        ...(this.planning ? {restSeconds: line.restSeconds ?? null} : {}),
         stretchingUnit: line.stretchingUnit ?? 'SECONDS',
         calories: line.trackingMode === ExerciseTrackingMode.CARDIO ? line.calories : null,
         averageHeartRate: line.trackingMode === ExerciseTrackingMode.CARDIO ? line.averageHeartRate : null,

@@ -27,7 +27,7 @@ export default {
   name: 'GuidedWorkout',
   components: {WorkoutEditor},
   provide() { return {guidedWorkout: this}; },
-  data() { return {state: userState(), guidedWorkoutState, editor: Symbol('guided-workout'), visible: false, minimized: false, opening: false, openGeneration: 0, editDialog: false, editWorkoutDialog: false, restDialog: false, editSegment: null, editLine: null, editError: '', saving: false, manualTransfer: null, handingOff: false, transferError: '', saveError: '', lockError: '', discardPrompt: false, keepScreenOn: false, keepScreenOnStorageKey: null, restDuration: 60, restDurationStorageKey: null, wakeLockStatus: 'off', wakeLockController: null, exerciseRecords: {}, phases: workoutPhases, now: Date.now(), tick: null, cardioFields: [{key: 'speedKph', label: 'Speed (km/h)', metric: 'CARDIO_SPEED'}, {key: 'cadenceRpm', label: 'Cadence (rpm)', metric: 'CARDIO_CADENCE'}, {key: 'distanceKm', label: 'Distance (km)', metric: 'CARDIO_DISTANCE'}, {key: 'inclinePercent', label: 'Incline (%)', metric: 'CARDIO_INCLINE'}, {key: 'resistanceLevel', label: 'Resistance', metric: 'CARDIO_RESISTANCE'}]}; },
+  data() { return {state: userState(), guidedWorkoutState, editor: Symbol('guided-workout'), visible: false, minimized: false, opening: false, openGeneration: 0, editDialog: false, editWorkoutDialog: false, restDialog: false, editSegment: null, editLine: null, editError: '', saving: false, manualTransfer: null, handingOff: false, transferError: '', saveError: '', lockError: '', discardPrompt: false, keepScreenOn: false, keepScreenOnStorageKey: null, defaultRestDuration: 60, restDurationStorageKey: null, wakeLockStatus: 'off', wakeLockController: null, exerciseRecords: {}, phases: workoutPhases, now: Date.now(), tick: null, cardioFields: [{key: 'speedKph', label: 'Speed (km/h)', metric: 'CARDIO_SPEED'}, {key: 'cadenceRpm', label: 'Cadence (rpm)', metric: 'CARDIO_CADENCE'}, {key: 'distanceKm', label: 'Distance (km)', metric: 'CARDIO_DISTANCE'}, {key: 'inclinePercent', label: 'Incline (%)', metric: 'CARDIO_INCLINE'}, {key: 'resistanceLevel', label: 'Resistance', metric: 'CARDIO_RESISTANCE'}]}; },
   computed: {
     steps() {
       return this.guidedWorkoutState.draft ? guidedWorkoutSteps(this.guidedWorkoutState.draft.workout) : [];
@@ -72,6 +72,18 @@ export default {
       return parts.join(' · ');
     },
     currentDurationBased() { return !!this.plannedSegment && this.currentLine.stretchingUnit !== 'BREATHS' && (this.currentLine.trackingMode === 'SECONDS' || this.currentLine.trackingMode === 'CARDIO'); },
+    currentRestDuration() { return this.currentLine.restSeconds ?? (this.currentLine.exerciseType === 'STRETCHING' ? 0 : this.guidedWorkoutState.draft.defaultRestSeconds); },
+    restDuration: {
+      get() { return this.restTimer?.durationSeconds ?? this.guidedWorkoutState.draft?.preparedRest?.durationSeconds ?? (this.currentLine ? this.currentRestDuration : this.defaultRestDuration); },
+      set(value) {
+        const prepared = this.guidedWorkoutState.draft.preparedRest;
+        if (prepared) {
+          const line = this.guidedWorkoutState.draft.workout.lines.find(line => line.guidedLineKey === prepared.lineKey);
+          if (line) line.restSeconds = value;
+          prepared.durationSeconds = value ?? (line?.exerciseType === 'STRETCHING' ? 0 : this.guidedWorkoutState.draft.defaultRestSeconds);
+        } else this.currentLine.restSeconds = value;
+      }
+    },
     nextDurationBased() { return !!this.nextPlannedSegment && this.nextLine.stretchingUnit !== 'BREATHS' && (this.nextLine.trackingMode === 'SECONDS' || this.nextLine.trackingMode === 'CARDIO'); },
     setElapsedMilliseconds() {
       const timer = this.guidedWorkoutState.draft.exerciseTimer;
@@ -152,7 +164,7 @@ export default {
       this.keepScreenOnStorageKey = email ? `guided-workout-screen-lock-v1:${email}` : null;
       this.keepScreenOn = this.keepScreenOnStorageKey ? localStorage.getItem(this.keepScreenOnStorageKey) === 'true' : false;
       this.restDurationStorageKey = email ? `guided-workout-rest-duration-v1:${email}` : null;
-      this.restDuration = this.restDurationStorageKey && localStorage.getItem(this.restDurationStorageKey) != null ? Number(localStorage.getItem(this.restDurationStorageKey)) : 60;
+      this.defaultRestDuration = this.restDurationStorageKey && localStorage.getItem(this.restDurationStorageKey) != null ? Number(localStorage.getItem(this.restDurationStorageKey)) : 60;
       this.exerciseRecords = {};
       this.wakeLockController.setEnabled(this.keepScreenOn);
     },
@@ -178,7 +190,12 @@ export default {
         guidedWorkoutState.draft.workout.lines.forEach(line => Object.assign(line, {exerciseDurationMilliseconds: (line.exerciseDurationSeconds || 0) * 1000, exerciseElapsedBySegment: [], omitFromActual: false}));
       }
       if (guidedWorkoutState.draft && !guidedWorkoutState.draft.estimatedSecondsByLine) guidedWorkoutState.draft.estimatedSecondsByLine = estimateGuidedWorkout(guidedWorkoutState.draft.workout);
-      if (guidedWorkoutState.draft) ensureGuidedDraftIdentity(guidedWorkoutState.draft);
+      if (guidedWorkoutState.draft) {
+        ensureGuidedDraftIdentity(guidedWorkoutState.draft);
+        guidedWorkoutState.draft.defaultRestSeconds ??= this.defaultRestDuration;
+        if (guidedWorkoutState.draft.preparedRest) guidedWorkoutState.draft.preparedRest.durationSeconds ??= this.defaultRestDuration;
+        saveGuidedWorkoutDraft();
+      }
       this.minimized = false;
       this.visible = false;
       this.updateWakeLock();
@@ -251,11 +268,13 @@ export default {
       }
       const completedPhase = guidedPhaseKey(this.currentLine);
       const phaseWasRunning = !!draft.timer?.runningPhase;
+      const durationSeconds = this.currentRestDuration;
+      const lineKey = this.currentLine.guidedLineKey;
       if (!this.currentStep || !this.completeSet()) return;
-      if (!this.currentStep) return;
+      if (!this.currentStep || durationSeconds === 0) return;
       const now = Date.now();
       this.pauseExerciseTimer(now);
-      draft.preparedRest = {phase: completedPhase, phaseWasRunning};
+      draft.preparedRest = {phase: completedPhase, phaseWasRunning, durationSeconds, lineKey};
       this.now = now;
       saveGuidedWorkoutDraft();
       this.restDialog = true;
@@ -311,7 +330,11 @@ export default {
       saveGuidedWorkoutDraft();
     },
     updateRestDuration() {
-      if (this.restDurationStorageKey) localStorage.setItem(this.restDurationStorageKey, String(this.restDuration));
+      saveGuidedWorkoutDraft();
+    },
+    updateCurrentRestDuration(value) {
+      this.currentLine.restSeconds = value;
+      saveGuidedWorkoutDraft();
     },
     closeRest() {
       const now = Date.now();
@@ -323,14 +346,12 @@ export default {
       saveGuidedWorkoutDraft();
     },
     addRestTime() {
-      this.restDuration += 30;
-      this.updateRestDuration();
       if (this.restActive) {
         this.restTimer.durationSeconds += 30;
         if (this.restTimer.paused) this.restTimer.pausedRemainingMilliseconds += 30000;
         else this.restTimer.endsAt += 30000;
-        saveGuidedWorkoutDraft();
-      }
+      } else this.restDuration += 30;
+      saveGuidedWorkoutDraft();
     },
     startRest() {
       const now = Date.now();

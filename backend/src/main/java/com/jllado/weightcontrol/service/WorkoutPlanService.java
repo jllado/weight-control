@@ -125,7 +125,7 @@ public class WorkoutPlanService {
                         throw new BadRequestException(day.day() + " — " + exercise.getName() + ": " + exception.getMessage());
                     }
                     var segments = line.segments().stream().map(segment -> new Segment(segment.repetitions(), segment.durationSeconds(), scale(segment.weight()), scale(segment.speedKph()), scale(segment.cadenceRpm()), scale(segment.distanceKm()), scale(segment.inclinePercent()), segment.resistanceLevel(), segment.breaths())).toList();
-                    return new Target(exercise.getId(), exercise.getName(), exercise.getDescription(), exercise.getTrackingMode(), exercise.getExerciseType(), exercise.getCardioMetric(), segments, line.stretchingUnit(), line.supersetGroupId());
+                    return new Target(exercise.getId(), exercise.getName(), exercise.getDescription(), exercise.getTrackingMode(), exercise.getExerciseType(), exercise.getCardioMetric(), segments, line.stretchingUnit(), line.supersetGroupId(), line.restSeconds());
                 }).toList();
                 return new WorkoutPlanDay.Session(blankToNull(session.name()), blankToNull(session.note()), lines,
                     Boolean.TRUE.equals(session.saunaSession()), session.saunaRoundsMinutes() == null ? List.of() : session.saunaRoundsMinutes());
