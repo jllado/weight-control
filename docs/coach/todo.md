@@ -894,4 +894,4 @@ Published version 173 preserves private access and all 30 Actions; configuration
 - [x] Add optional frozen workout targets, classification rules and precise nutrient assessment values to the existing weekly context.
 - [x] Align the app and future email on reference-only default vitamin D and independently assessed omega-3 forms.
 - [x] Keep all 30 Actions and preserve food provenance, historical snapshots and confirmation rules.
-- [ ] Publish the updated private GPT schema/instructions after deployment and independently verify saved/live configuration and read-only nutrient feedback.
+- [x] Publish the updated private GPT schema/instructions after deployment and independently verify saved/live configuration and read-only nutrient feedback; see the [verification record](coach-gpt.md#weekly-nutrient-feedback-verification--november-8-2026).
