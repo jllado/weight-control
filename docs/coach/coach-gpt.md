@@ -12,6 +12,7 @@ Create or update the private custom GPT at https://chatgpt.com/gpts/editor and k
 - Authentication: select `API key`, choose `Bearer`, and enter the value of `CHATGPT_ACTION_TOKEN` from the ignored local `.env`.
 - Frontend link: set `VITE_CHATGPT_COACH_URL` to the saved private GPT URL.
 - Knowledge files: none.
+- Code interpreter and data analysis: enabled for Decimal/HALF_UP meal preparation and validation before the readable save proposal.
 - Recommended model: **Thinking 6** (`gpt-6-thinking`); use **Medium** power for meal saves. A GPT recommendation does not override a remembered account model or power, so verify the actual selection in each conversation. The tested Thinking 6 Medium draft passed sourced-nutrient review and its exact `confirmed:false` `createMeal` call reached approval and was rejected before persistence; this does not prove a `confirmed:true` save. The earlier GPT-5.6 Medium successful save and Pro handoff failure remain in the [save investigation](../save-performance.md#confirmed-dinner-comparison).
 
 ## Targeted food search acceptance — October 25, 2026
@@ -101,7 +102,11 @@ Candidate acceptance should cover a sauna-only create with actual and planned ro
 
 ## Source-backed meal nutrient proposals
 
-For each meal draft or estimate, Coach reads DISHES once and targeted FOODS for the named item, brand or synonym before claiming a saved reference. A failed read is reported as unavailable. For a new or changed food, use a matching label first, then cited comparable composition, ingredient proportions and a defensible edible-portion estimate to fill calories, macros, vitamin D, magnesium, independently stored total omega-3, EPA+DHA, ALA and Fiber in both consumed and reference portions. Mark estimates and explain the comparable basis; ask only when identity or edible quantity has no defensible basis. Each proposed persisted source string identifies its actual source by title and stable ID or URL, plus the assumption behind an estimate; a citation only in explanatory prose is insufficient. Undifferentiated PUFA 18:3 does not measure ALA or total omega-3: a clearly marked proxy may use its amount only with separate food-specific evidence identifying the likely isomer, naming both sources and the assumption in each affected source string. Do not substitute total omega-3 for either subtype. A missing entry in a fatty-acid list does not justify zero; use an explicitly reported matching or comparable zero and mark comparability as estimated. An exact unchanged legacy food may retain its old unknowns during a metadata-only full replacement. A full meal replacement sends top-level `nutrientSchemaVersion: 2`; a missing-marker 400 calls for correcting that field in the same confirmed body, not repeating GET indefinitely. A sourced zero remains distinct from missing data. These proposal rules do not silently rewrite stored history.
+For each meal draft or estimate, Coach reads DISHES and targeted FOODS before claiming saved references; report failed reads honestly. Preserve known matching values and research missing fields with at most one external query per food. Prefer matching labels and cited comparable composition, then use reasonable food-specific model estimates from known food, ingredients, preparation and edible portion when bounded research does not establish every value. An exact-label or separate isomer verification requirement must not block an explicitly labeled approximation. This policy supersedes the earlier mandatory reported-zero and separate-isomer-evidence gates for new or changed proposed foods; historical verification records below retain their original findings.
+
+Complete all ten consumed/reference nutrients and preserve independent total omega-3, EPA+DHA and ALA meanings. Never mechanically derive subtypes from a total or substitute one field for another. A food-specific 18:3 proxy may be an explicitly stated model assumption, never a measured ALA or total claim. Missing data alone is not zero; an estimated negligible value that rounds to zero needs its food-specific basis and estimate flag. Cite only sources actually read and supporting the claim; otherwise persist `Model estimate` with comparison/composition basis, assumptions and uncertainty, without invented citations. Keep source strings within 500 characters and validate arithmetic, quantities, units and complete references.
+
+A no-save request restricts writes, not preparation. Use Code Interpreter to validate reference-scaled values and totals, then derive the readable proposal and requested JSON from that same body. Keep known matching reference values and estimate only gaps; an uncertain catalog match must not create a duplicate. Name proposed catalog additions before consent. Show a readable final proposal and obtain exact save consent; technical JSON is available on request with `confirmed:false` and absent optional rating omitted. After confirmation, complete any remaining supported estimates and proceed to write/readback without another estimate opt-in; material changes require renewed confirmation. Identify genuinely unresolved food identity, edible quantity or indefensible comparison concretely. An unattempted save is not an API failure. Keep exact unchanged legacy unknowns only for metadata-only replacement; never rewrite history through this preparation. Full replacements send top-level `nutrientSchemaVersion: 2` and repair a missing-marker rejection without a GET loop.
 
 ## Proactive meal preparation verification — November 7, 2026
 
@@ -162,13 +167,12 @@ The existing production warning has two above-goal windows (2,517 then 2,598.57 
 
 ```text
 "Start my coaching session"→"What would you like to work on today?";no Actions
-Meals:DISHES+FOODS(query/food)→refs;fail→say;hasMore→refine;preview≠absence;templates≠intake;recipe→DISH_RECIPE;log→meal;edit:full GET+marker2;confirm→write→GET
-addToCatalog:true iff proven absent+reusable(short English name)
-Meal:saved refs→ONE search/food with gaps→similar-food estimates;read results,no re-search. Finish/validate10 consumed/ref nutrients+sources/flags;repair;MealWrite evidence rules. Reply:foods/portions,date/time,kcal/macros,rating,key assumptions/catalog effects;ask "Save this meal?" No estimate validation/opt-in;JSON on request. Ask:material identity/qty/conflict/no defensible comparison. Same metadata:null OK.
+Meals:DISHES+FOODS(query/food)→refs;fail→say;hasMore→refine;preview≠absence;templates≠intake;recipe→DISH_RECIPE;log→meal;edit:full GET+marker2
+addToCatalog:uncertain=false;true iff proven absent+reusable(short English name)
+Before any meal proposal, use Code Interpreter to build/validate prepared-meal.json with ALL 10 nutrients, refs and sources/flags per MealWrite; a totals-only calculation is insufficient. Read this file for summary/JSON/save. Preserve known refs;estimate nulls after ONE search/food. No estimate opt-in. Show foods/qty,time,totals,rating,assumptions/catalog effects;confirm→write→GET. Material change→reconfirm. Ask only identity/qty/conflict/indefensible comparisons. Metadata-only:null OK.
 Fruit:new/changed clear=true even catalog=false;same omit→inherit;else false
 Recipes:qty×servings÷yield HALF_UP3;sum kcal int/macros2dp;catalog round/no convert;est/reset refs;confirm expanded;recipe-only MANUAL;keep repeats/catalog
 Meal:exact local start;default30m duration;no image inference;fast:end→next start≥8h,complete/ordered/nonoverlap/past. Foods needed;MANUAL text/GPT_IMAGE_ESTIMATE image;no image data/refs/dedup/forced totals
-Foods:known factors;qty keeps refs;nutrient/unit resets;totals/uncertainty
 getCoachCatalog→getHealthContext;30d,max90;refresh/topic;Today:endDateComplete;null/missing=unknown≠0;low/0kcal valid;absent pain≠no pain
 Goals:ACTIVE_PLAN;COACH_NOTES on request;dated private text,no infer/expose;local:act now,plan rest
 RECORDS:recordsPage0→hasMore;current=all-time;range progression/milestones;Extrema≠health/safety
@@ -497,6 +501,23 @@ Version 170 still stopped at partial summaries on both Instant and Medium. Versi
 Proposal audits allow `confirmed:false` before approval; they do not authorize a write. Approximate values and comparable foods are acceptable, but missing references, inconsistent totals and unsupported attribution remain failures. Available conversation traces omit raw search arguments, so the per-food single-query limit is not independently verified. The wider edge-case matrix and temporary save/readback/delete were not attempted after these acceptance failures. No health writes occurred; before/after responses matched exactly for all 1,912 meals and 121 foods. All six synthetic chats were deleted and independently returned 404; the original conversation remained readable. Private evidence includes full traces, extracted proposals and audit results outside source control.
 
 The limited instruction release is delivered; complete behavioral acceptance remains unproven. Task workflow state is DEVELOPED at the user's explicit request, with these failures retained in its delivery record. This state does not establish a successful meal-save test or require a backend redesign.
+
+## Meal confirmation continuity acceptance
+
+| Journey | Required result |
+| --- | --- |
+| Reported lunch: chicken/rice/salad, milk/protein/cereals, grapes and labeled bars; clarified portions, 14:00 and 60 minutes | Complete preparation before a readable save proposal; no request to approve estimates or postpone nutrient work. |
+| One confirmation of that proposal | Complete any remaining supported estimates, call createMeal and getMeals without another encouragement turn; match the approved proposal. |
+| Changed material totals, portions, timing, rating, assumptions or catalog effects | Show the revised summary and obtain renewed confirmation before writing. |
+| Missing exact brand micronutrients with a supported comparable | Use attributable, explicitly labeled estimates under the bounded search policy. |
+| Truly unsupported comparison or unidentified food/quantity | Name the precise missing prerequisite before offering Save; never invent values or sources. |
+| No write attempted versus actual Action error | Say not yet submitted in the first case; report the actual error and reason in the second. |
+
+A no-save request restricts writes, not preparation: every draft and technical inspection must finish all nutrient/reference fields, fill catalog gaps for new snapshots and omit an absent rating rather than send null. Audit full consumed/reference values, independent omega-3 sources, estimates, arithmetic and actual Action arguments separately from readable prose. Preserve the real meal and original conversation. Temporary live writes require a complete side-effect baseline and cleanup; an irreversible push is not a reversible test. Publication and configuration checks alone do not establish this acceptance.
+
+Candidate verification on November 8, 2026 used the mandatory consequential-Action approval boundary: a two-food snack and the reported thirteen-food lunch each reached a pending `createMeal` after one ordinary confirmation, without another estimate opt-in. The lunch date alone was changed to an empty past date because the original lunch already exists. Both actual pending bodies passed independent schema/arithmetic checks, contained ten consumed/reference nutrients per food, omitted rating and catalog additions, and matched their readable proposals and supplied label values. Execution was denied; immediate pre/post meal, catalog, fasting, pending-notification and push-configuration hashes matched. This establishes preparation/continuation and actual argument projection, not successful persistence or readback.
+
+Earlier requested JSON and internal preparation artifacts had incomplete or nonconforming request shapes; those failures remain distinct from the later valid Action arguments. Do not claim that the artifact's schema, every internal calculation step or scientific measurement accuracy was verified. Published configuration and a real confirmed save/readback remain separate acceptance stages; a synthetic production save would send an irreversible push notification.
 
 ## Privacy
 

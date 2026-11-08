@@ -189,7 +189,7 @@ paths:
     post:
       operationId: createMeal
       summary: Create a confirmed meal
-      description: Use saved references, then at most one external search per food with gaps; finish with sourced similar-food estimates. Save only the explicitly confirmed meal and optional 1–10 rating, then getMeals. Images use GPT_IMAGE_ESTIMATE; no image bytes, ChatGPT file IDs or URLs.
+      description: Before offering Save, build and validate complete prepared-meal.json with Code Interpreter, including all 10 nutrient/reference values and sources. Reuse that file for proposal and confirmed Action, then getMeals. No extra estimate opt-in; material changes require reconfirmation.
       x-openai-isConsequential: true
       requestBody:
         required: true
@@ -210,7 +210,7 @@ paths:
     put:
       operationId: updateMeal
       summary: Update a confirmed meal or its rating
-      description: Get meals first. MEAL replaces the full owned meal with nutrientSchemaVersion 2 and preserves unchanged foods and metadata. Research changed foods; use cited, marked estimates when exact data is unavailable. RATING changes only the score. Confirm the readable meal summary or scores, then reread.
+      description: Get meals first. MEAL replaces the full owned meal with nutrientSchemaVersion 2 and preserves unchanged foods and metadata. Estimate changed foods under MealWrite; mark comparable/model estimates. RATING changes only the score. Confirm the readable meal summary or scores, then reread.
       x-openai-isConsequential: true
       parameters:
         - name: target
@@ -1956,21 +1956,47 @@ components:
         Read useful results from that search; opening a result is not another search. Saved-data Actions are outside this web-search budget.
         If exact values are not readily available, immediately use reasonable similar-food estimates from the available evidence.
         Do not repeat searches for another flavor, greater precision or additional reassurance; exact brand values are not a completion gate.
-        Use matching product labels first, then defensible cited comparable-food composition for missing values.
-        An unavailable exact brand or flavor label is not a blocker when a defensible comparable exists.
-        Sourced, explicitly marked estimates are complete save proposals; they do not require further user permission to calculate.
-        Ask one bundled question only for materially unresolved identity, quantity, conflicts or unsupported assumptions after research.
-        For EACH food, finish calories, protein, carbohydrate, fat, vitamin D, magnesium, total omega-3, EPA+DHA, ALA and fiber
-        in both the consumed and reference portions, with actual source strings and estimate flags. Do not stop at macros or offer later research.
-        Prefer whole-food composition tables that explicitly report ALA and total omega-3 before considering undifferentiated 18:3 proxies.
-        A proxy requires separate food-specific numeric and isomer evidence, an explicit assumption and checked scaling; a second source
-        that merely repeats undifferentiated 18:3 is not isomer evidence. Seed-oil figures are not measured whole-fruit composition.
-        Total omega-3 needs its own supported total or defensible independently sourced proxy; never replace it with ALA or EPA+DHA,
-        or present a sum of selected subtypes as complete total omega-3. Zero needs an explicitly reported matching or comparable zero.
-        Read the cited composition values and verify every calculation; never invent ratios, processing adjustments or source claims.
-        Each persisted source string names its source title and stable ID or URL plus any estimate basis; aim for at most 350 characters
-        and validate the existing 500-character limit. A generic homepage or 'same table' is not an identifiable composition record.
+        Preserve matching label and saved values. For missing values, prefer cited comparable-food composition after the bounded lookup.
+        For each matched saved food, keep its reference quantity, unit and every known reference nutrient exactly as returned;
+        fill only null or missing nutrient fields, then scale that completed reference to the consumed portion.
+        Do not replace known saved values with new model/comparable numbers or reset the reference to conceal a mismatch.
+        If a reference does not match the food/preparation, identify that mismatch and disclose the different comparison instead of claiming reuse.
+        When that lookup does not establish every nutrient, use a reasonable food-specific model estimate from the known food,
+        ingredients, preparation and edible portion. This is an accepted estimate, not a verified measurement; no extra estimate permission is needed.
+        Mark each affected estimate flag true and record the comparison, assumptions and uncertainty in its source string.
+        For a model estimate use "Model estimate: <food/composition basis>; <assumptions>; approximate, not verified label data".
+        Cite a title and stable ID or URL only when that source was actually read and supports the claimed value; never invent citations,
+        claim an unread source verifies an estimate, or relabel a prior model estimate as verified evidence.
+        For EACH food, complete calories, protein, carbohydrate, fat, vitamin D, magnesium, total omega-3, EPA+DHA, ALA and fiber
+        in both consumed and reference portions, with honest provenance and estimate flags. Do not stop at macros or offer later research.
+        Estimate total omega-3, EPA+DHA and ALA independently for the food. Never substitute one for another, derive a subtype ratio
+        from total, or claim a sum of selected subtypes is a measured complete total. Keep known values unchanged.
+        Undifferentiated 18:3 is not measured ALA or total omega-3. A food-specific proxy is permitted as a model assumption,
+        explicitly identifying the numeric basis and why it is a reasonable approximation; never claim verified isomer identification.
+        Seed-oil figures are not whole-fruit measurements. Do not invent processing adjustments or arbitrary allocation ratios.
+        Zero is valid when reported by a matching source or when a food-specific estimate supports negligible content that rounds to zero;
+        label the latter as estimated and explain the basis. Missing data alone never becomes zero.
+        An unfamiliar food, unknown edible portion or genuinely indefensible comparison requires one concrete bundled clarification.
+        Missing exact-brand verification alone is not such a gap. Check every calculation and keep source strings within 500 characters,
+        aiming for 350; identifiable model assumptions are honest provenance, while a generic database homepage is not a verified record.
         Scale reference values with known unit factors, round calories HALF_UP to integers and nutrients to two decimals, and reconcile totals.
+        Quantity-only changes keep references; explicit nutrient corrections or unit changes reset references to the current amount and totals.
+        Before offering Save, use Code Interpreter to construct the COMPLETE MealWrite body and persist /mnt/data/prepared-meal.json.
+        Keep the original matched catalog references in a separate internal ledger; assert their quantities, units and known values are unchanged.
+        Filling a displayed macro table or summing manually entered tuples is not this preflight: every food, all ten consumed/reference
+        nutrients, sources, flags and catalog decisions must exist in the actual body before the readable proposal.
+        Use Decimal(str(value)) and ROUND_HALF_UP to derive each consumed value from its completed reference (integer kcal, two-decimal nutrients),
+        then sum the rounded food values. Assert every scaled value, meal total, supplied label and retained-reference value matches.
+        Assert complete nonnull nutrient/reference values, nonblank source strings within 500 characters, boolean estimate/catalog flags,
+        valid units/quantities and only the schema's allowed properties. Meal root keys are nutrientSchemaVersion,date,mealType,mealTime,
+        durationMinutes,calories,proteinGrams,carbohydrateGrams,fatGrams,notes,dishes,source,confirmed and optional rating; omit an absent rating.
+        Vitamin D, total omega-3, EPA+DHA, ALA, magnesium and fiber belong in dishes and references, NEVER as extra meal-root properties.
+        Serialize the validated full body with confirmed:false; read that file to generate the readable summary and requested technical JSON.
+        Keep the file and reference ledger internal unless requested; ordinary confirmation must remain readable, with no required file/JSON review.
+        On confirmation, read the same file, set confirmed:true, and pass that body to the Action. Do not rebuild from rounded displayed values.
+        If the artifact is unavailable, reconstruct from the recorded references and assumptions and validate automatically; do not claim an absent file exists.
+        Material differences still require a revised readable proposal and consent. File creation alone does not prove validation.
+        If a calculation fails, correct and rerun it in the same turn; computation is preparation, not another user permission gate.
         Prepare and validate the complete Action payload internally, including every food, reference, nutrient, source and flag;
         omit absent optional fields when their type does not permit null. Repair and recheck invalid fields automatically.
         Show a concise readable summary of the meal date/time, foods and portions, estimated calories/macros, any rating,
@@ -1985,6 +2011,26 @@ components:
         A missing exact label alone is not an unsupported prerequisite. Use a known similar-food reference and label the estimate.
         Do not describe a value as reported by a source when it is your inference; state the comparison and assumption explicitly.
         If the saved references and one search provide no defensible comparison, identify that concrete gap; never invent a source or measurement.
+        Treat preparation, proposal and confirmed execution as separate stages. A calories/macros summary alone is not a ready-to-save meal.
+        Complete the full food/reference payload for every draft or estimate, before offering Save; do not defer micronutrients until after consent.
+        Freeze the validated prepared body before writing the readable summary; derive the summary and any later requested JSON from that same body.
+        A technical-inspection follow-up reveals the prepared body, not a newly recalculated meal or new set of nutrient estimates.
+        The readable summary explicitly names each food to be added to the catalog, or says no catalog additions; carry those same flags forward.
+        An uncertain match, provisional product identification or similar existing catalog food cannot establish absence: keep addToCatalog:false.
+        Before setting true, complete targeted brand and canonical-synonym lookup and establish that the reusable food is genuinely absent.
+        A request not to save yet prohibits writes, not nutrient preparation. A technical-inspection request must show the complete
+        prepared body with confirmed:false, not a partial placeholder body. Omit an absent rating; never send rating:null.
+        Catalog nulls are research/estimation gaps when preparing a new meal, not instructions to copy unknowns into the new snapshot.
+        Keep recorded evidence unchanged: this estimation rule applies only to the proposed new or changed food.
+        After the user confirms the proposal, continue to the Action and readback in that turn. If preparation was incomplete,
+        finish supported comparable/model estimates without asking for permission to estimate or pausing for exact-brand verification.
+        Existing consent covers completing the disclosed estimates, not changing the proposal: revised foods, quantities, timing,
+        rating, material totals, assumptions or catalog effects require a revised readable summary and renewed confirmation.
+        Unavailable exact nutrient measurements alone do not invalidate a supported, explicitly labeled estimate.
+        If a comparison truly remains unsupported, identify the particular food, nutrient and missing basis; do not give a blanket
+        "nutrients could not be verified" refusal or request general permission to proceed. Never invent source evidence.
+        Distinguish preparation from execution: say "not yet submitted" when no write Action ran. Report a save failure only from
+        an actual Action error, including its concrete reason. Do not claim that the API requires exact measurements.
         This preparation never authorizes a write: obtain explicit confirmation of the final complete meal and any rating, then save once
         and read back with getMeals. Structured values only; image-derived writes use GPT_IMAGE_ESTIMATE and never include image data or references.
       required:
@@ -2121,10 +2167,10 @@ components:
             carbohydrateGrams: {type: [number, "null"], minimum: 0}
             fatGrams: {type: [number, "null"], minimum: 0}
             vitaminDMicrograms: {type: number, minimum: 0}
-            omega3Milligrams: {type: [number, "null"], minimum: 0, description: "Independently research total omega-3 for this reference portion. Undifferentiated 18:3 plus separate food-specific isomer evidence supports only a labeled total proxy estimate, not measured total omega-3; do not substitute EPA+DHA or ALA."}
+            omega3Milligrams: {type: [number, "null"], minimum: 0, description: "Independently estimate total omega-3 for this reference portion under the MealWrite evidence policy. A food-specific model proxy must name its assumptions and uncertainty; never substitute EPA+DHA or ALA or claim measured total."}
             magnesiumMilligrams: {type: number, minimum: 0}
-            epaDhaMilligrams: {type: [number, "null"], minimum: 0, description: "Research exact or comparable EPA+DHA composition for the edible portion and mark estimates. Keep an old null only for an exact unchanged legacy snapshot; never infer a subtype from total omega-3."}
-            alaMilligrams: {type: [number, "null"], minimum: 0, description: "Research exact or comparable ALA (18:3 n-3). Undifferentiated 18:3 is not measured ALA; with separate food-specific isomer evidence, cite both sources and label the amount a proxy estimate. Keep an old null only for an exact unchanged legacy snapshot."}
+            epaDhaMilligrams: {type: [number, "null"], minimum: 0, description: "Use exact, comparable or food-specific model-estimated EPA+DHA for the edible portion; mark estimates and their basis. Keep an old null only for an exact unchanged legacy snapshot; never infer a subtype from total omega-3."}
+            alaMilligrams: {type: [number, "null"], minimum: 0, description: "Use exact, comparable or food-specific model-estimated ALA (18:3 n-3). An undifferentiated 18:3 proxy must state the food-specific assumption and uncertainty, never measured ALA. Keep an old null only for an exact unchanged legacy snapshot."}
             fiberGrams: {type: [number, "null"], minimum: 0, description: "Keep an unchanged legacy null only on an exact metadata-only replacement; new or changed foods require a sourced exact or marked estimated value."}
     CoachDishReferenceComplete:
       allOf:
@@ -2268,7 +2314,7 @@ components:
         alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
         alaSource: {type: [string, "null"], maxLength: 500}
         alaEstimated: {type: [boolean, "null"]}
-        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Fiber in grams for this portion. New or changed Coach foods need a matching label or cited comparable composition, a defensible portion estimate if needed, source and matching reference value. Exact unchanged legacy snapshots and manual writes may retain unsupported nulls; zero requires evidence."}
+        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Fiber in grams for this portion. New or changed Coach foods use a matching label, cited comparable or reasonable food-specific model estimate with its basis, uncertainty and matching reference. Exact unchanged legacy snapshots/manual writes may retain nulls; missing alone is not zero."}
         fiberSource: {type: [string, "null"], maxLength: 500}
         fiberEstimated: {type: [boolean, "null"]}
     MealDishWrite:
@@ -2327,13 +2373,13 @@ components:
         alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
         alaSource: {type: [string, "null"], maxLength: 500}
         alaEstimated: {type: [boolean, "null"]}
-        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Fiber in grams for this portion. New or changed Coach foods need a matching label or cited comparable composition, a defensible portion estimate if needed, source and matching reference value. Exact unchanged legacy snapshots and manual writes may retain unsupported nulls; zero requires evidence."}
+        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Fiber in grams for this portion. New or changed Coach foods use a matching label, cited comparable or reasonable food-specific model estimate with its basis, uncertainty and matching reference. Exact unchanged legacy snapshots/manual writes may retain nulls; missing alone is not zero."}
         fiberSource: {type: [string, "null"], maxLength: 500}
         fiberEstimated: {type: [boolean, "null"]}
     CoachMealDishWrite:
       type: object
       additionalProperties: false
-      description: New or changed foods need sourced exact or marked comparable-food and portion estimates for every nutrient. An exact ordered legacy snapshot may retain nulls only for a metadata-only replacement. Never infer zero from absence.
+      description: New or changed foods need exact values or marked comparable/model estimates with food-specific basis and uncertainty for every nutrient. An exact ordered legacy snapshot may retain nulls only for a metadata-only replacement. Never infer zero from absence.
       required: [name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference, vitaminDMicrograms, magnesiumMilligrams, nutrientSource, nutrientsEstimated, epaDhaMilligrams, epaDhaSource, epaDhaEstimated, alaMilligrams, alaSource, alaEstimated, fiberGrams, fiberSource, fiberEstimated]
       properties:
         addToCatalog:
@@ -2378,7 +2424,7 @@ components:
           minimum: 0
           maximum: 99999999.99
           multipleOf: 0.01
-          description: Independently research total omega-3 for the consumed portion. Undifferentiated 18:3 plus separate food-specific isomer evidence supports only a labeled proxy estimate, not measured total omega-3; do not replace it with EPA+DHA or ALA.
+          description: Independently estimate total omega-3 for the consumed portion under MealWrite. Record a model estimate with its food-specific basis and uncertainty; do not replace it with EPA+DHA or ALA or claim a proxy is measured total.
         magnesiumMilligrams:
           type: [number, "null"]
           minimum: 0
@@ -2387,14 +2433,14 @@ components:
         nutrientSource:
           type: [string, "null"]
           maxLength: 500
-          description: "Persist source title and stable ID or URL plus the estimate basis. A total omega-3 proxy from undifferentiated 18:3 must identify both the numeric composition record and separate food-specific isomer evidence, and state the assumption; nonreporting is not a measured zero."
+          description: "For a read source, name its title and stable ID or URL plus any comparison. Otherwise say Model estimate with food/composition basis, assumptions and uncertainty; no invented citation or verification claim. Missing data is not zero; a negligible-content estimate must explain its basis."
         nutrientsEstimated:
           type: [boolean, "null"]
-        epaDhaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Use exact or cited comparable EPA+DHA composition and mark estimates; an old null is only for an unchanged legacy snapshot. Zero needs evidence; total omega-3 is separate."}
-        epaDhaSource: {type: [string, "null"], maxLength: 500, description: "Persist source title and stable ID or URL. A zero requires an explicitly reported matching or comparable zero; mere absence from a reported fatty-acid list is not evidence. Identify the comparable basis and mark an estimate."}
+        epaDhaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Use exact, comparable or food-specific model-estimated EPA+DHA and mark estimates; an old null is only for an unchanged legacy snapshot. Explain an estimated negligible zero; total omega-3 remains separate."}
+        epaDhaSource: {type: [string, "null"], maxLength: 500, description: "Name a source actually read, or state Model estimate with the food-specific basis, assumptions and uncertainty. A reported zero differs from estimated negligible content rounded to zero; explain and flag the latter. Missing data alone is not zero."}
         epaDhaEstimated: {type: [boolean, "null"]}
-        alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Use exact or cited comparable ALA (18:3 n-3). Undifferentiated 18:3 is not measured ALA; with separate food-specific isomer evidence, cite both sources and label the amount a proxy estimate. An old null is only for an unchanged legacy snapshot."}
-        alaSource: {type: [string, "null"], maxLength: 500, description: "Persist both the numeric 18:3 source and the separate food-specific ALA-isomer source by title and stable ID or URL; state the proxy assumption, never call undifferentiated 18:3 measured ALA."}
+        alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Use exact, comparable or food-specific model-estimated ALA (18:3 n-3). An undifferentiated 18:3 proxy needs an explicit food-specific assumption and uncertainty, never a measured ALA claim. An old null is only for an unchanged legacy snapshot."}
+        alaSource: {type: [string, "null"], maxLength: 500, description: "Cite numeric/isomer evidence only if actually read; otherwise state Model estimate with the food-specific comparison, proxy assumption and uncertainty. Never call undifferentiated 18:3 measured ALA or claim unverified isomer evidence."}
         alaEstimated: {type: [boolean, "null"]}
         fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "New or changed foods require a sourced exact or marked estimated Fiber value; unchanged legacy nulls are allowed only on metadata-only replacements."}
         fiberSource: {type: [string, "null"], maxLength: 500}
@@ -5367,17 +5413,17 @@ components:
           type: boolean
           description: Explicitly classify clear fruit as true even when a reused catalog food says false; preserve the saved value for unchanged ingredients.
         vitaminDMicrograms: { type: number, minimum: 0, maximum: 99999999.99, multipleOf: 0.01 }
-        omega3Milligrams: { type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Independently research total omega-3; undifferentiated 18:3 with food-specific isomer evidence supports only a labeled proxy estimate, not measured total. Do not infer total from EPA+DHA or ALA. An old null is only for an unchanged legacy ingredient." }
+        omega3Milligrams: { type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Independently estimate total omega-3 from matching composition or a reasonable food-specific model estimate with assumptions and uncertainty. Do not infer total from EPA+DHA or ALA. An old null is only for an unchanged legacy ingredient." }
         magnesiumMilligrams: { type: number, minimum: 0, maximum: 99999999.99, multipleOf: 0.01 }
-        nutrientSource: { type: string, minLength: 1, maxLength: 500, description: "Cite source title and stable ID or URL plus estimate basis. A total omega-3 proxy needs both numeric 18:3 and separate food-specific isomer sources and the stated assumption; nonreporting is not a measured zero." }
+        nutrientSource: { type: string, minLength: 1, maxLength: 500, description: "Cite only sources actually read. Otherwise record Model estimate with food/composition basis, assumptions and uncertainty; never invent evidence. A model proxy is not a measurement, and missing data alone is not zero." }
         nutrientsEstimated: { type: boolean }
         epaDhaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
-        epaDhaSource: {type: [string, "null"], maxLength: 500, description: "Cite source title and stable ID or URL; zero requires an explicitly reported matching or comparable zero, never only nonreporting. Mark comparable values estimated."}
+        epaDhaSource: {type: [string, "null"], maxLength: 500, description: "Cite a source actually read or record Model estimate with food-specific basis, assumptions and uncertainty. Reported zero differs from estimated negligible content rounded to zero; explain and flag the latter."}
         epaDhaEstimated: {type: [boolean, "null"]}
-        alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Use measured ALA or a cited comparable estimate; undifferentiated 18:3 plus food-specific isomer evidence supports only a labeled proxy, never a measured ALA claim."}
-        alaSource: {type: [string, "null"], maxLength: 500, description: "Cite numeric 18:3 and separate food-specific ALA-isomer source titles plus stable IDs or URLs; state proxy assumption instead of claiming measured ALA."}
+        alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Use measured, comparable or reasonable food-specific model-estimated ALA; an undifferentiated 18:3 proxy must state its assumption and uncertainty, never a measured ALA claim."}
+        alaSource: {type: [string, "null"], maxLength: 500, description: "Cite numeric/isomer evidence only if actually read; otherwise record Model estimate with food-specific basis, proxy assumption and uncertainty, never a measured ALA claim."}
         alaEstimated: {type: [boolean, "null"]}
-        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "New or changed ingredients require exact or cited estimated Fiber and a matching reference; unchanged legacy nulls may persist only for metadata edits."}
+        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "New or changed ingredients require exact or marked comparable/model-estimated Fiber with its basis and matching reference; unchanged legacy nulls may persist only for metadata edits."}
         fiberSource: {type: [string, "null"], maxLength: 500}
         fiberEstimated: {type: [boolean, "null"]}
     CoachHealthEntryWrite:
