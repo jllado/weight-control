@@ -39,7 +39,7 @@
           </GuidedExerciseSummary>
           <small class="guided-active-help">Active time · excludes rest and pauses. Estimates are rough.</small>
           <div class="guided-exercise-times"><span v-if="session.guidedTimer" role="timer" aria-live="off" :aria-label="`${session.phaseLabel} elapsed time`">Phase {{ session.phaseElapsed }} · includes rest</span><span class="guided-exercise-time" role="timer" aria-live="off">Exercise time {{ session.exerciseElapsed }}</span><span class="guided-estimate">Estimated total {{ session.currentExerciseEstimate }}</span></div>
-          <div class="guided-rest-row"><span v-if="session.restActive" class="guided-rest-status" role="timer" aria-live="off" :aria-label="`Rest timer ${session.restTimerLabel}`">Rest · {{ session.restTimerLabel }}</span><span v-else>Rest duration: {{ session.restDuration }} sec</span><div class="guided-set-actions"><Button ref="restButton" :label="session.restActive ? 'View rest timer' : session.restPrepared ? 'Choose rest' : 'Complete set'" :icon="session.restActive || session.restPrepared ? 'pi pi-clock' : 'pi pi-check'" @click="openRest" /></div></div>
+          <div class="guided-rest-row"><span v-if="session.restActive" class="guided-rest-status" role="timer" aria-live="off" :aria-label="`Rest timer ${session.restTimerLabel}`">Rest · {{ session.restTimerLabel }}</span><span v-else>Rest duration: {{ session.restDuration }} sec</span><div class="guided-set-actions"><Button v-if="!session.restActive" ref="restNowButton" label="Rest now" icon="pi pi-clock" class="p-button-outlined" @click="restNow" /><Button ref="restButton" :label="session.restActive ? 'View rest timer' : session.restPrepared ? 'Choose rest' : 'Complete set'" :icon="session.restActive || session.restPrepared ? 'pi pi-clock' : 'pi pi-check'" @click="openRest" /></div></div>
           <div class="action-group guided-move-actions" aria-label="Move on from this exercise"><Button label="Skip" icon="pi pi-ban" class="p-button-outlined" :disabled="session.restPrepared" @click="session.markExerciseSkipped" /><Button label="Remove" class="p-button-outlined" :disabled="session.restPrepared" @click="session.moveOnWithoutLogging" /></div>
           <div class="action-group guided-back-actions"><Button v-if="session.guidedWorkoutState.draft.currentStep > 0" label="Back" class="p-button-outlined" @click="session.backOneStep" /></div>
           <GuidedExerciseSummary v-if="session.nextStep" next :line="session.nextLine" :setIndex="session.nextStep.segmentIndex" :target="session.describeSegment(session.nextPlannedSegment || session.nextLine.segments[session.nextStep.segmentIndex])" :plannedTarget="!!session.nextPlannedSegment" :timeLabel="session.nextDurationBased ? 'Planned duration' : 'Estimated set time'" :timeValue="session.nextDurationBased ? session.formatElapsed(session.nextPlannedSegment.durationSeconds * 1000) : session.nextSetEstimate" />
@@ -134,11 +134,16 @@ import WorkoutEditor from './WorkoutEditor.vue';
 export default {
   name: 'GuidedWorkoutPage',
   inject: ['guidedWorkout'],
-  data() { return {removeRouteGuard: null, actionHelp: {minimize: 'Return to Workouts with the floating panel; timing and screen lock continue.', close: 'Return to Workouts and release editing and screen lock; the draft and timers remain.'}}; },
+  data() { return {removeRouteGuard: null, restFocusTarget: 'restButton', actionHelp: {minimize: 'Return to Workouts with the floating panel; timing and screen lock continue.', close: 'Return to Workouts and release editing and screen lock; the draft and timers remain.'}}; },
   components: {GuidedExerciseSummary, ExercisePicture, SaunaRoundsEditor, WorkoutEditor},
   computed: {session() { return this.guidedWorkout; }},
   methods: {
+    restNow() {
+      this.restFocusTarget = 'restNowButton';
+      this.session.restNow();
+    },
     async openRest() {
+      this.restFocusTarget = 'restButton';
       this.session.openRest();
       if (!this.session.currentStep && !this.session.restDialog) {
         await this.$nextTick();
@@ -151,7 +156,7 @@ export default {
       await this.$nextTick();
       this.restoreFocus('workoutEditButton');
     },
-    restoreRestFocus() { (this.$refs.restButton || this.$refs.reviewButton).$el.focus(); },
+    restoreRestFocus() { (this.$refs[this.restFocusTarget] || this.$refs.restButton || this.$refs.reviewButton).$el.focus(); },
     async applyEdit() {
       if (this.session.applyEdit()) return;
       await this.$nextTick();
@@ -191,7 +196,7 @@ h1 { font-size: 1.5rem; margin: 0; overflow-wrap: anywhere; }
 .guided-set-elapsed strong { font-size: 1.6rem; font-variant-numeric: tabular-nums; }
 .guided-active-help { display: block; color: #59636e; margin-top: .5rem; }
 .guided-rest-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; margin: .75rem 0; padding: .75rem 0; border-top: 1px solid #d6d6d6; border-bottom: 1px solid #d6d6d6; color: #59636e; }
-.guided-set-actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: .5rem; flex: 1 1 100%; }
+.guided-set-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: .5rem; flex: 1 1 100%; }
 .guided-set-actions :deep(.p-button) { min-width: 0; justify-content: center; }
 .guided-final-rest-actions { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .75rem 0; }
 .guided-rest-status { font-variant-numeric: tabular-nums; }

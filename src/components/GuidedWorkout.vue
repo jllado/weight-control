@@ -225,6 +225,10 @@ export default {
       this.exerciseRecords = {};
       loadWorkoutRecordContext(this.guidedWorkoutState.draft.workout.lines).then(records => { this.exerciseRecords = records; });
     },
+    restNow() {
+      this.startRest();
+      this.restDialog = true;
+    },
     openRest() {
       const draft = this.guidedWorkoutState.draft;
       if (this.restActive) { this.restDialog = true; return; }
