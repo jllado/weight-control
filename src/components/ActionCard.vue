@@ -5,7 +5,7 @@
         <h3>{{ attempt.wording }}</h3>
         <p v-if="!compact" class="action-source">{{ attempt.sourceLabel || 'Custom action' }}</p>
       </div>
-      <CompactAction v-if="!compact" icon="pi pi-pencil" :aria-label="'Edit ' + attempt.wording" @click="$emit('edit', attempt)" />
+      <CompactAction v-if="!compact && !readOnly" icon="pi pi-pencil" :aria-label="'Edit ' + attempt.wording" @click="$emit('edit', attempt)" />
     </div>
     <div class="action-progress"><strong>{{ attempt.streak }} / {{ attempt.targetDays }}</strong> consecutive days<span v-if="attempt.status === 'SCHEDULED'"> · Starts {{ attempt.startDate }}</span><span v-else> · {{ statusLabel }}</span></div>
     <ProgressBar :value="attempt.percentage" :showValue="false" :aria-label="attempt.percentage + '% of target'" />
@@ -16,8 +16,8 @@
       <span>{{ attempt.checked ? 'Checked' : attempt.status === 'SCHEDULED' ? 'Scheduled' : 'Not checked' }}</span>
       <div class="action-group action-group--compact">
         <CompactAction v-if="canCheck" :icon="attempt.checked ? 'pi pi-undo' : 'pi pi-plus'" :aria-label="(attempt.checked ? 'Undo ' : 'Complete ') + attempt.wording" :class="attempt.checked ? 'p-button-warning' : 'p-button-success'" :action="() => check(date, !attempt.checked)" />
-        <CompactAction v-if="!compact && ['ACTIVE', 'SCHEDULED'].includes(attempt.status)" icon="pi pi-stop" :aria-label="'Stop ' + attempt.wording" @click="showStop = true" />
-        <CompactAction v-if="!compact && ['STOPPED', 'COMPLETED'].includes(attempt.status)" icon="pi pi-refresh" :aria-label="'Start again: ' + attempt.wording" @click="$emit('restart', attempt)" />
+        <CompactAction v-if="!compact && !readOnly && ['ACTIVE', 'SCHEDULED'].includes(attempt.status)" icon="pi pi-stop" :aria-label="'Stop ' + attempt.wording" @click="showStop = true" />
+        <CompactAction v-if="!compact && !readOnly && ['STOPPED', 'COMPLETED'].includes(attempt.status)" icon="pi pi-refresh" :aria-label="'Start again: ' + attempt.wording" @click="$emit('restart', attempt)" />
       </div>
     </div>
     <details v-if="!compact" class="action-history">
@@ -25,11 +25,11 @@
       <p>Best streak: {{ attempt.bestStreak }} days<span v-if="attempt.stoppedDate"> · Stopped {{ attempt.stoppedDate }}</span><span v-if="attempt.completedDate"> · Completed {{ attempt.completedDate }}</span></p>
       <p v-if="!attempt.checkinDates.length">No check-ins yet.</p>
       <ul v-else><li v-for="day in attempt.checkinDates" :key="day">{{ day }} ✓</li></ul>
-      <label :for="'correction-' + attempt.id">Check-in date</label>
+      <template v-if="!readOnly"><label :for="'correction-' + attempt.id">Check-in date</label>
       <div class="correction-row">
         <InputText :id="'correction-' + attempt.id" v-model="correctionDate" type="date" :min="attempt.startDate" :max="correctionMax" />
         <CompactAction :icon="correctionChecked ? 'pi pi-undo' : 'pi pi-plus'" :aria-label="(correctionChecked ? 'Undo check-in for ' : 'Complete check-in for ') + correctionDate" :disabled="!correctionAllowed" :class="correctionChecked ? 'p-button-warning' : 'p-button-success'" :action="() => check(correctionDate, !correctionChecked)" />
-      </div>
+      </div></template>
     </details>
     <Dialog v-model:visible="showStop" appendTo="body" modal header="Stop this attempt?" :closable="!stopping" :closeOnEscape="!stopping" :style="{width: 'min(28rem, calc(100vw - 2rem))'}">
       <p>Stopping preserves this attempt and its check-ins in History. Starting again creates an independent attempt.</p>
@@ -45,12 +45,12 @@
 import dayjs from 'dayjs';
 import actionService, {actionToday} from '../services/ActionService';
 export default {
-  props: {attempt: {type: Object, required: true}, date: {type: String, required: true}, compact: Boolean},
+  props: {attempt: {type: Object, required: true}, date: {type: String, required: true}, compact: Boolean, readOnly: Boolean},
   emits: ['changed', 'edit', 'restart'],
   data() { return {correctionDate: this.date, showStop: false, stopping: false}; },
   computed: {
     statusLabel() { return {ACTIVE: 'Active', COMPLETED: 'Completed', STOPPED: 'Stopped', SCHEDULED: 'Scheduled'}[this.attempt.status]; },
-    canCheck() { return this.date >= this.attempt.startDate && (!this.attempt.stoppedDate || this.date <= this.attempt.stoppedDate) && (!this.attempt.completedDate || this.date <= this.attempt.completedDate || this.attempt.checked); },
+    canCheck() { return !this.readOnly && this.date >= this.attempt.startDate && (!this.attempt.stoppedDate || this.date <= this.attempt.stoppedDate) && (!this.attempt.completedDate || this.date <= this.attempt.completedDate || this.attempt.checked); },
     correctionMax() { return this.attempt.stoppedDate || actionToday(); },
     correctionChecked() { return this.attempt.checkinDates.includes(this.correctionDate); },
     correctionAllowed() { return this.correctionDate >= this.attempt.startDate && this.correctionDate <= this.correctionMax

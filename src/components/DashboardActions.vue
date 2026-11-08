@@ -1,13 +1,13 @@
 <template>
   <Panel class="dashboard-actions">
-    <template #header><div class="actions-panel-heading"><strong>Actions ({{ attempts.length }})</strong><Button label="Manage" icon="pi pi-list" class="p-button-outlined" @click="$router.push({path: '/actions', query: {date}})" /></div></template>
-    <p class="actions-date">{{ displayDate }} · {{ attempts.filter(row => row.checked).length }}/{{ attempts.length }} checked</p>
+    <template #header><div class="actions-panel-heading"><strong>{{ readOnly ? 'Current actions' : 'Actions' }} ({{ attempts.length }})</strong><Button :label="readOnly ? 'Manage actions' : 'Manage'" icon="pi pi-list" class="p-button-outlined" @click="$router.push({path: '/actions', query: {date}})" /></div></template>
+    <p class="actions-date">{{ readOnly ? 'Today · ' : '' }}{{ displayDate }}{{ readOnly ? ' (Europe/Madrid)' : '' }} · {{ attempts.filter(row => row.checked).length }}/{{ attempts.length }} checked</p>
     <p v-if="loading" role="status">Loading actions…</p>
     <Message v-else-if="error" severity="error" :closable="false">{{ error }} <Button label="Retry" class="p-button-text" @click="load" /></Message>
     <template v-else>
-      <ActionCard v-for="attempt in attempts.slice(0, 3)" :key="attempt.id" :attempt="attempt" :date="date" compact @changed="load" />
+      <ActionCard v-for="attempt in showAll ? attempts : attempts.slice(0, 3)" :key="attempt.id" :attempt="attempt" :date="date" :readOnly="readOnly" compact @changed="load" />
       <p v-if="!attempts.length">No active actions. <router-link to="/actions?tab=suggestions">Browse suggestions</router-link></p>
-      <router-link v-if="attempts.length > 3" :to="{path: '/actions', query: {date}}">+{{ attempts.length - 3 }} more actions</router-link>
+      <router-link v-if="!showAll && attempts.length > 3" :to="{path: '/actions', query: {date}}">+{{ attempts.length - 3 }} more actions</router-link>
     </template>
   </Panel>
 </template>
@@ -17,7 +17,7 @@ import actionService from '../services/ActionService';
 import dayjs from 'dayjs';
 export default {
   components: {ActionCard},
-  props: {date: {type: String, required: true}},
+  props: {date: {type: String, required: true}, readOnly: Boolean, showAll: Boolean},
   data() { return {attempts: [], loading: false, error: null, generation: 0}; },
   computed: {displayDate() { return dayjs(this.date).format('DD/MM/YYYY'); }},
   watch: {date: {immediate: true, handler() { this.load(); }}},
@@ -35,6 +35,6 @@ export default {
 </script>
 <style scoped>
 .dashboard-actions { margin-bottom: 1rem; }
-.actions-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: .75rem; width: 100%; }
+.actions-panel-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; width: 100%; }
 .actions-date { margin: 0; color: #63717b; font-size: .85rem; }
 </style>

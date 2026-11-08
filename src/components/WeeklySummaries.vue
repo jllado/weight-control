@@ -104,8 +104,9 @@
         </div>
 
         <div class="review-content">
-          <WeeklyReviewTabs id="weekly-review" v-model="review_tab" label="Weekly review" :tabs="review_tabs" />
-          <section id="weekly-review-panel-overview" role="tabpanel" aria-labelledby="weekly-review-tab-overview" :hidden="review_tab !== 'overview'">
+          <ScrollableTabView v-model:activeIndex="review_index" scrollable selectOnFocus :pt="{nav: {'aria-label': 'Weekly review'}}">
+          <!-- PrimeVue 3 selectOnFocus reads data-index from each header. -->
+          <TabPanel header="Overview" :headerProps="{'data-index': 0}">
             <section class="routine-hero" aria-label="Daily routine completion">
               <div class="section-heading"><h3>Daily routines</h3><Button label="View all routines" class="p-button-outlined p-button-sm" @click="open_measurements('routines')" /></div>
               <div class="routine-hero-columns"><div><div class="routine-score"><strong>{{ routine_hero.value }}</strong><span>{{ routine_hero.completed }}/{{ routine_hero.opportunities }} opportunities</span></div>
@@ -116,20 +117,20 @@
               </div></div><p v-if="!routine_hero.opportunities" class="empty-note">No active routine opportunities this week.</p>
             </section>
             <section class="detail-section">
-              <div class="section-heading"><h3>Your week at a glance</h3><div class="comparison-picker"><label for="weekly-baseline">Compare with</label><select id="weekly-baseline" v-model="baseline"><option value="previous">Last week</option><option value="yearAgo">52 weeks ago</option></select></div></div>
-              <div v-if="visual" class="weekly-highlights"><article v-for="card in average_cards" :key="card.key" class="weekly-highlight"><span>{{ card.label }}</span><strong :style="{color: card.key === 'weight' ? undefined : card.status.color}">{{ card.value }}</strong><small>{{ card.detail }}</small><span class="review-status" :style="{color: card.status.color}">{{ card.key === 'weight' ? 'Body fat · ' : '' }}{{ card.status.label }}</span><small :style="{color: card[baseline].color}">{{ card[baseline].text }} · {{ baseline === 'previous' ? 'vs last week' : 'vs 52 weeks ago' }}</small></article></div>
+              <div class="section-heading"><h3>Your week at a glance</h3></div>
+              <div v-if="visual" class="weekly-highlights"><article v-for="card in average_cards" :key="card.key" class="weekly-highlight"><span>{{ card.label }}</span><strong :style="{color: card.key === 'weight' ? undefined : card.status.color}">{{ card.value }}</strong><small>{{ card.detail }}</small><span class="review-status" :style="{color: card.status.color}">{{ card.key === 'weight' ? 'Body fat · ' : '' }}{{ card.status.label }}</span><small v-for="(change, index) in [card.previous, card.yearAgo]" :key="index" :style="{color: change.color}">{{ change.text }} · vs {{ index ? '52 weeks ago' : 'last week' }}</small></article></div>
               <div v-else-if="detail.presentation" class="weekly-highlights"><article v-for="highlight in detail.presentation.highlights.filter(row => !['records', 'routines'].includes(row.key))" :key="highlight.key" class="weekly-highlight"><span>{{ highlight.label }}</span><strong>{{ highlight.value }}</strong><small>{{ highlight.comparison }}</small><small>{{ highlight.coverage }}</small></article></div>
               <Button label="Explore measurements" icon="pi pi-arrow-right" class="p-button-outlined p-button-sm section-link" @click="open_measurements('body')" />
             </section>
-            <section v-if="visual" class="detail-section"><div class="section-heading"><h3>Weekend readings</h3><span>{{ outcome_window(detail.fridayDate) }} · selected measurements</span></div><div class="weekly-highlights weekend-readings"><article v-for="card in weekend_cards" :key="card.key" class="weekly-highlight"><span>{{ card.label }}</span><strong :style="{color: card.key === 'weekendWeight' ? undefined : card.status.color}">{{ card.value }}</strong><small>{{ card.detail }}</small><span class="review-status" :style="{color: card.status.color}">{{ card.key === 'weekendWeight' ? 'Body fat · ' : '' }}{{ card.status.label }}</span></article></div></section>
-            <section class="detail-section"><div class="section-heading"><h3>Workout activity</h3><Button label="Training details" class="p-button-text p-button-sm" @click="open_measurements('training')" /></div><WeeklyMetricTable label="Workout activity overview" :periods="comparison_periods" :rows="workout_table_rows.filter(row => row.label !== 'Total sessions')" /></section>
+            <section v-if="visual" class="detail-section"><div class="section-heading"><h3>Weekend readings</h3><span>{{ outcome_window(detail.fridayDate) }} · selected measurements</span></div><div class="weekly-highlights weekend-readings"><article v-for="card in weekend_cards" :key="card.key" class="weekly-highlight"><span>{{ card.label }}</span><strong :style="{color: card.key === 'weekendWeight' ? undefined : card.status.color}">{{ card.value }}</strong><small>{{ card.detail }}</small><span class="review-status" :style="{color: card.status.color}">{{ card.key === 'weekendWeight' ? 'Body fat · ' : '' }}{{ card.status.label }}</span><small v-for="(change, index) in [card.previous, card.yearAgo]" :key="index" :style="{color: change.color}">{{ change.text }} · vs {{ index ? '52 weeks ago' : 'last week' }}</small></article></div></section>
+            <section class="detail-section"><div class="section-heading"><h3>Workout activity</h3><Button label="Training details" class="p-button-text p-button-sm" @click="open_measurements('training')" /></div><p v-if="workout_targets_missing" class="comparison-caption">Workout targets weren’t saved with this review.</p><WeeklyMetricTable label="Workout activity overview" :periods="comparison_periods" :rows="workout_table_rows.filter(row => row.label !== 'Total sessions')" /></section>
             <section class="detail-section"><div class="section-heading"><h3>Nutrition</h3><Button label="Comparisons & details" class="p-button-text p-button-sm" @click="open_measurements('nutrition')" /></div><WeeklyMetricTable label="Nutrition daily averages" :periods="comparison_periods" :rows="nutrition_table_rows" compactCurrent><template #target="{row}"><Button v-if="row.key === 'omega3'" label="View references" class="p-button-text p-button-sm" @click="open_omega_references" /><span v-else>{{ row.cells[0].target || 'Not available' }}</span></template></WeeklyMetricTable></section>
             <section class="detail-section reflection-teaser"><h3>{{ detail.reflection?.title || 'Weekly reflection' }}</h3><p>{{ detail.reflection?.summary || 'Review your saved evidence and choose next-week priorities.' }}</p><Button label="Reflection & actions" class="p-button-outlined" @click="review_tab = 'reflection'" /></section>
-          </section>
-          <section id="weekly-review-panel-measurements" role="tabpanel" aria-labelledby="weekly-review-tab-measurements" :hidden="review_tab !== 'measurements'">
-            <WeeklyReviewTabs id="weekly-measurements" v-model="measurement_tab" label="Measurement groups" :tabs="measurement_tabs" />
-            <p class="comparison-caption">Saturday–Friday averages · changes show this week minus each comparison period.</p>
-            <section v-for="tab in measurement_tabs" :id="'weekly-measurements-panel-' + tab.key" :key="tab.key" role="tabpanel" :aria-labelledby="'weekly-measurements-tab-' + tab.key" :hidden="measurement_tab !== tab.key">
+          </TabPanel>
+          <TabPanel header="Measurements" :headerProps="{'data-index': 1}">
+            <ScrollableTabView ref="measurementTabs" v-model:activeIndex="measurement_index" scrollable selectOnFocus :pt="{nav: {'aria-label': 'Measurement groups'}}">
+            <TabPanel v-for="(tab, index) in measurement_tabs" :key="tab.key" :header="tab.label" :headerProps="{'data-index': index}">
+              <p class="comparison-caption">Saturday–Friday averages · changes show this week minus each comparison period.</p>
               <template v-if="tab.key === 'body'">
                 <WeeklyMetricTable label="Weekly recorded metrics" :periods="comparison_periods" :rows="measurement_groups.body" />
         <section class="detail-section">
@@ -154,7 +155,7 @@
               </template>
               <template v-else-if="tab.key === 'sleep'"><WeeklyMetricTable label="Sleep and mood measurements" :periods="comparison_periods" :rows="measurement_groups.sleep" /></template>
               <template v-else-if="tab.key === 'training'">
-                <h3>Workout activity</h3><WeeklyMetricTable label="Weekly workout activity" group="Workout activity" :periods="comparison_periods" :rows="workout_table_rows" />
+                <h3>Workout activity</h3><p v-if="workout_targets_missing" class="comparison-caption">Workout targets weren’t saved with this review.</p><WeeklyMetricTable label="Weekly workout activity" group="Workout activity" :periods="comparison_periods" :rows="workout_table_rows" />
                 <WeeklyMetricTable label="Workout measurements" :periods="comparison_periods" :rows="measurement_groups.training" />
         <section class="detail-section">
           <h3>Back pain</h3><h4>Check-ins and episodes</h4>
@@ -197,9 +198,10 @@
 
               </template>
               <template v-else><h3>Other recorded metrics</h3><WeeklyMetricTable label="Other weekly metrics" :periods="comparison_periods" :rows="other_table_rows" /></template>
-            </section>
-          </section>
-          <section id="weekly-review-panel-reflection" role="tabpanel" aria-labelledby="weekly-review-tab-reflection" :hidden="review_tab !== 'reflection'">
+            </TabPanel>
+            </ScrollableTabView>
+          </TabPanel>
+          <TabPanel header="Reflection &amp; actions" :headerProps="{'data-index': 2}">
         <section class="weekly-reflection">
           <header class="section-heading"><div><div class="weekly-kicker">Weekly reflection</div><h3>{{ detail.reflection ? detail.reflection.title : 'No reflection saved yet' }}</h3></div><span v-if="detail.reflection" class="saved-label">Saved {{ format_timestamp(detail.reflection.generatedAt) }}</span></header>
           <p v-if="detail.reflection" class="reflection-summary">{{ detail.reflection.summary }}</p>
@@ -226,6 +228,7 @@
         </section>
 
 
+            <section v-if="review_tab === 'reflection'" class="detail-section" aria-label="Current actions"><DashboardActions :key="actions_revision" :date="actions_date" readOnly showAll /></section>
             <section class="detail-section"><h3>Next-week priorities</h3><p v-if="!priority_actions.length" class="empty-note">No next-week priorities in this saved report yet.</p><article v-for="action in priority_actions" :key="action.sourceKey" class="weekly-recommendation"><h4>{{ action.wording }}</h4><p>{{ action.provenance.join(' · ') }}</p><router-link :to="{path: '/actions', query: {source: action.sourceKey}}" class="p-button p-component p-button-outlined recommendation-link">Activate action</router-link></article>
               <details v-if="remaining_actions.length" class="more-recommendations"><summary class="detail-section-summary"><strong>More recommendations · {{ remaining_actions.length }}</strong></summary><article v-for="action in remaining_actions" :key="action.sourceKey" class="weekly-recommendation"><h4>{{ action.wording }}</h4><p>{{ action.provenance.join(' · ') }}</p><router-link :to="{path: '/actions', query: {source: action.sourceKey}}" class="p-button p-component p-button-outlined recommendation-link">Activate action</router-link></article></details>
             </section>
@@ -246,7 +249,8 @@
         </section>
 
 
-          </section>
+          </TabPanel>
+          </ScrollableTabView>
         </div>
       </section>
 
@@ -267,16 +271,18 @@ import {openCoach} from '@/services/CoachService';
 import {nextTick} from 'vue';
 import Paginator from 'primevue/paginator';
 import WarningReview from './WarningReview.vue';
-import WeeklyReviewTabs from './WeeklyReviewTabs.vue';
+import ScrollableTabView from './ScrollableTabView.vue';
+import DashboardActions from './DashboardActions.vue';
+import {actionToday} from '@/services/ActionService';
 import WeeklyMetricTable from './WeeklyMetricTable.vue';
 import {weeklyMeasurementGroups, visualTableRows, weeklyClassification} from '@/model/WeeklyReview';
 
 export default {
   name: 'WeeklySummaries',
-  components: {Paginator, WarningReview, WeeklyReviewTabs, WeeklyMetricTable},
+  components: {Paginator, WarningReview, ScrollableTabView, DashboardActions, WeeklyMetricTable},
   data() {
     return {
-      review_tab: 'overview', measurement_tab: 'body', baseline: 'previous', routine_search: '',
+      review_tab: 'overview', measurement_tab: 'body', routine_search: '', actions_date: actionToday(), actions_revision: 0,
       review_tabs: [{key: 'overview', label: 'Overview'}, {key: 'measurements', label: 'Measurements'}, {key: 'reflection', label: 'Reflection & actions'}],
       measurement_tabs: [{key: 'body', label: 'Body & pressure'}, {key: 'sleep', label: 'Sleep & mood'}, {key: 'training', label: 'Training & back pain'}, {key: 'nutrition', label: 'Nutrition'}, {key: 'routines', label: 'Routines'}, {key: 'other', label: 'Other metrics'}],
       archive: null,
@@ -289,11 +295,15 @@ export default {
     };
   },
   watch: {
+    review_tab(value) { if (value === 'reflection') this.actions_date = actionToday(); },
     '$route.fullPath'() {
-      this.load();
+      if (['WeeklySummaries', 'WeeklySummaryDetail'].includes(this.$route.name)) this.load();
     }
   },
   computed: {
+    review_index: {get() { return this.review_tabs.findIndex(tab => tab.key === this.review_tab); }, set(index) { this.review_tab = this.review_tabs[index].key; }},
+    measurement_index: {get() { return this.measurement_tabs.findIndex(tab => tab.key === this.measurement_tab); }, set(index) { this.measurement_tab = this.measurement_tabs[index].key; }},
+    workout_targets_missing() { return this.detail.snapshot.workoutTargets == null; },
     average_cards() { return this.visual.overview.filter(card => !['weekendWeight', 'bloodPressure', 'weekendPressure'].includes(card.key)); },
     weekend_cards() { return this.visual.overview.filter(card => ['weekendWeight', 'bloodPressure', 'weekendPressure'].includes(card.key)); },
     visual() { return this.detail?.presentation?.visualSummary; },
@@ -308,7 +318,13 @@ export default {
       const change = period => ({text: current.percentage == null || period.routineCompletion.percentage == null ? 'Not available' : `${Number((current.percentage - period.routineCompletion.percentage).toFixed(1))} pp`});
       return {value: current.percentage == null ? 'Not available' : `${Math.round(current.percentage)}%`, completed: current.completed, opportunities: current.opportunities, days: [], previous: change(progress.previousComparablePeriod), yearAgo: change(progress.yearAgoComparablePeriod), watchouts: [...this.detail.snapshot.routines].filter(row => Number(row.percentage) < 60).sort((a, b) => a.percentage - b.percentage || a.name.localeCompare(b.name)).slice(0, 3).map(row => ({name: row.name, value: `${row.completedDays}/${row.eligibleDays} days · ${Math.round(row.percentage)}%`}))};
     },
-    workout_table_rows() { return this.visual ? visualTableRows(this.visual.workouts) : this.workout_rows.map(row => ({label: row.label, cells: [row.current, row.previous, row.yearAgo].map(value => ({value}))})); },
+    workout_table_rows() {
+      if (!this.visual) return this.workout_rows.map(row => ({label: row.label, cells: [row.current, row.previous, row.yearAgo].map(value => ({value}))}));
+      return visualTableRows(this.visual.workouts).map(row => ({...row, cells: row.cells.map(cell => {
+        const missingTarget = ['Plan unavailable', 'Target unavailable'].includes(cell.status?.label) || cell.target === 'Plan unavailable';
+        return missingTarget ? {...cell, status: null, target: this.workout_targets_missing ? null : 'Target unavailable'} : cell;
+      })}));
+    },
     nutrition_table_rows() {
       if (this.visual) return visualTableRows(this.visual.nutrition.rows);
       if (this.detail.presentation?.nutritionRows?.length) return this.detail.presentation.nutritionRows.map(row => ({label: row.label, cells: [row.current, row.previous, row.yearAgo].map(value => ({value}))}));
@@ -412,7 +428,7 @@ export default {
   },
   methods: {
     outcome_status(value, type) { return weeklyClassification(value, type, this.detail.snapshot.emailGoals?.rules, this.detail.snapshot.emailGoals); },
-    async open_measurements(tab) { this.measurement_tab = tab; this.review_tab = 'measurements'; await nextTick(); document.getElementById('weekly-measurements-tab-' + tab).focus(); },
+    async open_measurements(tab) { this.measurement_tab = tab; this.review_tab = 'measurements'; await nextTick(); const header = this.$refs.measurementTabs.$el.querySelectorAll('[role=tab]')[this.measurement_index]; header.focus(); header.scrollIntoView({block: 'nearest', inline: 'center'}); },
     async open_omega_references() { await this.open_measurements('nutrition'); await this.show_omega_references(); },
     async show_omega_references() { await nextTick(); this.$refs.omegaReferences[0].open = true; this.$refs.omegaReferences[0].querySelector('summary').focus(); this.$refs.omegaReferences[0].scrollIntoView({block: 'center'}); },
     async load() {
@@ -500,6 +516,8 @@ export default {
     },
     async refresh_summary() {
       await this.load_detail(this.detail.fridayDate);
+      this.actions_date = actionToday();
+      this.actions_revision++;
     },
     open_coach() {
       const prompt = buildWeeklyReflectionPrompt(this.detail.fridayDate);
@@ -540,6 +558,10 @@ export default {
 
 <style scoped>
 .review-content { padding: 0 1rem 1rem; }
+.review-content :deep(.p-tabview-panels) { padding: 0; }
+/* Reserve the Nova overflow-arrow width when keyboard navigation scrolls a tab. */
+.review-content :deep(.p-tabview-nav-content) { scroll-padding-inline: 2.357rem; }
+.review-content .section-heading { margin-bottom: .75rem; }
 .review-content .detail-section, .review-content .weekly-reflection { padding: 1rem 0; }
 .review-content h3 { margin: .8rem 0; font-size: 1.1rem; }
 .routine-hero { padding: 1rem; margin-top: 1rem; border: 1px solid #cbdde9; border-radius: 4px; background: #f7fafc; }
@@ -557,8 +579,6 @@ export default {
 .routine-attention { display: flex; justify-content: space-between; gap: .5rem; padding: .55rem 0; border-top: 1px solid #e0e8ed; }
 .routine-attention strong { font-size: .88rem; }
 .routine-attention > * { min-width: 0; overflow-wrap: anywhere; }
-.comparison-picker { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem; font-size: .78rem; }
-.comparison-picker select { padding: .4rem; border: 1px solid #c5d0d8; border-radius: 3px; background: #fff; color: inherit; }
 .review-status { font-weight: 600; margin-top: .5rem; font-size: .8rem; }
 .section-link { margin-top: .8rem; }
 .more-recommendations { margin-top: 1rem; }
