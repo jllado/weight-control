@@ -903,3 +903,7 @@ Walking split: existing workout catalog/search and saved-workout contracts expos
 ## Per-exercise planned rest
 
 Workout plan targets expose optional nonnegative whole `restSeconds` through app and Coach reads/writes, independently per exercise occurrence and session. Zero means no rest; absent/null uses zero for stretching or the existing normal preference (initially 60 seconds) for other exercises. Guided overrides stay in the local workout draft and preserve the saved plan and normal preference. Zero advances directly after completion; positive rest keeps the completed exercise’s prepared choice, and Rest now remains available at zero. Publish the additive Action schema; existing full-plan preservation and confirmation instructions remain applicable without changing the instruction block. Completed workout and reflection contracts are unchanged.
+
+## Weekly review navigation and current actions
+
+The app uses scrollable review/measurement tabs, displays both saved comparison periods, explains absent historical workout targets, and reads all current actions for today in Europe/Madrid through the existing Actions API. Review cards are read-only; Home and Actions retain their existing controls. Saved snapshots, recommendation activation, email and Coach contracts remain unchanged; no GPT publication is required.

@@ -48,6 +48,139 @@ const savedSummary = {
     }
 };
 
+function refinedReviewFixture() {
+    const summary = structuredClone(savedSummary);
+    summary.snapshot.schemaVersion = 9;
+    summary.snapshot.workoutTargets = null;
+    const missing = {label: 'Plan unavailable', color: '#486277'};
+    summary.presentation.visualSummary = {
+        routines: {value: '57%', completed: 4, opportunities: 7, days: [], previous: {text: '+14 pp'}, yearAgo: {text: '0 pp'}, watchouts: []},
+        overview: ['sleep', 'calories', 'weight', 'mood', 'weekendWeight', 'bloodPressure'].map(key => ({key, label: key === 'sleep' ? 'Average sleep with a longer descriptive label' : key, value: '12', detail: 'Saved evidence', status: {label: 'Goal met', color: '#287d4b'}, previous: {text: '+2 units', color: '#63717b'}, yearAgo: {text: 'Not available', color: '#63717b'}})),
+        workouts: [{label: 'Strength sessions', current: '3', previous: '6', yearAgo: '0', target: 'Plan unavailable', status: missing, previousTarget: 'Plan unavailable', previousStatus: missing, previousDelta: {text: '-3', color: '#486277'}, yearAgoTarget: 'Plan unavailable', yearAgoStatus: missing, yearAgoDelta: {text: '+3', color: '#486277'}}],
+        nutrition: {rows: [], references: []}
+    };
+    return summary;
+}
+
+async function openRefinedReview(page, summary, actionState = {rows: []}) {
+    const reads = [], writes = [], errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.clock.install({time: new Date('2026-11-08T23:30:00Z')});
+    await page.route('**/api/**', route => {
+        const request = route.request(), url = new URL(request.url()), path = url.pathname;
+        if (request.method() !== 'GET') writes.push(path);
+        if (path === '/api/actions') {
+            reads.push(Object.fromEntries(url.searchParams));
+            return actionState.error ? route.fulfill({status: 503, body: 'Actions temporarily unavailable'}) : route.fulfill({json: actionState.rows});
+        }
+        const values = {'/api/auth/me': {authenticated: true, email: 'owner@example.com'}, '/api/profile': {}, '/api/urge-pauses': {pause: null, serverNow: '2026-11-08T23:30:00Z'}, '/api/weekly-summary': {actionConfigured: true, items: [], page: 0, totalPages: 0}, '/api/weekly-summary/preview': {alreadySaved: true, snapshot: summary.snapshot}, ['/api/weekly-summary/' + fridayDate]: summary};
+        return route.fulfill({json: values[path] || []});
+    });
+    await page.addInitScript(date => window.history.replaceState({}, '', '/weekly-summaries/' + date), fridayDate);
+    await page.goto('/');
+    return {reads, writes, errors};
+}
+
+test('weekly refinements keep both tab bars on one scrolling row and reveal keyboard selections', async ({page}, testInfo) => {
+    const {errors} = await openRefinedReview(page, refinedReviewFixture());
+    for (const width of [376, 390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        const review = page.getByRole('tablist', {name: 'Weekly review', exact: true});
+        await expect.poll(() => review.getByRole('tab').evaluateAll(tabs => new Set(tabs.map(tab => Math.round(tab.getBoundingClientRect().top))).size)).toBe(1);
+        await review.getByRole('tab', {name: 'Overview', exact: true}).focus();
+        await page.keyboard.press('End');
+        await expect(review.getByRole('tab', {name: 'Reflection & actions', exact: true})).toBeFocused();
+        await expect(review.getByRole('tab', {name: 'Reflection & actions', exact: true})).toHaveAttribute('aria-selected', 'true');
+        await page.keyboard.press('Enter');
+        await expect(page.getByRole('tabpanel', {name: 'Reflection & actions', exact: true})).toBeVisible();
+        await review.getByRole('tab', {name: 'Measurements', exact: true}).click();
+        const measurements = page.getByRole('tablist', {name: 'Measurement groups', exact: true});
+        await expect.poll(() => measurements.getByRole('tab').evaluateAll(tabs => new Set(tabs.map(tab => Math.round(tab.getBoundingClientRect().top))).size)).toBe(1);
+        await measurements.getByRole('tab').first().focus();
+        await page.keyboard.press('End');
+        const last = measurements.getByRole('tab', {name: 'Other metrics', exact: true});
+        await expect(last).toBeFocused();
+        await expect(last).toHaveAttribute('aria-selected', 'true');
+        await page.keyboard.press('Enter');
+        await expect(last).toHaveAttribute('aria-selected', 'true');
+        await expect.poll(() => last.evaluate(el => {const r = el.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth;})).toBe(true);
+        await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.screenshot({path: testInfo.outputPath(`weekly-tabs-${width}.png`), animations: 'disabled'});
+    }
+    expect(errors).toEqual([]);
+});
+
+test('weekly refinements show both overview comparisons with measured heading spacing', async ({page}, testInfo) => {
+    await openRefinedReview(page, refinedReviewFixture());
+    const overview = page.getByRole('tabpanel', {name: 'Overview', exact: true});
+    await expect(overview.getByLabel('Compare with')).toHaveCount(0);
+    const cards = overview.locator('.weekly-highlight');
+    await expect(cards).toHaveCount(6);
+    for (const card of await cards.all()) {
+        await expect(card).toContainText('+2 units · vs last week');
+        await expect(card).toContainText('Not available · vs 52 weeks ago');
+        await expect(card).toContainText('Goal met');
+    }
+    for (const width of [376, 390, 640, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        const section = overview.locator('.detail-section').filter({has: page.getByRole('heading', {name: 'Your week at a glance'})});
+        await expect.poll(() => section.evaluate(el => el.querySelector('.weekly-highlights').getBoundingClientRect().top - el.querySelector('.section-heading').getBoundingClientRect().bottom)).toBeGreaterThanOrEqual(12);
+        await section.screenshot({path: testInfo.outputPath(`weekly-comparisons-${width}.png`), animations: 'disabled'});
+    }
+});
+
+for (const legacy of [true, false]) test(`weekly refinements explain ${legacy ? 'legacy' : 'incomplete captured'} workout targets without repeated labels`, async ({page}) => {
+    const summary = refinedReviewFixture();
+    if (!legacy) {
+        summary.snapshot.schemaVersion = 10;
+        summary.snapshot.workoutTargets = {currentPeriod: null, previousComparablePeriod: null, yearAgoComparablePeriod: null};
+        summary.presentation.visualSummary.workouts[0].status = {label: 'Planned count reached', color: '#287d4b'};
+        summary.presentation.visualSummary.workouts[0].target = 'Plan: 3';
+    }
+    const original = JSON.stringify(summary);
+    const {writes} = await openRefinedReview(page, summary);
+    for (const label of ['Workout activity overview', 'Weekly workout activity']) {
+        if (label.startsWith('Weekly')) await page.getByRole('button', {name: 'Training details', exact: true}).click();
+        const table = page.getByRole('table', {name: label, exact: true});
+        await expect(table).not.toContainText('Plan unavailable');
+        await expect(table).toContainText('3 sessions');
+        await expect(table).toContainText('-3 vs last week');
+        const panel = page.getByRole('tabpanel', {name: label.startsWith('Weekly') ? 'Training & back pain' : 'Overview', exact: true});
+        await expect(panel.getByText('Workout targets weren’t saved with this review.', {exact: true})).toHaveCount(legacy ? 1 : 0);
+        await expect(table.getByText('Target unavailable', {exact: true})).toHaveCount(legacy ? 0 : 2);
+        if (!legacy) await expect(table).toContainText('Planned count reached');
+    }
+    expect(JSON.stringify(summary)).toBe(original);
+    expect(writes).toEqual([]);
+});
+
+test('weekly refinements show all current actions read-only with dated retry and refresh', async ({page}, testInfo) => {
+    const actionState = {error: true, rows: Array.from({length: 5}, (_, index) => ({id: index + 1, wording: `Current action ${index + 1}`, status: 'ACTIVE', streak: index, bestStreak: index, targetDays: 14, percentage: index * 100 / 14, startDate: '2026-10-23', checked: false, checkinDates: []}))};
+    const {reads, writes} = await openRefinedReview(page, refinedReviewFixture(), actionState);
+    await page.getByRole('tab', {name: 'Reflection & actions', exact: true}).click();
+    const panel = page.getByRole('region', {name: 'Current actions', exact: true});
+    await expect(panel).toContainText('Actions temporarily unavailable');
+    actionState.error = false;
+    await panel.getByRole('button', {name: 'Retry', exact: true}).click();
+    await expect(panel.getByRole('article')).toHaveCount(5);
+    await expect(panel).toContainText('09/11/2026');
+    await expect(panel).toContainText('4 / 14 consecutive days');
+    await expect(panel.getByRole('button', {name: /Complete |Undo |Edit |Stop |Start again/})).toHaveCount(0);
+    for (const width of [376, 390, 1280]) { await page.setViewportSize({width, height: 900}); await panel.screenshot({path: testInfo.outputPath(`weekly-current-actions-${width}.png`), animations: 'disabled'}); }
+    actionState.rows[0].wording = 'Updated current action';
+    await page.getByRole('button', {name: 'Refresh reflection', exact: true}).click();
+    await expect(panel).toContainText('Updated current action');
+    await panel.getByRole('button', {name: 'Manage actions', exact: true}).click();
+    await expect(page).toHaveURL(/\/actions\?date=2026-11-09$/);
+    actionState.rows = [];
+    await page.goBack();
+    await page.getByRole('tab', {name: 'Reflection & actions', exact: true}).click();
+    await expect(panel).toContainText('No active actions.');
+    expect(reads.length).toBeGreaterThanOrEqual(4);
+    expect(reads.every(read => read.date === '2026-11-09' && read.view === 'ACTIVE')).toBe(true);
+    expect(writes).toEqual([]);
+});
+
 const shiftDate = (date, days) => {
     const value = new Date(`${date}T00:00:00Z`);
     value.setUTCDate(value.getUTCDate() + days);
