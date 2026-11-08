@@ -1970,7 +1970,9 @@ components:
         For EACH food, complete calories, protein, carbohydrate, fat, vitamin D, magnesium, total omega-3, EPA+DHA, ALA and fiber
         in both consumed and reference portions, with honest provenance and estimate flags. Do not stop at macros or offer later research.
         Estimate total omega-3, EPA+DHA and ALA independently for the food. Never substitute one for another, derive a subtype ratio
-        from total, or claim a sum of selected subtypes is a measured complete total. Keep known values unchanged.
+        from total, or claim a sum of selected subtypes is a measured complete total. In particular, do not copy total omega-3 into ALA
+        based on a plant-food assumption: an estimate label does not make that conversion independent. Use food-specific ALA composition
+        independently of the saved total, with its own assumptions; equal values are allowed only when independently supported. Keep known values unchanged.
         Undifferentiated 18:3 is not measured ALA or total omega-3. A food-specific proxy is permitted as a model assumption,
         explicitly identifying the numeric basis and why it is a reasonable approximation; never claim verified isomer identification.
         Seed-oil figures are not whole-fruit measurements. Do not invent processing adjustments or arbitrary allocation ratios.
