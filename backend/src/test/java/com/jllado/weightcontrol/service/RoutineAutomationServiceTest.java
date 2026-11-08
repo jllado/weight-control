@@ -24,6 +24,7 @@ import com.jllado.weightcontrol.domain.Sleep;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.Workout;
 import com.jllado.weightcontrol.domain.WorkoutLine;
+import com.jllado.weightcontrol.domain.WorkoutSegment;
 import com.jllado.weightcontrol.repository.FastingPeriodRepository;
 import com.jllado.weightcontrol.repository.MealRepository;
 import com.jllado.weightcontrol.repository.RoutineAutomaticEvidenceRepository;
@@ -172,6 +173,73 @@ class RoutineAutomationServiceTest {
         service.reconcile(user);
 
         assertAutomaticDate(false, date);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"2399,false", "2400,false", "2401,true"})
+    void outdoorWalkingRequiresStrictlyMoreThanFortyRecordedMinutes(int seconds, boolean qualifies) {
+        User user = user(); prepareRule(user, "OUTDOOR_WALK_OVER_40_MINUTES");
+        Workout workout = walkingWorkout(20L, LocalDate.of(2026, 9, 28), "outdoor-walking", seconds);
+        when(workoutRepository.findByUserOrderByWorkoutDateDesc(user)).thenReturn(List.of(workout));
+
+        service.reconcile(user);
+
+        assertAutomaticDate(qualifies, workout.getWorkoutDate());
+    }
+
+    @Test
+    void outdoorWalkingSumsIntervalsWithinOneSessionUsingStableIdentityAfterRename() {
+        User user = user(); prepareRule(user, "OUTDOOR_WALK_OVER_40_MINUTES");
+        Workout workout = walkingWorkout(20L, LocalDate.of(2026, 9, 28), "outdoor-walking", 1200, 1201);
+        workout.getLines().getFirst().getExercise().setName("My renamed outdoor walk");
+        when(workoutRepository.findByUserOrderByWorkoutDateDesc(user)).thenReturn(List.of(workout));
+
+        service.reconcile(user);
+
+        assertAutomaticDate(true, workout.getWorkoutDate());
+    }
+
+    @Test
+    void outdoorWalkingDoesNotCombineWorkoutsOrCountOtherExercisesSkippedIntervalsOrTimer() {
+        User user = user(); prepareRule(user, "OUTDOOR_WALK_OVER_40_MINUTES");
+        LocalDate date = LocalDate.of(2026, 9, 28);
+        Workout first = walkingWorkout(20L, date, "outdoor-walking", 1200, 9000);
+        first.getLines().getFirst().getSegments().getLast().setSkipped(true);
+        first.getLines().getFirst().setExerciseDurationSeconds(9000);
+        var lines = new java.util.ArrayList<>(first.getLines());
+        lines.addAll(walkingWorkout(21L, date, "indoor-walking", 9000).getLines());
+        lines.addAll(walkingWorkout(22L, date, "walking", 9000).getLines());
+        lines.addAll(walkingWorkout(23L, date, null, 9000).getLines());
+        lines.getLast().getExercise().setName("Outdoor walking");
+        first.setLines(lines);
+        Workout second = walkingWorkout(24L, date, "outdoor-walking", 1201);
+        when(workoutRepository.findByUserOrderByWorkoutDateDesc(user)).thenReturn(List.of(first, second));
+
+        service.reconcile(user);
+
+        assertAutomaticDate(false, date);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"2025-12-31,false", "2026-01-01,true"})
+    void outdoorWalkingRespectsOriginalRoutineStart(String date, boolean qualifies) {
+        User user = user(); prepareRule(user, "OUTDOOR_WALK_OVER_40_MINUTES");
+        Workout workout = walkingWorkout(20L, LocalDate.parse(date), "outdoor-walking", 2401);
+        when(workoutRepository.findByUserOrderByWorkoutDateDesc(user)).thenReturn(List.of(workout));
+
+        service.reconcile(user);
+
+        assertAutomaticDate(qualifies, workout.getWorkoutDate());
+    }
+
+    private Workout walkingWorkout(long id, LocalDate date, String key, int... durations) {
+        Workout workout = new Workout(); workout.setId(id); workout.setWorkoutDate(date);
+        WorkoutLine line = line(ExerciseType.TRAINING, ExerciseTrackingMode.CARDIO, key);
+        line.setSegments(java.util.Arrays.stream(durations).mapToObj(duration -> {
+            WorkoutSegment segment = new WorkoutSegment(); segment.setDurationSeconds(duration); return segment;
+        }).toList());
+        workout.setLines(List.of(line));
+        return workout;
     }
 
     private void prepareRule(User user, String name) {

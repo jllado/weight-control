@@ -895,3 +895,7 @@ Published version 173 preserves private access and all 30 Actions; configuration
 - [x] Align the app and future email on reference-only default vitamin D and independently assessed omega-3 forms.
 - [x] Keep all 30 Actions and preserve food provenance, historical snapshots and confirmation rules.
 - [x] Publish the updated private GPT schema/instructions after deployment and independently verify saved/live configuration and read-only nutrient feedback; see the [verification record](coach-gpt.md#weekly-nutrient-feedback-verification--november-8-2026).
+
+## Indoor and outdoor walking
+
+Walking split: existing workout catalog/search and saved-workout contracts expose Indoor walking and Outdoor walking. The assigned weekly Long outside walk rule uses recorded outdoor intervals over 40 minutes in one session; no new Action or GPT instruction/schema publication is required. Historical workout targets and archived plans remain unchanged.
