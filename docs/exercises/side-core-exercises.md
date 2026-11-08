@@ -1,10 +1,10 @@
 # Side core exercises
 
-Three production-only catalog additions use the existing exercise creation and custom-picture upload APIs; they do not change workout plans, recorded sessions, seeded exercises, or Coach contracts.
+The original three production-only catalog additions use the existing exercise creation and custom-picture upload APIs. The November 8 update below adds separate left/right variants and updates Sunday's planned session; recorded sessions, seeded exercises, and Coach contracts remain unchanged.
 
 ## Catalog data
 
-All entries use category `TRAINING`, primary muscle group `CORE`, and no estimated-time override (`estimatedSecondsPerSet: null`). Each general entry covers both sides; separate left/right entries are not created.
+All entries use category `TRAINING`, primary muscle group `CORE`, and no estimated-time override (`estimatedSecondsPerSet: null`). Each original general entry covers both sides and remains available alongside the later left/right variants.
 
 | Name | Tracking mode | Secondary muscle group | Picture |
 | --- | --- | --- | --- |
@@ -44,3 +44,35 @@ Acceptance completed on October 12, 2026:
 - The complete workout plan and all 79 pre-existing catalog entries matched their pre-write snapshots; only the three intended exercises were added.
 
 Source changes retain the original 1254 × 1254 PNGs and this review record only; no application build, deployment, or GPT publication is required.
+
+## Separate sides — November 8, 2026
+
+Six production-only entries preserve the original tracking modes and muscle assignments. The side identifies the supporting forearm/foot for planks and the lower supporting hip/hand for jackknife crunches; each description specifies that side without instructing the user to repeat on the other side.
+
+| Exercise | Production ID | Picture | Sunday target |
+| --- | --- | --- | --- |
+| Side plank — right | 103 | [Right](images/side-plank.png) | 3 × 30 seconds |
+| Side plank — left | 106 | [Left](images/side-plank-left.png) | 3 × 30 seconds |
+| Side plank hip dips — right | 104 | [Right](images/side-plank-hip-dips.png) | 3 × 10 reps |
+| Side plank hip dips — left | 107 | [Left](images/side-plank-hip-dips-left.png) | 3 × 10 reps |
+| Side jackknife crunches — right | 105 | [Right](images/side-jackknife-crunches.png) | 3 × 10 reps |
+| Side jackknife crunches — left | 108 | [Left](images/side-jackknife-crunches-left.png) | 3 × 10 reps |
+
+Sunday retains three rounds per block with 45 seconds between complete rounds. Block 1 is Plank (90 seconds), Side plank — right, Side plank hip dips — right, Side plank — left, Side plank hip dips — left. Block 2 is Abdominal crunch (20 reps), Side jackknife crunches — right, Side jackknife crunches — left. The two existing superset groups remain intact; each member has three targets. Warm-up, walking, stretching, other weekdays, plan dates and the existing general catalog entries are preserved.
+
+### Pictures and prompt
+
+Visual inspection of the original images establishes anatomical right-side support, despite the historical generation prompts requesting left-side support. The right variants reuse those reviewed images. Three left-side variants were produced with the built-in imagegen tool, using the corresponding original PNG as the sole reference. Each saved production JPEG was fetched and visually reviewed after upload: supporting side, forearm/hip placement, full unclipped anatomy, plank alignment, lowered/raised hip-dip poses, bent-knee jackknife motion and established clothing/background style match the description.
+
+The exact shared prompt below was instantiated with `side-plank`, `side-plank-hip-dips`, and `side-jackknife-crunches` as `{slug}`:
+
+> Use case: precise-object-edit. Asset type: fitness exercise catalog picture. Make an exact horizontally mirrored version of the provided illustration for the LEFT-side {slug} exercise. The current illustration shows anatomical RIGHT-side support with head on image left and feet on image right. The output must have head on image RIGHT, feet on image LEFT, anatomical LEFT arm and left side underneath supporting the body, anatomical right arm on top. Reflect the entire composition horizontally, preserving the exact exercise, all poses and their order, body anatomy, teal shirt, navy shorts, grey trainers, white background, image aspect ratio and full-body framing. For the jackknife, left hip and left hand support on the floor, right hand behind head. For planks, left forearm and outer left foot support. No text or arrows. Do not redesign or change the movement.
+
+### Production verification
+
+- All six creates and immediate picture uploads returned HTTP 200; readback confirmed every requested catalog field, exactly six additions, and unchanged pre-existing entries.
+- All six authenticated picture reads returned HTTP 200 and decoded as 1254 × 1254 JPEGs; the saved images passed visual review.
+- The current plan was reloaded before its token-protected update; a fresh readback matched the complete expected days, including exact order, targets, grouping and session note, with all six other weekdays unchanged.
+- Production Plan views at 390px and 1280px displayed the distinct side names, matching pictures and three targets per entry with readable wrapping and no horizontal page overflow; a fresh mobile page load retained the saved values.
+- Independent review confirmed anatomical supporting sides, complete limbs, movement poses, consistent illustration style and the documented targets/order.
+- Delivery uses the existing production APIs; repository changes retain only pictures and this record, so no application build, deployment, database migration or GPT publication is required.

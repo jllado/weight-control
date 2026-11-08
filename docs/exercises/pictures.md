@@ -22,7 +22,7 @@ Flyway V63 maps existing seed names once to stable illustration keys; later rena
 
 The production-only [banded clamshell illustration](images/banded-clamshell.png) follows this workflow; its [generation prompt and review](banded-clamshell.md) record the visual reference and catalog fields. It is uploaded as a custom picture, not added to the seeded catalog.
 
-The production-only [side core exercises](side-core-exercises.md) add Side plank, Side plank hip dips, and Side jackknife crunches with reviewed custom pictures and their catalog fields; workout plans and recorded sessions are unchanged.
+The production-only [side core exercises](side-core-exercises.md) include Side plank, Side plank hip dips, and Side jackknife crunches with reviewed custom pictures. The original additions preserved workout plans; the November 8 update adds six left/right variants and updates Sunday's planned session while preserving recorded sessions.
 
 Exercise responses add `imageUrl` and `hasCustomImage`; existing JSON write requests and workout responses are unchanged. `/api/workout-exercises/{id}/image` supports GET, multipart POST with a `file` part, and DELETE. POST replaces the uploaded picture; DELETE restores the built-in illustration or leaves custom exercises without a picture. Responses never expose storage paths. Image URLs have version parameters and responses use `Cache-Control: no-store`.
 
