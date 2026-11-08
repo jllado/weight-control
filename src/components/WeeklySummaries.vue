@@ -428,7 +428,7 @@ export default {
   },
   methods: {
     outcome_status(value, type) { return weeklyClassification(value, type, this.detail.snapshot.emailGoals?.rules, this.detail.snapshot.emailGoals); },
-    async open_measurements(tab) { this.measurement_tab = tab; this.review_tab = 'measurements'; await nextTick(); this.$refs.measurementTabs.$el.querySelectorAll('[role=tab]')[this.measurement_index].focus(); },
+    async open_measurements(tab) { this.measurement_tab = tab; this.review_tab = 'measurements'; await nextTick(); const header = this.$refs.measurementTabs.$el.querySelectorAll('[role=tab]')[this.measurement_index]; header.focus(); header.scrollIntoView({block: 'nearest', inline: 'center'}); },
     async open_omega_references() { await this.open_measurements('nutrition'); await this.show_omega_references(); },
     async show_omega_references() { await nextTick(); this.$refs.omegaReferences[0].open = true; this.$refs.omegaReferences[0].querySelector('summary').focus(); this.$refs.omegaReferences[0].scrollIntoView({block: 'center'}); },
     async load() {
@@ -559,6 +559,8 @@ export default {
 <style scoped>
 .review-content { padding: 0 1rem 1rem; }
 .review-content :deep(.p-tabview-panels) { padding: 0; }
+/* Reserve the Nova overflow-arrow width when keyboard navigation scrolls a tab. */
+.review-content :deep(.p-tabview-nav-content) { scroll-padding-inline: 2.357rem; }
 .review-content .section-heading { margin-bottom: .75rem; }
 .review-content .detail-section, .review-content .weekly-reflection { padding: 1rem 0; }
 .review-content h3 { margin: .8rem 0; font-size: 1.1rem; }

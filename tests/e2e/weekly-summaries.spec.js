@@ -110,6 +110,42 @@ test('weekly refinements keep both tab bars on one scrolling row and reveal keyb
     expect(errors).toEqual([]);
 });
 
+test('weekly refinements keep keyboard-selected middle tabs clear of overflow arrows', async ({page}) => {
+    await openRefinedReview(page, refinedReviewFixture());
+    await page.setViewportSize({width: 376, height: 900});
+    await page.getByRole('button', {name: 'View all routines', exact: true}).click();
+    const tabs = page.getByRole('tablist', {name: 'Measurement groups', exact: true});
+    for (const key of ['ArrowLeft', 'ArrowLeft', 'ArrowLeft', 'ArrowRight', 'ArrowRight', 'ArrowRight']) {
+        await page.keyboard.press(key);
+        const tab = tabs.getByRole('tab', {selected: true});
+        await expect(tab).toBeFocused();
+        await expect.poll(() => tab.evaluate(el => {
+            const rect = el.getBoundingClientRect(), container = el.closest('.p-tabview-nav-container'), bounds = container.getBoundingClientRect();
+            const previous = container.querySelector('[data-pc-section="previousbutton"]'), next = container.querySelector('[data-pc-section="nextbutton"]');
+            return rect.left >= bounds.left + (previous?.getBoundingClientRect().width || 0) - 1 && rect.right <= bounds.right - (next?.getBoundingClientRect().width || 0) + 1;
+        })).toBe(true);
+    }
+});
+
+test('weekly refinements reveal each shortcut after reopening a previously scrolled measurement bar', async ({page}) => {
+    await openRefinedReview(page, refinedReviewFixture());
+    for (const width of [376, 390, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        for (const [shortcut, name] of [['View all routines', 'Routines'], ['Training details', 'Training & back pain'], ['Comparisons & details', 'Nutrition'], ['Explore measurements', 'Body & pressure']]) {
+            await page.getByRole('tab', {name: 'Overview', exact: true}).click();
+            await page.getByRole('button', {name: shortcut, exact: true}).click();
+            const tab = page.getByRole('tab', {name, exact: true});
+            await expect(tab).toBeFocused();
+            await expect(tab).toHaveAttribute('aria-selected', 'true');
+            await expect.poll(() => tab.evaluate(el => {
+                const rect = el.getBoundingClientRect(), container = el.closest('.p-tabview-nav-container'), bounds = container.getBoundingClientRect();
+                const previous = container.querySelector('[data-pc-section="previousbutton"]'), next = container.querySelector('[data-pc-section="nextbutton"]');
+                return rect.left >= bounds.left + (previous?.getBoundingClientRect().width || 0) - 1 && rect.right <= bounds.right - (next?.getBoundingClientRect().width || 0) + 1;
+            })).toBe(true);
+        }
+    }
+});
+
 test('weekly refinements show both overview comparisons with measured heading spacing', async ({page}, testInfo) => {
     await openRefinedReview(page, refinedReviewFixture());
     const overview = page.getByRole('tabpanel', {name: 'Overview', exact: true});
