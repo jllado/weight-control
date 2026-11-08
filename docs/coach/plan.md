@@ -740,3 +740,13 @@ Workout plan targets expose optional nonnegative whole `restSeconds` through app
 ## Weekly review navigation and current actions
 
 The app uses scrollable review/measurement tabs, displays both saved comparison periods, explains absent historical workout targets, and reads all current actions for today in Europe/Madrid through the existing Actions API. Review cards are read-only; Home and Actions retain their existing controls. Saved snapshots, recommendation activation, email and Coach contracts remain unchanged; no GPT publication is required.
+
+## Meal confirmation continuity
+
+Meal preparation must finish the complete consumed/reference nutrient payload before offering a readable save confirmation. After confirmation, any remaining defensible comparable estimates are completed without another estimate opt-in or exact-brand verification pause, followed by the write and readback in the same turn. Material changes still require a revised summary and renewed confirmation; genuinely unsupported comparisons must name the food, nutrient and missing basis. An unattempted save is "not yet submitted", never an API failure.
+
+Acceptance covers the reported multi-food lunch through clarification, complete proposal, one confirmation and Action/readback, plus new-food gaps, genuine ambiguity and changed-proposal consent. Preserve source honesty, independent omega-3 meanings, ten consumed/reference nutrients, one external search per food with gaps, 30 Actions and private authentication. Verify candidate behavior, saved/live publication and production persistence separately; the earlier limited-search and readable-summary checks do not establish this full journey. Live writes require reversible cleanup of every effect, including push notifications.
+
+The meal estimate policy accepts food-specific model estimates after saved-reference lookup and bounded research, with explicit basis, uncertainty and estimate flags. It supersedes mandatory reported-zero and separate-isomer proof for approximate new/changed food proposals; actual source claims still require a source that was read. Preserve known labels, independent nutrients, matching references, arithmetic and consent. Do not backfill or relabel historical data.
+
+Meal preflight uses enabled Code Interpreter with Decimal/HALF_UP scaling and sums before the readable proposal. Reuse that computed body for inspection and confirmation, preserve known reference values, disclose every catalog addition and keep registration false for uncertain matches. Verify the calculation capability in the saved/live GPT configuration.
