@@ -95,10 +95,11 @@ function dailyMinimumStatus(summary, field, target, completed) {
 }
 
 export function dailyNutrientStatus(summary, field, targets, completed = true) {
-    if (summary[field.key] == null || !targets) return null;
+    if (!targets) return null;
     if (field.key === 'omega3Milligrams') {
         return combinedOmegaStatus(omegaFields.map(component => dailyMinimumStatus(summary, component, targets[component.targetKey]?.value, completed)?.className));
     }
+    if (summary[field.key] == null) return null;
     const key = {vitaminDMicrograms: 'vitaminD', magnesiumMilligrams: 'magnesium', fiberGrams: 'fiber'}[field.key];
     if (key === 'vitaminD' && targets.vitaminD?.value != null && targets.vitaminD.source !== 'PERSONAL') return {className: '', label: 'Reference only'};
     return dailyMinimumStatus(summary, field, targets[key]?.value, completed);

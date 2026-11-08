@@ -69,12 +69,15 @@ export default {
       return change.startsWith('+') === minimum ? 'good' : 'bad';
     },
     targetStatus(field) {
+      if (!this.targets) return null;
+      if (field.key === 'omega3Milligrams') {
+        const evidence = this.summaries.filter(row => !dayjs(row.date).isBefore(dayjs(this.dateKey).subtract(29, 'day'), 'day') && !dayjs(row.date).isAfter(this.dateKey, 'day'));
+        return nutrientTargetStatus(evidence, field, this.targets.targets);
+      }
       const rows = this.currentRows(field);
-      if (!rows.length || !this.targets) return null;
+      if (!rows.length) return null;
       if (field.kind === 'macro') return macroTargetStatus(rows, field, this.targets.overrides.macros.fatPercentage);
-      const evidence = field.key === 'omega3Milligrams' ? this.summaries.filter(row =>
-        !dayjs(row.date).isBefore(dayjs(this.dateKey).subtract(29, 'day'), 'day') && !dayjs(row.date).isAfter(this.dateKey, 'day')) : rows;
-      return nutrientTargetStatus(evidence, field, this.targets.targets);
+      return nutrientTargetStatus(rows, field, this.targets.targets);
     },
     async load() {
       const requestId = ++this.requestId;

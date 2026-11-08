@@ -68,3 +68,20 @@ test('chart points distinguish assessment from estimated provenance using the sa
     assert.equal(vitaminChart.datasets[0].pointBackgroundColor[0], '#3273b9');
     assert.match(vitaminChart.datasets[0].pointLabels[0], /Reference only/);
 });
+
+test('daily omega assessment stays independent when the recorded total is unknown', () => {
+    const withoutTotal = (epa, ala) => ({...summary(epa, ala), omega3Milligrams: null, omega3Coverage: {foodsWithValues: 0}});
+    assert.equal(dailyNutrientStatus(withoutTotal(250, 1600), omega, targets).label, 'Goal met');
+    assert.equal(dailyNutrientStatus(withoutTotal(249.99, 1600), omega, targets).label, 'Below goal');
+    assert.equal(dailyNutrientStatus(withoutTotal(250, 1599.99), omega, targets).label, 'Below goal');
+    assert.equal(dailyNutrientStatus(withoutTotal(250, null), omega, targets).label, 'Assessment unavailable');
+    assert.equal(dailyNutrientStatus(withoutTotal(250, 1600), omega, {...targets, ala: {value: null}}).label, 'Assessment unavailable');
+    assert.equal(dailyNutrientStatus(withoutTotal(250, 1600), omega, targets, false).label, 'Goal met');
+    assert.equal(dailyNutrientStatus(withoutTotal(249.99, 1600), omega, targets, false).label, 'Assessment unavailable');
+    const partial = withoutTotal(200, 1600);
+    partial.epaDhaCoverage.foodsWithValues = 1;
+    assert.equal(dailyNutrientStatus(partial, omega, targets).label, 'Assessment unavailable');
+    partial.epaDhaMilligrams = 250;
+    assert.equal(dailyNutrientStatus(partial, omega, targets).label, 'Goal met');
+    assert.equal(partial.omega3Milligrams, null);
+});

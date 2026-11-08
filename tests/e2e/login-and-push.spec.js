@@ -14253,6 +14253,42 @@ test('omega-3 trends assess independent nutrient evidence and keep signed deltas
     await expect(trend().locator('.trend-change')).not.toHaveClass(/good|bad/);
 });
 
+test('omega-3 trend assessment remains independent of missing total values and total coverage', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-12', {dashboardResponse: {...dashboard, anchorDate: '2026-08-12',
+        dailyStatus: dashboardDailyStatus('2026-08-12'), lastCompletedDashboardDate: '2026-08-12'}});
+    const complete = {omega3Milligrams: null, totalFoods: 2, mealsWithoutFoods: 0, omega3Coverage: {foodsWithValues: 0},
+        epaDhaMilligrams: 250, alaMilligrams: 1600, epaDhaCoverage: {foodsWithValues: 2}, alaCoverage: {foodsWithValues: 2}};
+    let nutrients = complete;
+    let completed = true;
+    await page.route('**/api/nutrition/daily-summaries?*', route => route.fulfill({json: [
+        {date: '2026-07-13', completed: true, nutrients: {...complete, epaDhaMilligrams: 0}},
+        {date: '2026-08-12', completed, nutrients}
+    ]}));
+    await page.route('**/api/nutrition/targets?*', route => route.fulfill({json: {
+        targets: {omega3: {value: 1}, epaDha: {value: 250}, ala: {value: 1600}}, overrides: {macros: {proteinGrams: null, fatPercentage: null}}
+    }}));
+    const trend = page.getByRole('region', {name: 'Nutrient trends'}).locator('.nutrient-trend-row').filter({hasText: '30-day Omega-3:'});
+    for (const scenario of [
+        {nutrients: complete, label: 'Goal met', className: 'target-met'},
+        {nutrients: {...complete, omega3Milligrams: 3000, epaDhaMilligrams: 200}, label: 'Below goal', className: 'target-missed'},
+        {nutrients: {...complete, alaMilligrams: 1500}, label: 'Below goal', className: 'target-missed'},
+        {nutrients: {...complete, epaDhaMilligrams: 200, epaDhaCoverage: {foodsWithValues: 1}}, label: 'Assessment unavailable'},
+        {nutrients: {...complete, epaDhaMilligrams: null}, label: 'Assessment unavailable'},
+        {nutrients: complete, completed: false, label: 'Assessment unavailable'}
+    ]) {
+        nutrients = scenario.nutrients;
+        completed = scenario.completed !== false;
+        await openSpaRoute(page, '/');
+        await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
+        await expect(trend.locator('.trend-average')).toHaveText('—');
+        await expect(trend.locator('[role="status"]')).toHaveText(scenario.label);
+        if (scenario.className) await expect(trend.locator('.trend-average')).toHaveClass(new RegExp(scenario.className));
+        else await expect(trend.locator('.trend-average')).not.toHaveClass(/target-/);
+        await expect(trend.locator('.trend-sample')).toContainText('zero fully covered days in current 30 days');
+        await expect(trend.locator('.trend-change')).toHaveCount(0);
+    }
+});
+
 test('nutrient trends show signed numeric deltas for covered days', async ({page}, testInfo) => {
     await mockAuthenticatedDashboard(page, '2026-08-12', {dashboardResponse: {...dashboard, anchorDate: '2026-08-12',
         dailyStatus: dashboardDailyStatus('2026-08-12'), lastCompletedDashboardDate: '2026-08-12'}, initialMeals: [
