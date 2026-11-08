@@ -156,7 +156,10 @@ public class V123__classify_owner_walking_and_enable_routine extends BaseJavaMig
             best = Math.max(best, current); previous = period;
         }
         try (var statement = connection.prepareStatement("update routines set current_strike = ?, best_strike = ?, last_time_date = ?, updated_at = updated_at where id = 52")) {
-            statement.setInt(1, current); statement.setInt(2, best); statement.setTimestamp(3, last, utc()); statement.executeUpdate();
+            statement.setInt(1, current); statement.setInt(2, best);
+            if (last == null) statement.setNull(3, java.sql.Types.TIMESTAMP);
+            else statement.setTimestamp(3, last, utc());
+            statement.executeUpdate();
         }
     }
 
