@@ -139,6 +139,20 @@ class WalkingMigrationTest {
         }
     }
 
+    @Test void enablesVerifiedRoutineWithNoCheckinsOrQualifyingWalkWithoutInventingHistory() throws Exception {
+        try (var connection = DATABASE.createConnection("")) {
+            owners(connection);
+            routine(connection, 52, 1, "Long outside walk", "WEEKLY", "2026-11-06 23:00:00");
+            execute(connection, "update routines set current_strike=0,best_strike=0 where id=52");
+            workout(connection, 1, 1, "2026-11-08", exercise(connection, "walking"), 2280);
+            flyway("123").migrate();
+            assertEquals(List.of(List.of("OUTDOOR_WALK_OVER_40_MINUTES", "1", "0", "0")), snapshot(connection, "select automatic_trigger,automatic_completion_enabled,current_strike,best_strike from routines where id=52"));
+            assertNull(snapshot(connection, "select last_time_date from routines where id=52").getFirst().getFirst());
+            assertEquals(List.of(List.of("0")), snapshot(connection, "select count(*) from routine_checkins where routine_id=52"));
+            assertEquals(List.of(List.of("0")), snapshot(connection, "select count(*) from routine_automatic_evidence where routine_id=52"));
+        }
+    }
+
     @Test void leavesUnverifiedRoutineIdentityUnchanged() throws Exception {
         try (var connection = DATABASE.createConnection("")) {
             owners(connection);
