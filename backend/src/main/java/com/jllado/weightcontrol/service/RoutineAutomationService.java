@@ -160,6 +160,14 @@ public class RoutineAutomationService {
                     .filter(workout -> workout.getLines().stream().anyMatch(line -> line.getExercise().getExerciseType() == ExerciseType.STRETCHING))
                     .filter(workout -> !workout.getWorkoutDate().isBefore(startDate))
                     .forEach(workout -> expected.put(new Source(WORKOUT, workout.getId().toString()), workout.getWorkoutDate()));
+                case OUTDOOR_WALK_OVER_40_MINUTES -> workouts.stream()
+                    .filter(workout -> !workout.getWorkoutDate().isBefore(startDate))
+                    .filter(workout -> workout.getLines().stream()
+                        .filter(line -> "outdoor-walking".equals(line.getExercise().getBuiltInImageKey()))
+                        .flatMap(line -> line.getSegments().stream())
+                        .filter(segment -> !segment.isSkipped())
+                        .mapToLong(segment -> segment.getDurationSeconds()).sum() > 2400)
+                    .forEach(workout -> expected.put(new Source(WORKOUT, workout.getId().toString()), workout.getWorkoutDate()));
                 case SITTING_RISING_WORKOUT -> workouts.stream()
                     .filter(workout -> workout.getLines().stream().anyMatch(line -> line.getExercise().getName().trim().equalsIgnoreCase("Sitting-Rising")))
                     .filter(workout -> !workout.getWorkoutDate().isBefore(startDate))

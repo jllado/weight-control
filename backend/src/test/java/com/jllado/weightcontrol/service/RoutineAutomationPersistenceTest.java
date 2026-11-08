@@ -138,6 +138,60 @@ class RoutineAutomationPersistenceTest {
         assertThrows(NotFoundException.class, () -> weights.update(user("other-weekly-owner"), reading.getId(), weightRequest(DAY)));
     }
 
+    @Test void outdoorWalkingMutationsPreserveSaturdayFridayWeeksManualEvidenceAndExplicitChoices() {
+        User owner = user("outdoor-walking-mutations");
+        Routine routine = weeklyRoutine(owner, RoutineAutomaticTrigger.valueOf("OUTDOOR_WALK_OVER_40_MINUTES"));
+        Exercise outdoor = exercises.findAll().stream().filter(exercise -> "outdoor-walking".equals(exercise.getBuiltInImageKey())).findFirst().orElseThrow();
+        Exercise indoor = exercises.findAll().stream().filter(exercise -> "indoor-walking".equals(exercise.getBuiltInImageKey())).findFirst().orElseThrow();
+        LocalDate friday = DAY.plusDays(2), saturday = DAY.plusDays(3);
+        var first = workouts.create(owner, workout(friday, List.of(walkingLine(outdoor, 1200, 1200))));
+        assertDates(routine);
+        workouts.update(owner, first.getId(), workout(friday, List.of(walkingLine(outdoor, 1200, 1201))));
+        assertDates(routine, friday);
+        assertEvidence(routine, "WORKOUT", first.getId().toString(), friday);
+        automation.reconcile(owner);
+        assertEquals(1, evidenceCount(routine));
+        assertSummary(owner, routine, 1, 1, friday);
+        var second = workouts.create(owner, workout(saturday, List.of(walkingLine(outdoor, 2401))));
+        assertSummary(owner, routine, 2, 2, saturday);
+        workouts.update(owner, first.getId(), workout(saturday.plusDays(1), List.of(walkingLine(outdoor, 2401))));
+        assertDates(routine, saturday, saturday.plusDays(1));
+        assertSummary(owner, routine, 1, 1, saturday.plusDays(1));
+        workouts.delete(owner, first.getId());
+        assertDates(routine, saturday);
+        assertSummary(owner, routine, 1, 1, saturday);
+        routines.checkin(owner, routine.getId(), DateTimes.startOfDay(saturday).plusHours(12));
+        workouts.update(owner, second.getId(), workout(saturday, List.of(walkingLine(indoor, 3600))));
+        assertDates(routine, saturday);
+        assertEquals(0, evidenceCount(routine));
+        assertTrue(checkins.findByRoutineOrderByCheckedAtAsc(routine).getFirst().isManualCompletion());
+        assertEquals(indoor.getId(), workouts.requireOwned(owner, second.getId()).getLines().getFirst().getExercise().getId());
+        workouts.delete(owner, second.getId());
+        assertDates(routine, saturday);
+        // Future choices are explicit: Wednesday outdoor qualifies, Saturday indoor does not.
+        var weekday = workouts.create(owner, workout(DAY, List.of(walkingLine(outdoor, 2401))));
+        assertDates(routine, DAY, saturday);
+        workouts.create(user("foreign-outdoor-walking"), workout(DAY.plusDays(1), List.of(walkingLine(outdoor, 3600))));
+        workouts.create(owner, workout(DateTimes.toLocalDate(routine.getStartDate()).minusDays(1), List.of(walkingLine(outdoor, 3600))));
+        assertDates(routine, DAY, saturday);
+        assertEquals(1, evidenceCount(routine));
+        var saved = routines.requireOwned(owner, routine.getId());
+        routines.update(owner, routine.getId(), new RoutineRequest(saved.getName(), saved.getTypes(), null, false,
+            saved.getAutomaticTrigger(), false, RoutineCadence.WEEKLY, List.of()));
+        workouts.delete(owner, weekday.getId());
+        assertDates(routine, DAY, saturday);
+        routines.update(owner, routine.getId(), new RoutineRequest(saved.getName(), saved.getTypes(), null, false,
+            saved.getAutomaticTrigger(), true, RoutineCadence.WEEKLY, List.of()));
+        assertDates(routine, saturday);
+        assertEquals(0, evidenceCount(routine));
+        assertEquals(DateTimes.startOfDashboardWeek(DAY), DateTimes.toLocalDate(routines.requireOwned(owner, routine.getId()).getStartDate()));
+    }
+
+    private WorkoutLineRequest walkingLine(Exercise exercise, int... seconds) {
+        return new WorkoutLineRequest(exercise.getId(), null, null, java.util.Arrays.stream(seconds)
+            .mapToObj(duration -> new WorkoutSegmentRequest(null, duration, null, BigDecimal.valueOf(5), null, null, null, null, null)).toList(), null);
+    }
+
     private Routine weeklyRoutine(User owner, RoutineAutomaticTrigger trigger) {
         var routine = routines.create(owner, new RoutineRequest(trigger.name(), Set.of(RoutineType.WEIGHT), null, false, null, null, RoutineCadence.WEEKLY, List.of()));
         routine.setStartDate(DateTimes.startOfDay(DateTimes.startOfDashboardWeek(DAY)));
@@ -471,7 +525,7 @@ class RoutineAutomationPersistenceTest {
     void everyAssignedRuleRetainsAutomaticHistoryWhenItsSourceIsDeletedWhilePaused(RoutineAutomaticTrigger trigger) {
         var owner = user("paused-" + trigger);
         boolean measurement = trigger == RoutineAutomaticTrigger.WEIGHT_MEASUREMENT || trigger == RoutineAutomaticTrigger.BLOOD_PRESSURE_MEASUREMENT;
-        var routine = measurement ? weeklyRoutine(owner, trigger) : routine(owner, trigger);
+        var routine = measurement || trigger == RoutineAutomaticTrigger.OUTDOOR_WALK_OVER_40_MINUTES ? weeklyRoutine(owner, trigger) : routine(owner, trigger);
         Runnable deleteSource;
         if (trigger == RoutineAutomaticTrigger.WEIGHT_MEASUREMENT) {
             var source = weights.create(owner, weightRequest(DAY));
@@ -497,9 +551,10 @@ class RoutineAutomationPersistenceTest {
                 case MCGILL_BIG_THREE -> exercises.findAll().stream().filter(candidate -> "mcgill-big-three".equals(candidate.getBuiltInImageKey())).findFirst().orElseThrow();
                 case NIGHT_STRETCHING_WORKOUT -> exercise("Paused night stretch", ExerciseType.STRETCHING, ExerciseTrackingMode.SECONDS);
                 case SITTING_RISING_WORKOUT -> sittingRisingExercise();
+                case OUTDOOR_WALK_OVER_40_MINUTES -> exercises.findAll().stream().filter(candidate -> "outdoor-walking".equals(candidate.getBuiltInImageKey())).findFirst().orElseThrow();
                 default -> throw new AssertionError(trigger);
             };
-            var source = workouts.create(owner, workout(DAY, List.of(line(exercise)), trigger == RoutineAutomaticTrigger.NIGHT_STRETCHING_WORKOUT ? LocalTime.of(19, 1) : null));
+            var source = workouts.create(owner, workout(DAY, List.of(trigger == RoutineAutomaticTrigger.OUTDOOR_WALK_OVER_40_MINUTES ? walkingLine(exercise, 2401) : line(exercise)), trigger == RoutineAutomaticTrigger.NIGHT_STRETCHING_WORKOUT ? LocalTime.of(19, 1) : null));
             deleteSource = () -> workouts.delete(owner, source.getId());
         }
         assertDates(routine, DAY);

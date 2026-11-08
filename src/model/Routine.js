@@ -322,6 +322,7 @@ export const RoutineAutomaticTrigger = {
     WAKE_BEFORE_7: 'WAKE_BEFORE_7',
     NIGHT_STRETCHING_WORKOUT: 'NIGHT_STRETCHING_WORKOUT',
     SITTING_RISING_WORKOUT: 'SITTING_RISING_WORKOUT',
+    OUTDOOR_WALK_OVER_40_MINUTES: 'OUTDOOR_WALK_OVER_40_MINUTES',
     WEIGHT_MEASUREMENT: 'WEIGHT_MEASUREMENT',
     BLOOD_PRESSURE_MEASUREMENT: 'BLOOD_PRESSURE_MEASUREMENT'
 };
@@ -339,6 +340,7 @@ export const RoutineAutomaticTriggerDescriptions = {
     WAKE_BEFORE_7: 'a sleep entry ending before 07:00 (Europe/Madrid)',
     NIGHT_STRETCHING_WORKOUT: 'a workout with stretching and a recorded start after 19:00 (Europe/Madrid)',
     SITTING_RISING_WORKOUT: 'a workout with an exercise named Sitting-Rising',
+    OUTDOOR_WALK_OVER_40_MINUTES: 'a saved workout with more than 40 minutes of outdoor walking',
     WEIGHT_MEASUREMENT: 'a weight measurement',
     BLOOD_PRESSURE_MEASUREMENT: 'a blood pressure measurement'
 };
