@@ -117,4 +117,17 @@ const dashboard = {
     }
 };
 
-module.exports = {googleClientScript, profile, dashboard, dashboardDailyStatus, dashboardWeek, noDecisionMetrics};
+function nutrientTargetsForDate(date) {
+    const day = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][new Date(`${date}T00:00:00Z`).getUTCDay()];
+    return {
+        targets: Object.fromEntries([['vitaminD', 15], ['omega3', null], ['magnesium', 350], ['epaDha', null], ['ala', null], ['fiber', null]]
+            .map(([key, value]) => [key, {value, source: value == null ? 'NONE' : 'EFSA_AI', referenceValue: value}])),
+        overrides: {vitaminDMicrograms: null, omega3Milligrams: null, magnesiumMilligrams: null,
+            macros: {proteinGrams: null, fatPercentage: null}, epaDha: {value: null}, ala: {value: null}, fiber: {value: null}},
+        macroTargets: {protein: {value: null, comparison: 'MINIMUM', unavailableReason: 'Set a protein target'},
+            carbohydrate: {value: null, comparison: 'MAXIMUM', unavailableReason: 'Set protein and fat targets'},
+            fat: {value: null, comparison: 'MAXIMUM', unavailableReason: 'Set a fat percentage'}, calorieBudget: profile.typicalCaloriesPerDay[day]}
+    };
+}
+
+module.exports = {googleClientScript, profile, dashboard, dashboardDailyStatus, dashboardWeek, noDecisionMetrics, nutrientTargetsForDate};

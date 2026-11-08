@@ -96,7 +96,7 @@ test('delayed authentication preserves a direct existing protected route without
 });
 
 test('dashboard inserts at most three isolated Actions rows between the unchanged overview and Week Score', async ({page}, testInfo) => {
-    const {profile, dashboard, dashboardDailyStatus} = require('../fixtures/dashboard.cjs');
+    const {profile, dashboard, dashboardDailyStatus, nutrientTargetsForDate} = require('../fixtures/dashboard.cjs');
     let selectedDate = dashboard.anchorDate;
     let releaseOld;
     const oldRead = new Promise(resolve => { releaseOld = resolve; });
@@ -111,6 +111,7 @@ test('dashboard inserts at most three isolated Actions rows between the unchange
         const url = new URL(route.request().url()); const path = url.pathname;
         const json = value => route.fulfill({json: value});
         if (path === '/api/auth/me') return json({authenticated: true, email: 'owner@example.com'});
+        if (path === '/api/nutrition/targets') return json(nutrientTargetsForDate(url.searchParams.get('asOf')));
         if (path === '/api/profile') return json(profile);
         if (path === '/api/urge-pauses') return json({pause: null, serverNow: new Date().toISOString()});
         if (path === '/api/dashboard') return json(dashboard);

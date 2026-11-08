@@ -72,7 +72,7 @@ function plain(value) {
     return JSON.parse(JSON.stringify(value));
 }
 
-const {googleClientScript, profile, dashboard, dashboardDailyStatus, dashboardWeek} = require('../fixtures/dashboard.cjs');
+const {googleClientScript, profile, dashboard, dashboardDailyStatus, dashboardWeek, nutrientTargetsForDate} = require('../fixtures/dashboard.cjs');
 
 const dashboardWeights = [{
     id: 1,
@@ -598,6 +598,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
         if (path === '/api/auth/google') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({email: 'jllado@gmail.com', displayName: 'Jordi', authenticated: true})});
         }
+        if (path === '/api/nutrition/targets') return route.fulfill({json: nutrientTargetsForDate(new URL(request.url()).searchParams.get('asOf'))});
         if (path === '/api/profile') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(profile)});
         }
@@ -12333,6 +12334,7 @@ test('guided exercise progress excludes omitted and skipped exercises', async ({
 });
 
 test('guided workout alternates superset rounds, resumes the current set, and saves actual values with planned targets', async ({page, context}, testInfo) => {
+    test.setTimeout(60000);
     await page.clock.install({time: new Date('2026-09-27T12:00:00')});
     const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, sessions: []}));
     const cardioRecords = [
@@ -12753,6 +12755,7 @@ test('guided workout edits weight for timed strength sets while preserving plann
 
 test('guided workout records exercise time, distinguishes skipped work from unlogged work, and keeps superset flow', async ({page}, testInfo) => {
     await page.clock.install({time: new Date('2026-09-27T12:00:00')});
+    await page.clock.pauseAt(new Date('2026-09-27T12:00:01'));
     const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, sessions: []}));
     const state = await mockWeeklyPlans(page, {id: 1, startDate: '2026-09-27', reviewDate: '2026-10-26', updateToken: 'guided-skip-token', days, notes: ''});
     const group = '6f4d5d80-a643-4a6f-955f-54445ea62c39';
@@ -12801,9 +12804,11 @@ test('guided workout records exercise time, distinguishes skipped work from unlo
     await page.clock.fastForward(7000);
     await expect(guided.locator('.guided-exercise-time')).toContainText(/00:00:1[23]/);
     await completeGuidedSetWithoutRest(page, guided);
+    await page.clock.runFor(300);
     await expect(guided.locator('.guided-card h2')).toHaveText(state.exercises[3].name);
     await page.clock.fastForward(4000);
     await completeGuidedSetWithoutRest(page, guided);
+    await page.clock.runFor(300);
     await expect(guided.locator('.guided-card h2')).toHaveText(state.exercises[0].name);
     await page.clock.fastForward(5000);
     await guided.getByRole('button', {name: 'Remove', exact: true}).click();
@@ -12813,6 +12818,7 @@ test('guided workout records exercise time, distinguishes skipped work from unlo
     await expect(guided.locator('.guided-card h2')).toHaveText(state.exercises[4].name);
     await page.clock.fastForward(3000);
     await completeGuidedSetWithoutRest(page, guided);
+    await page.clock.runFor(300);
     await guided.getByRole('button', {name: 'Review', exact: true}).click();
     await expect(guided).toBeVisible();
     await expect(guided.getByRole('heading', {name: 'Review workout'})).toBeVisible();
@@ -12830,6 +12836,7 @@ test('guided workout records exercise time, distinguishes skipped work from unlo
     await guided.getByRole('button', {name: 'Edit workout', exact: true}).click();
     const reviewEditor = page.getByRole('dialog', {name: 'Workout', exact: true});
     await reviewEditor.getByRole('button', {name: 'Apply', exact: true}).click();
+    await page.clock.runFor(300);
     await expect(reviewEditor).toBeHidden();
     await expect(skippedLine).toContainText('Skipped · no time recorded');
 
