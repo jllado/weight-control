@@ -146,6 +146,34 @@ test('weekly refinements reveal each shortcut after reopening a previously scrol
     }
 });
 
+test('weekly review text keeps readable gutters inside both tab-panel borders', async ({page}, testInfo) => {
+    const summary = refinedReviewFixture();
+    summary.presentation.recommendations = [
+        {sourceKey: 'weekly:42:' + 'a'.repeat(64), wording: 'Restore a simple evening routine that supports sleep and limits phone use in bed.', provenance: ['Next week']},
+        {sourceKey: 'weekly:42:' + 'b'.repeat(64), wording: 'Plan balanced, protein-sufficient meals around the weekly calorie goal.', provenance: ['Nutrition']}
+    ];
+    const {errors, writes} = await openRefinedReview(page, summary);
+    for (const width of [376, 390, 575, 640, 760, 960, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        for (const tab of ['Overview', 'Measurements', 'Reflection & actions']) {
+            await page.getByRole('tablist', {name: 'Weekly review', exact: true}).getByRole('tab', {name: tab, exact: true}).click();
+            const panel = page.getByRole('tabpanel', {name: tab, exact: true});
+            if (tab === 'Reflection & actions' && await panel.locator('.more-recommendations').getAttribute('open') === null) await panel.locator('.more-recommendations > summary').click();
+            await expect.poll(() => panel.evaluate(el => {
+                const content = [...el.querySelectorAll('h3, h4, p, summary, .recommendation-link')].filter(node => node.getBoundingClientRect().height > 0);
+                return content.length > 0 && content.every(node => {
+                    const bounds = node.closest('.p-tabview-panels').getBoundingClientRect(), rect = node.getBoundingClientRect();
+                    return rect.left - bounds.left >= 12 && bounds.right - rect.right >= 12;
+                });
+            })).toBe(true);
+            await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+            if (tab === 'Reflection & actions' && [376, 390, 1280].includes(width)) await panel.screenshot({path: testInfo.outputPath(`weekly-panel-gutters-${width}.png`), animations: 'disabled'});
+        }
+    }
+    expect(errors).toEqual([]);
+    expect(writes).toEqual([]);
+});
+
 test('weekly refinements show both overview comparisons with measured heading spacing', async ({page}, testInfo) => {
     await openRefinedReview(page, refinedReviewFixture());
     const overview = page.getByRole('tabpanel', {name: 'Overview', exact: true});

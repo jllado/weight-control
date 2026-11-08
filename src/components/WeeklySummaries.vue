@@ -558,7 +558,6 @@ export default {
 
 <style scoped>
 .review-content { padding: 0 1rem 1rem; }
-.review-content :deep(.p-tabview-panels) { padding: 0; }
 /* Reserve the Nova overflow-arrow width when keyboard navigation scrolls a tab. */
 .review-content :deep(.p-tabview-nav-content) { scroll-padding-inline: 2.357rem; }
 .review-content .section-heading { margin-bottom: .75rem; }
