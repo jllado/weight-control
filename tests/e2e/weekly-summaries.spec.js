@@ -81,6 +81,40 @@ async function openRefinedReview(page, summary, actionState = {rows: []}) {
     return {reads, writes, errors};
 }
 
+test('weekly comparisons stay beneath current values with baseline evidence at every width', async ({page}, testInfo) => {
+    const summary = refinedReviewFixture();
+    Object.assign(summary.snapshot.progress.previousComparablePeriod, {startDate: '2026-08-01', endDate: '2026-08-07'});
+    Object.assign(summary.snapshot.progress.yearAgoComparablePeriod, {startDate: '2025-08-09', endDate: '2025-08-15'});
+    Object.assign(summary.presentation.visualSummary.workouts[0], {
+        target: 'Target ≥ 3 sessions', status: {label: 'Goal met', color: '#287d4b'},
+        previousTarget: 'Target ≥ 7 sessions', previousStatus: {label: 'Below target', color: '#bc4749'},
+        yearAgoTarget: 'Target ≥ 1 session', yearAgoStatus: {label: 'Below target', color: '#bc4749'}
+    });
+    const {errors, writes} = await openRefinedReview(page, summary);
+    const table = page.getByRole('table', {name: 'Workout activity overview', exact: true});
+    const row = table.getByRole('row', {name: /Strength sessions/});
+    for (const width of [376, 390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        const current = row.getByRole('group', {name: /^This week/});
+        const previous = row.getByRole('group', {name: /^Last week/});
+        const yearAgo = row.getByRole('group', {name: /^52 weeks ago/});
+        await expect(previous).toContainText('-3 vs last week · 6');
+        await expect(yearAgo).toContainText('+3 vs 52 weeks ago · 0');
+        await expect(previous).toContainText('1 Aug 2026 – 7 Aug 2026');
+        await expect(previous).toContainText('Target ≥ 7 sessions');
+        await expect(previous.getByText('Below target', {exact: true})).toHaveCSS('color', 'rgb(188, 71, 73)');
+        await expect(current.getByText('Goal met', {exact: true})).toHaveCSS('color', 'rgb(40, 125, 75)');
+        const boxes = await Promise.all([current, previous, yearAgo].map(item => item.boundingBox()));
+        expect(boxes[1].y).toBeGreaterThanOrEqual(boxes[0].y + boxes[0].height);
+        expect(boxes[2].y).toBeGreaterThanOrEqual(boxes[1].y + boxes[1].height);
+        expect(Math.abs(boxes[0].x - boxes[1].x)).toBeLessThan(2);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+        await table.screenshot({path: testInfo.outputPath(`weekly-comparisons-${width}.png`)});
+    }
+    expect(errors).toEqual([]);
+    expect(writes).toEqual([]);
+});
+
 test('weekly refinements keep both tab bars on one scrolling row and reveal keyboard selections', async ({page}, testInfo) => {
     const {errors} = await openRefinedReview(page, refinedReviewFixture());
     for (const width of [376, 390, 575, 640, 960, 1280]) {
@@ -337,7 +371,9 @@ test('weekly summary warns before a missing-outcome save and stays usable at tar
     await expect(page.getByRole('table', {name: 'Weekly nutrition evidence'}).getByRole('row', {name: /Protein/})).toContainText('100.0 g/day');
     await page.getByRole('tab', {name: 'Sleep & mood', exact: true}).click();
     await expect(page.getByRole('table', {name: 'Sleep and mood measurements'}).getByRole('row', {name: /Deep sleep/})).toContainText('1.5 h');
-    await expect(page.getByRole('row', {name: /Mood 3.5/})).toContainText('2 days');
+    const mood = page.getByRole('table', {name: 'Sleep and mood measurements'}).getByRole('row').filter({has: page.getByRole('rowheader', {name: 'Mood', exact: true})});
+    await expect(mood).toContainText('3.5 / 5');
+    await expect(mood).toContainText('2 days');
     await page.getByRole('tab', {name: 'Other metrics', exact: true}).click();
     await expect(page.getByText(/Flexibility 75% · Mind 50%/)).toBeVisible();
     await page.getByRole('tab', {name: 'Routines', exact: true}).click();
@@ -431,7 +467,7 @@ test('weekly summaries separate archive and compact detail, distinguish averages
     const metrics = page.getByRole('table', {name: 'Weekly recorded metrics'});
     await expect(metrics).toBeVisible();
     await expect(metrics.getByRole('columnheader', {name: /This week.*26 Sep 2026 – 2 Oct 2026/})).toBeVisible();
-    await expect(metrics.getByRole('columnheader', {name: /Last week.*19 Sep 2026 – 25 Sep 2026/})).toBeVisible();
+    await expect(metrics.getByRole('group', {name: /Last week.*19 Sep 2026 – 25 Sep 2026/}).first()).toBeVisible();
     await expect(metrics.getByRole('row', {name: /Average weight/})).toContainText('70.4 kg');
     await expect(metrics.getByRole('row', {name: /Average weight/})).toContainText('2 readings');
     await expect(metrics.getByText('Not recorded', {exact: true}).first()).toBeVisible();
@@ -679,7 +715,7 @@ test('saved workout activity compares overlapping categories and exact cardio mi
     await page.reload();
     await page.getByRole('tab', {name: 'Measurements', exact: true}).click();
     await page.getByRole('tab', {name: 'Training & back pain', exact: true}).click();
-    await expect(activity.getByRole('row').filter({has: page.getByRole('rowheader', {name: 'Strength sessions', exact: true})}).getByRole('cell').first()).toHaveText('Not available');
+    await expect(activity.getByRole('row').filter({has: page.getByRole('rowheader', {name: 'Strength sessions', exact: true})}).getByRole('group', {name: /^This week/})).toHaveText('Not available');
     await page.screenshot({animations: 'disabled', path: testInfo.outputPath('weekly-workout-legacy-390.png'), fullPage: true});
     expect(errors).toEqual([]);
 });
@@ -859,7 +895,7 @@ test('weekly saved classifications and compact nutrient references remain separa
     await page.getByRole('tab', {name: 'Nutrition', exact: true}).click();
     const nutrients = page.getByRole('table', {name: 'Weekly nutrition evidence'});
     await expect(nutrients.getByRole('row')).toHaveCount(8);
-    const missingBaseline = nutrients.getByRole('row', {name: /Vitamin D/}).getByRole('cell').nth(1);
+    const missingBaseline = nutrients.getByRole('row', {name: /Vitamin D/}).getByRole('group', {name: /^Last week/}).locator('.metric-baseline-value');
     await expect(missingBaseline).toHaveText('Not available');
     await expect(nutrients.getByRole('row', {name: /Vitamin D/})).toContainText('Reference only');
     await expect(nutrients.getByRole('row', {name: /Total omega-3/})).toContainText('Below goal');
