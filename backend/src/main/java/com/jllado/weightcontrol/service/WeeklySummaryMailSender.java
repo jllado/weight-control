@@ -106,9 +106,9 @@ public class WeeklySummaryMailSender {
             .append("\n52 weeks ago: ").append(summary.periods().yearAgo()).append("\n")
             .append("Mixed workouts count in each category; categories do not add up to total sessions.\n")
             .append("Changes show this week minus the comparison week.\n\n");
-        summary.workouts().forEach(row -> text.append(row.label()).append(": ").append(row.current())
-            .append("\nLast week: ").append(row.previous()).append(" · Change: ").append(row.previousDelta().text())
-            .append("\n52 weeks ago: ").append(row.yearAgo()).append(" · Change: ").append(row.yearAgoDelta().text()).append("\n\n"));
+        summary.workouts().forEach(row -> text.append(row.label()).append(": ").append(row.current()).append(workoutAssessment(row.status(), row.target()))
+            .append("\nLast week: ").append(row.previous()).append(workoutAssessment(row.previousStatus(), row.previousTarget())).append(" · Change: ").append(row.previousDelta().text())
+            .append("\n52 weeks ago: ").append(row.yearAgo()).append(workoutAssessment(row.yearAgoStatus(), row.yearAgoTarget())).append(" · Change: ").append(row.yearAgoDelta().text()).append("\n\n"));
         text.append("Nutrition · daily averages\n")
             .append("Available targets come from saved evidence. ≈ marks estimated values; partial coverage is shown beside the nutrient.\n\n");
         summary.nutrition().rows().forEach(row -> {
@@ -130,4 +130,8 @@ public class WeeklySummaryMailSender {
             .append("Full evidence and recommendations are in Weight Control.\n")
             .append("Missing days are not treated as zero.\n").toString();
     }
+    private String workoutAssessment(WeeklySummaryEmailView.Status status, String target) {
+        return " · " + status.label() + (target.equals("Plan unavailable") ? "" : " · Target: " + target);
+    }
+
 }
