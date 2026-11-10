@@ -319,7 +319,7 @@ export default {
       return {value: current.percentage == null ? 'Not available' : `${Math.round(current.percentage)}%`, completed: current.completed, opportunities: current.opportunities, days: [], previous: change(progress.previousComparablePeriod), yearAgo: change(progress.yearAgoComparablePeriod), watchouts: [...this.detail.snapshot.routines].filter(row => Number(row.percentage) < 60).sort((a, b) => a.percentage - b.percentage || a.name.localeCompare(b.name)).slice(0, 3).map(row => ({name: row.name, value: `${row.completedDays}/${row.eligibleDays} days · ${Math.round(row.percentage)}%`}))};
     },
     workout_table_rows() {
-      if (!this.visual) return this.workout_rows.map(row => ({label: row.label, cells: [row.current, row.previous, row.yearAgo].map(value => ({value}))}));
+      if (!this.visual) return this.workout_rows;
       return visualTableRows(this.visual.workouts).map(row => ({...row, cells: row.cells.map(cell => {
         const missingTarget = ['Plan unavailable', 'Target unavailable'].includes(cell.status?.label) || cell.target === 'Plan unavailable';
         return missingTarget ? {...cell, status: null, target: this.workout_targets_missing ? null : 'Target unavailable'} : cell;
@@ -394,7 +394,7 @@ export default {
         if (count == null) return 'Not available';
         return field === 'activeCardioSeconds' ? `${minutes(count)} min${partial(value)}` : `${count} ${count === 1 ? 'session' : 'sessions'}`;
       };
-      const comparison = (baseline, field, label) => {
+      const comparison = (baseline, field) => {
         let change = 'Not available';
         if (current[field] != null && baseline[field] != null && !(field === 'activeCardioSeconds' && (current.cardioDurationComplete === false || baseline.cardioDurationComplete === false))) {
           const difference = current[field] - baseline[field];
@@ -402,14 +402,14 @@ export default {
           const unit = field === 'activeCardioSeconds' ? 'min' : Math.abs(difference) === 1 ? 'session' : 'sessions';
           change = `${number > 0 ? '+' : ''}${number} ${unit}`;
         }
-        return `${format(baseline, field)} · ${change} vs ${label}${field === 'activeCardioSeconds' ? partial(current) : ''}`;
+        return {value: format(baseline, field), delta: {text: change}, detail: field === 'activeCardioSeconds' && current.cardioDurationComplete === false ? 'Current week: Partial coverage' : null};
       };
       return [
         ['Strength sessions', 'strengthSessionCount'],
         ['Cardio sessions', 'cardioSessionCount'],
         ['Stretching sessions', 'stretchingSessionCount'],
         ['Active cardio minutes', 'activeCardioSeconds']
-      ].map(([label, field]) => ({label, current: format(current, field), previous: comparison(previous, field, 'last week'), yearAgo: comparison(yearAgo, field, '52 weeks ago')}));
+      ].map(([label, field]) => ({label, cells: [{value: format(current, field)}, comparison(previous, field), comparison(yearAgo, field)]}));
     },
     reflection_sections() {
       if (!this.detail?.reflection) return [];
