@@ -35,6 +35,75 @@ import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
 class WeeklySummaryMailSenderTest {
 
     @Test
+    void workoutEmailShowsEachPeriodsSavedTargetsStatusesAndColors() throws Exception {
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+        ObjectNode json = mapper.valueToTree(WeeklySummaryEmailFixtures.populated());
+        json.set("workoutTargets", mapper.valueToTree(new WeeklyWorkoutTargets(
+            new WeeklyWorkoutTargets.Period(List.of(), 5, 3, 3, 4, 0, 5490),
+            new WeeklyWorkoutTargets.Period(List.of(), 6, 3, 3, 4, 0, 6000),
+            new WeeklyWorkoutTargets.Period(List.of(), 4, 2, 2, 1, 0, 3600))));
+        var message = renderWorkoutEmail(mapper.treeToValue(json, WeeklySummarySnapshot.class));
+        String html = htmlContent(message), text = plainText(message);
+        for (String label : List.of("Total sessions", "Strength sessions", "Cardio sessions", "Stretching sessions", "Active cardio minutes")) {
+            var cells = workoutCells(html, label);
+            assertEquals(3, cells.size(), label);
+            assertTrue(cells.get(0).contains("Goal met") && cells.get(0).contains("#2f855a"), label + " at target");
+            assertTrue(cells.get(1).contains("Below goal") && cells.get(1).contains("#c05621"), label + " below target");
+            assertTrue(cells.get(2).contains("Goal met") && cells.get(2).contains("#2f855a"), label + " above target");
+        }
+        var minutes = workoutCells(html, "Active cardio minutes");
+        assertTrue(minutes.get(0).contains("≥ 91.50 min"));
+        assertTrue(minutes.get(1).contains("≥ 100.00 min"));
+        assertTrue(minutes.get(2).contains("≥ 60.00 min"));
+        assertTrue(text.contains("Active cardio minutes: 91.5 min · Goal met · Target: ≥ 91.50 min"));
+        assertTrue(text.contains("Last week: 90 min · Below goal · Target: ≥ 100.00 min"));
+        assertTrue(text.contains("52 weeks ago: 120 min · Goal met · Target: ≥ 60.00 min"));
+        java.nio.file.Files.createDirectories(Path.of("build/test-artifacts"));
+        java.nio.file.Files.writeString(Path.of("build/test-artifacts/weekly-workout-targets.html"), html);
+        java.nio.file.Files.writeString(Path.of("build/test-artifacts/weekly-workout-targets.txt"), text);
+    }
+
+    @Test
+    void workoutEmailKeepsUnknownTargetsAndPartialEvidenceNeutralAndKnownZeroVisible() throws Exception {
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+        ObjectNode json = mapper.valueToTree(WeeklySummaryEmailFixtures.populated());
+        json.set("workoutTargets", mapper.valueToTree(new WeeklyWorkoutTargets(
+            new WeeklyWorkoutTargets.Period(List.of(), 5, 3, 3, 4, 0, 6000), null,
+            new WeeklyWorkoutTargets.Period(List.of(), 4, 2, 2, 1, 0, 3600))));
+        ((ObjectNode) json.at("/progress/currentPeriod/workouts")).put("activeCardioSeconds", 90).put("cardioDurationComplete", false);
+        ((ObjectNode) json.at("/progress/yearAgoComparablePeriod/workouts")).put("activeCardioSeconds", 0);
+        var message = renderWorkoutEmail(mapper.treeToValue(json, WeeklySummarySnapshot.class));
+        String html = htmlContent(message), text = plainText(message);
+        var minutes = workoutCells(html, "Active cardio minutes");
+        assertTrue(minutes.get(0).contains("Partial coverage") && minutes.get(0).contains("Not available") && minutes.get(0).contains("#486277"));
+        assertTrue(minutes.get(1).contains("Plan unavailable") && minutes.get(1).contains("#486277"));
+        assertTrue(minutes.get(2).contains("0 min") && minutes.get(2).contains("Below goal") && minutes.get(2).contains("#c05621"));
+        assertTrue(text.contains("≥ 1.5 min · Partial coverage · Not available · Target: ≥ 100.00 min"));
+        assertTrue(text.contains("Last week: 90 min · Plan unavailable"));
+        assertTrue(!text.contains("Plan unavailable · Target: Plan unavailable"));
+        java.nio.file.Files.createDirectories(Path.of("build/test-artifacts"));
+        java.nio.file.Files.writeString(Path.of("build/test-artifacts/weekly-workout-partial.html"), html);
+    }
+
+    private MimeMessage renderWorkoutEmail(WeeklySummarySnapshot snapshot) throws Exception {
+        JavaMailSender transport = mock(JavaMailSender.class);
+        MimeMessage message = new MimeMessage(Session.getInstance(new Properties()));
+        when(transport.createMimeMessage()).thenReturn(message);
+        new WeeklySummaryMailSender(transport, templateEngine(), new WeeklySummaryEmailViewFactory(), properties()).send(user(), snapshot, null);
+        message.saveChanges();
+        return message;
+    }
+
+    private List<String> workoutCells(String html, String label) {
+        String row = html.substring(html.indexOf(">" + label + "</th>"));
+        row = row.substring(0, row.indexOf("</tr>"));
+        var matcher = java.util.regex.Pattern.compile("<td\\b[^>]*>(.*?)</td>", java.util.regex.Pattern.DOTALL).matcher(row);
+        List<String> cells = new ArrayList<>();
+        while (matcher.find()) cells.add(matcher.group(1));
+        return cells;
+    }
+
+    @Test
     void populatedSavedEmailRendersItsEvidenceAndPreservesTheInlineLogo() throws Exception {
         JavaMailSender transport = mock(JavaMailSender.class);
         MimeMessage message = new MimeMessage(Session.getInstance(new Properties()));
@@ -205,7 +274,7 @@ class WeeklySummaryMailSenderTest {
             assertTrue(text.contains(value), "Text: " + value);
         }
         assertTrue(!html.contains("Timed activity"));
-        assertTrue(text.contains("Strength sessions: 2\n"));
+        assertTrue(text.contains("Strength sessions: 2 · Plan unavailable\n"));
         assertEquals(1, text.split("Total sessions:", -1).length - 1);
         java.nio.file.Files.createDirectories(Path.of("build/test-artifacts"));
         java.nio.file.Files.writeString(Path.of("build/test-artifacts/weekly-workout-activity.html"), html);
