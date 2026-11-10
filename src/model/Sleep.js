@@ -1,8 +1,8 @@
 import dayjs from 'dayjs';
-import {sleepClock} from './SleepClock.js';
+import {sleepClock, sleepMidpointMinutes} from './SleepClock.js';
 
 const MIN_TIME_IN_BED_SECONDS = 7 * 60 * 60;
-const MIN_TOTAL_SLEEP_SECONDS = 6 * 60 * 60;
+export const MIN_TOTAL_SLEEP_SECONDS = 6 * 60 * 60;
 const MIN_SLEEP_EFFICIENCY_PERCENTAGE = 85;
 const MAX_SLEEP_MIDPOINT_DEVIATION_MINUTES = 60;
 const MINUTES_PER_DAY = 24 * 60;
@@ -175,13 +175,14 @@ export function getSleepStatus(sleeps) {
     const averageTotalSleep = average(sleeps.map(sleep => sleep.totalSleepDuration));
     const averageEfficiencyPercentage = average(sleeps.map(sleep => sleep.totalSleepDuration * 100 / durationInSeconds(sleep.bedtimeStart, sleep.bedtimeEnd)));
     const midpointDeviation = getSleepMidpointDeviation(sleeps);
-    const score = [
-        averageTimeInBed >= MIN_TIME_IN_BED_SECONDS,
-        averageTotalSleep >= MIN_TOTAL_SLEEP_SECONDS,
-        averageEfficiencyPercentage >= MIN_SLEEP_EFFICIENCY_PERCENTAGE,
-        midpointDeviation < MAX_SLEEP_MIDPOINT_DEVIATION_MINUTES
-    ].filter(Boolean).length;
-    return {...SLEEP_STATUS_BY_SCORE[score], score};
+    const criteria = [
+        {key: 'timeInBed', label: 'Time in bed', value: averageTimeInBed, threshold: MIN_TIME_IN_BED_SECONDS, unit: 's', comparison: '>='},
+        {key: 'totalSleep', label: 'Total sleep', value: averageTotalSleep, threshold: MIN_TOTAL_SLEEP_SECONDS, unit: 's', comparison: '>='},
+        {key: 'efficiency', label: 'Efficiency', value: averageEfficiencyPercentage, threshold: MIN_SLEEP_EFFICIENCY_PERCENTAGE, unit: '%', comparison: '>='},
+        {key: 'midpointDeviation', label: 'Midpoint consistency', value: midpointDeviation, threshold: MAX_SLEEP_MIDPOINT_DEVIATION_MINUTES, unit: 'min', comparison: '<'}
+    ].map(criterion => ({...criterion, met: criterion.comparison === '>=' ? criterion.value >= criterion.threshold : criterion.value < criterion.threshold}));
+    const score = criteria.filter(criterion => criterion.met).length;
+    return {...SLEEP_STATUS_BY_SCORE[score], score, criteria};
 }
 
 function formatSleepGoalDeficit(seconds, minimum) {
@@ -205,10 +206,8 @@ function durationInSeconds(start, end) {
 }
 
 function getSleepMidpointDeviation(sleeps) {
-    const midpointMinutes = sleeps.map(sleep => {
-        const midpoint = new Date((sleep.bedtimeStart.getTime() + sleep.bedtimeEnd.getTime()) / 2);
-        return midpoint.getHours() * 60 + midpoint.getMinutes();
-    });
+    const midpointMinutes = sleeps.map(sleep => sleepMidpointMinutes(sleep.bedtimeStart, sleep.bedtimeEnd,
+        sleep.bedtimeStartOffsetSeconds, sleep.bedtimeEndOffsetSeconds));
     const angles = midpointMinutes.map(minutes => minutes * 2 * Math.PI / MINUTES_PER_DAY);
     const meanAngle = Math.atan2(average(angles.map(Math.sin)), average(angles.map(Math.cos)));
     const meanMinutes = ((meanAngle * MINUTES_PER_DAY / (2 * Math.PI)) + MINUTES_PER_DAY) % MINUTES_PER_DAY;

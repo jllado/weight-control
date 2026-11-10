@@ -2906,6 +2906,49 @@ function sleepWithElapsedHours(sleep, hours) {
     return {...sleep, bedtimeStart: new Date(end.getTime() - hours * 3600000).toISOString(), bedtimeEnd: end.toISOString()};
 }
 
+test('sleep rating remains unknown when a night has no recorded total sleep', async ({page}) => {
+    const sleeps = sleepHistory(dashboard.anchorDate, 60);
+    sleeps[0].totalSleepDuration = null;
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {initialSleeps: sleeps});
+    await openSpaRoute(page, '/');
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Sleep', exact: true}).click();
+    await expect(page.getByText('Not enough data (29/30)', {exact: true})).toBeVisible();
+    await expect(page.getByText('Why this rating?', {exact: true})).toHaveCount(0);
+});
+
+test('sleep rating explains unmet efficiency despite met duration goals at mobile and desktop widths', async ({page}) => {
+    const sleeps = sleepHistory(dashboard.anchorDate, 60).map(sleep => ({
+        ...sleepWithElapsedHours(sleep, 8), totalSleepDuration: 6.5 * 3600,
+        bedtimeStartOffsetSeconds: 0, bedtimeEndOffsetSeconds: 0
+    }));
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {initialSleeps: sleeps});
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    for (const width of [376, 768, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await openSpaRoute(page, '/');
+        await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Sleep', exact: true}).click();
+        await expect(page.getByText('GOOD (3/4)', {exact: true})).toBeVisible();
+        const explanation = page.getByText('Why this rating?', {exact: true});
+        await explanation.focus();
+        await page.keyboard.press('Enter');
+        const criteria = page.getByRole('list', {name: 'Sleep rating criteria'});
+        await expect(criteria.getByRole('listitem')).toHaveCount(4);
+        await expect(criteria.getByRole('listitem').filter({hasText: 'Time in bed'})).toContainText('8 h');
+        await expect(criteria.getByRole('listitem').filter({hasText: 'Total sleep'})).toContainText('Met');
+        await expect(criteria.getByRole('listitem').filter({hasText: 'Efficiency'})).toContainText('81.25%');
+        await expect(criteria.getByRole('listitem').filter({hasText: 'Efficiency'})).toContainText('Not met');
+        await expect(criteria.getByRole('listitem').filter({hasText: 'Midpoint consistency'})).toContainText('0.00 min');
+        await expect(page.getByLabel('6.5 h: Duration goal met', {exact: true})).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+        await criteria.screenshot({path: test.info().outputPath(`sleep-rating-${width}.png`)});
+        await page.reload();
+        await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Sleep', exact: true}).click();
+        await expect(page.getByText('GOOD (3/4)', {exact: true})).toBeVisible();
+    }
+    expect(errors).toEqual([]);
+});
+
 for (const [currentHours, previousHours, change] of [[9, 7, '+120 min'], [7, 9, '-120 min'], [8, 8, '0 min'], [8 + 1 / 120, 8, '+1 min'], [8 - 1 / 120, 8, '-1 min'], [8 + 1 / 3600, 8, '0 min (rounded)']]) {
     test(`time in bed trend shows neutral signed change ${change} on both summaries`, async ({page}) => {
         const sleeps = sleepHistory(dashboard.anchorDate, 60).map((sleep, index) =>
@@ -2955,7 +2998,7 @@ test('time in bed trend averages only complete intervals and fits both summaries
         await tabs.getByRole('tab', {name: 'Sleep'}).click();
         const panel = tabs.locator('.p-tabview-panel:visible');
         await expect(panel.getByText('Trend Status:', {exact: true}).locator('+ div')).toHaveText('Not enough data (20/30)');
-        await expect(panel.getByLabel('7.0 h: Excellent', {exact: true})).toBeVisible();
+        await expect(panel.getByLabel('7.0 h: Duration goal met', {exact: true})).toBeVisible();
         await expect(panel.getByText('Trend Time in bed:', {exact: true}).locator('+ div')).toHaveText('9.0 h +60 min');
         await panel.screenshot({path: test.info().outputPath(`time-in-bed-home-${width}.png`)});
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
@@ -2988,7 +3031,7 @@ for (const missing of ['current', 'previous', 'all', 'current-start-only', 'curr
         await openSpaRoute(page, '/');
         const tabs = page.locator('.home-panels-tabs');
         await tabs.getByRole('tab', {name: 'Sleep'}).click();
-        await expect(tabs.getByLabel('7.0 h: Excellent', {exact: true})).toBeVisible();
+        await expect(tabs.getByLabel('7.0 h: Duration goal met', {exact: true})).toBeVisible();
         await expectTimeInBedTrend(page, 'Not enough data');
         await expect(page.locator('.sleep-trend-summary-item').filter({has: page.getByText('Total sleep', {exact: true})}).locator('.sleep-trend-summary-value')).toHaveText('7.0 h');
     });
@@ -3062,7 +3105,7 @@ test('dashboard shows all sleep status trends', async ({page}) => {
     await expect(wakeTime).toHaveText('08:00 0 min');
     await expect(panel.getByText(/30-Day Average/)).toHaveCount(0);
     await expect(panel.getByText('Trend Status:', {exact: true})).toBeVisible();
-    await expect(panel.getByLabel('7.0 h: Excellent', {exact: true})).toHaveClass(/perfect/);
+    await expect(panel.getByLabel('7.0 h: Duration goal met', {exact: true})).toHaveClass(/perfect/);
     await expect(panel.getByLabel('60 bpm: Fair', {exact: true})).toHaveClass(/normal/);
     await expect(panel.getByLabel('30 ms: Fair', {exact: true})).toHaveClass(/normal/);
     await expect(panel.getByText('+30 min', {exact: true}).first()).toHaveClass(/good/);
@@ -3204,7 +3247,7 @@ for (const missingTimes of ['previous', 'current', 'all', 'some', 'current-start
         await expect(wakeTime).toHaveText(['some', 'current-end-only'].includes(missingTimes) ? '08:00 0 min' : 'Not enough data');
         const status = panel.getByText('Trend Status:', {exact: true}).locator('+ div');
         await expect(status).toHaveText(missingTimes === 'previous' ? 'EXCELLENT (4/4)' : `Not enough data (${missingTimes === 'some' ? 15 : 0}/30)`);
-        await expect(panel.getByLabel('7.0 h: Excellent', {exact: true})).toBeVisible();
+        await expect(panel.getByLabel('7.0 h: Duration goal met', {exact: true})).toBeVisible();
         await expect(panel.getByLabel('60 bpm: Fair', {exact: true})).toBeVisible();
         await expect(panel.getByLabel('30 ms: Fair', {exact: true})).toBeVisible();
         for (const value of await bedtime.locator('span').all()) {
@@ -8304,7 +8347,7 @@ test('Sleep Coach warning stays current beside favorable historical trends and s
     const panel = tabs.locator('.p-tabview-panel:visible');
     const row = panel.locator('.sleep-coach-warning');
     await expect(panel.getByText('EXCELLENT (4/4)', {exact: true})).toBeVisible();
-    await expect(panel.getByLabel('7.0 h: Excellent', {exact: true})).toBeVisible();
+    await expect(panel.getByLabel('7.0 h: Duration goal met', {exact: true})).toBeVisible();
     await expect(row).toContainText('Disrupted sleep · Active');
     await expect(row).toContainText('Current Coach warning · Last reviewed 2026-09-08');
     expect(overviewRequests).toBe(1);

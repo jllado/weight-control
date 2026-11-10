@@ -869,6 +869,9 @@
                   <span v-if="this.current_sleep_status" :class="this.current_sleep_status.className">{{ this.current_sleep_status.name }} ({{ this.current_sleep_status.score }}/4)</span>
                   <span v-else>Not enough data ({{ this.current_sleep_status_entry_count }}/{{ this.sleep_status_window }})</span>
                 </div>
+                <div v-if="current_sleep_status" class="p-col-12">
+                  <SleepRatingDetails :status="current_sleep_status" :days="sleep_status_window" />
+                </div>
                 <div v-if="active_sleep_warning" class="p-col-12">
                   <div class="sleep-coach-warning">
                     <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
@@ -1331,6 +1334,7 @@ import CreateWeight from "@/components/CreateWeight.vue";
 import CreateBloodPressure from "@/components/CreateBloodPressure.vue";
 import CreateSleep from "@/components/CreateSleep.vue";
 import SleepGoalValue from "@/components/SleepGoalValue.vue";
+import SleepRatingDetails from "@/components/SleepRatingDetails.vue";
 import CreateMeal from "@/components/CreateMeal.vue";
 import CreateWorkout from "@/components/CreateWorkout.vue";
 import GuidedWorkoutResume from "@/components/GuidedWorkoutResume.vue";
@@ -1349,7 +1353,7 @@ import ScrollableTabView from "@/components/ScrollableTabView.vue";
 import dayjs from 'dayjs';
 import anychart from 'anychart/dist/js/anychart-base.min'
 import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
-import {formatDuration, formatTimeOfDayFromMinutes, formatTimeInBedAverage, formatTimeInBedChange, getSleepStatus} from "@/model/Sleep";
+import {formatDuration, formatTimeOfDayFromMinutes, formatTimeInBedAverage, formatTimeInBedChange, getSleepStatus, MIN_TOTAL_SLEEP_SECONDS} from "@/model/Sleep";
 import {getMoodOption, getMoodPeriodOption, getMoodPeriodOrder} from "@/model/Mood";
 
 const dashboardTabIndices = {routines: 1, body: 2, back: 3, sleep: 4, mood: 5, calories: 6, workout: 7, coach: 9};
@@ -1400,7 +1404,7 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {DashboardRoutineTable, BackPainTrendSummary, BackPainChart, DashboardActions, WeeklyCaloriePlanEditor, NutrientSummary, NutrientTrendCharts, NutrientTrendSummary, WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, SleepGoalValue, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
+  components: {DashboardRoutineTable, BackPainTrendSummary, BackPainChart, DashboardActions, WeeklyCaloriePlanEditor, NutrientSummary, NutrientTrendCharts, NutrientTrendSummary, WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, SleepGoalValue, SleepRatingDetails, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       pauseUi,
@@ -1708,7 +1712,7 @@ export default {
       const trend = this.current_sleep_trend;
       const statusNames = {perfect: 'Excellent', good: 'Good', normal: 'Fair', fail: 'Poor', bad: 'Bad'};
       return [
-        {label: 'Total Sleep', valueClassName: getSleepMetricColor(trend.totalSleepDuration), value: this.format_sleep_duration(trend.totalSleepDuration), change: this.format_sleep_trend(trend.lostTotalSleepDuration), className: this.get_sleep_trend_class(trend.lostTotalSleepDuration)},
+        {label: 'Total Sleep', valueStatus: trend.totalSleepDuration == null ? null : trend.totalSleepDuration >= MIN_TOTAL_SLEEP_SECONDS ? 'Duration goal met' : 'Below duration goal', valueClassName: getSleepMetricColor(trend.totalSleepDuration), value: this.format_sleep_duration(trend.totalSleepDuration), change: this.format_sleep_trend(trend.lostTotalSleepDuration), className: this.get_sleep_trend_class(trend.lostTotalSleepDuration)},
         {label: 'Time in bed', value: formatTimeInBedAverage(trend.timeInBedSeconds), change: formatTimeInBedChange(trend.timeInBedChangeSeconds)},
         {label: 'Deep Sleep', value: this.format_sleep_duration(trend.deepSleepDuration), change: this.format_sleep_trend(trend.lostDeepSleepDuration), className: this.get_sleep_trend_class(trend.lostDeepSleepDuration)},
         {label: 'REM Sleep', value: this.format_sleep_duration(trend.remSleepDuration), change: this.format_sleep_trend(trend.lostRemSleepDuration), className: this.get_sleep_trend_class(trend.lostRemSleepDuration)},
@@ -1718,7 +1722,7 @@ export default {
         {label: 'Average HRV', valueClassName: getHrvMetricColor(trend.averageHrv, this.daily_status.date, this.sleeps), value: `${trend.averageHrv} ms`, change: this.format_sleep_metric_trend(trend.lostAverageHrv, 'ms'), className: this.get_hrv_trend_class(trend.lostAverageHrv)},
         {label: 'Bedtime', value: trend.bedtimeStartMinutes === null ? 'Not enough data' : formatTimeOfDayFromMinutes(trend.bedtimeStartMinutes), change: trend.bedtimeChangeMinutes === null ? undefined : this.format_sleep_metric_trend(trend.bedtimeChangeMinutes, 'min'), className: this.get_heart_rate_trend_class(trend.bedtimeChangeMinutes)},
         {label: 'Wake time', value: trend.bedtimeEndMinutes === null ? 'Not enough data' : formatTimeOfDayFromMinutes(trend.bedtimeEndMinutes), change: trend.wakeTimeChangeMinutes === null ? undefined : this.format_sleep_metric_trend(trend.wakeTimeChangeMinutes, 'min')}
-      ].map(metric => ({...metric, valueStatus: statusNames[metric.valueClassName]}));
+      ].map(metric => ({...metric, valueStatus: metric.valueStatus ?? statusNames[metric.valueClassName]}));
     }
   },
   watch: {
@@ -3618,7 +3622,7 @@ export default {
     },
     load_sleep_trends() {
       const current_period_sleeps = summaryService.get_rolling_period_measures_for(this.daily_status.date, this.sleeps);
-      const current_period_status_sleeps = current_period_sleeps.filter(sleep => sleep.bedtimeStart !== null && sleep.bedtimeEnd !== null);
+      const current_period_status_sleeps = current_period_sleeps.filter(sleep => sleep.bedtimeStart !== null && sleep.bedtimeEnd !== null && sleep.totalSleepDuration != null);
       this.current_sleep_status_entry_count = current_period_status_sleeps.length;
       this.current_sleep_status = current_period_status_sleeps.length >= TREND_WINDOW_DAYS ? getSleepStatus(current_period_status_sleeps) : undefined;
       this.current_sleep_trend = summaryService.get_sleep_trend(this.sleeps, this.daily_status.date);

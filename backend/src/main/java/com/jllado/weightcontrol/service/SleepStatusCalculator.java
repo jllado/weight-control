@@ -2,7 +2,6 @@ package com.jllado.weightcontrol.service;
 
 import com.jllado.weightcontrol.api.dto.CoachDtos.RecoveryContext;
 import com.jllado.weightcontrol.domain.Sleep;
-import com.jllado.weightcontrol.util.DateTimes;
 import java.util.Arrays;
 import java.util.List;
 
@@ -22,9 +21,11 @@ public final class SleepStatusCalculator {
         double total = sleeps.stream().mapToInt(Sleep::getTotalSleepDuration).average().orElse(0);
         double efficiency = sleeps.stream().mapToDouble(s -> s.getTotalSleepDuration() * 100d / java.time.Duration.between(s.getBedtimeStart(), s.getBedtimeEnd()).getSeconds()).average().orElse(0);
         double[] midpointMinutes = sleeps.stream().mapToDouble(s -> {
-            long seconds = java.time.Duration.between(s.getBedtimeStart(), s.getBedtimeEnd()).getSeconds();
-            var local = s.getBedtimeStart().atZoneSameInstant(DateTimes.USER_ZONE);
-            return (local.getHour() * 60 + local.getMinute() + seconds / 120d) % 1440;
+            var start = s.getBedtimeStart().toLocalDateTime();
+            var end = s.getBedtimeEnd().toLocalDateTime();
+            // Each endpoint retains its own recorded offset, including travel and DST.
+            double localMinutes = java.time.Duration.between(start, end).toNanos() / 60_000_000_000d;
+            return ((start.toLocalTime().toNanoOfDay() / 60_000_000_000d + localMinutes / 2) % 1440 + 1440) % 1440;
         }).toArray();
         double meanSin = Arrays.stream(midpointMinutes).map(m -> Math.sin(m * 2 * Math.PI / 1440)).average().orElseThrow();
         double meanCos = Arrays.stream(midpointMinutes).map(m -> Math.cos(m * 2 * Math.PI / 1440)).average().orElseThrow();
