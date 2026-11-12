@@ -189,7 +189,7 @@ paths:
     post:
       operationId: createMeal
       summary: Create a confirmed meal
-      description: Before offering Save, build and validate complete prepared-meal.json with Code Interpreter, including all 10 nutrient/reference values and sources. Reuse that file for proposal and confirmed Action, then getMeals. No extra estimate opt-in; material changes require reconfirmation.
+      description: Before offering Save, build and validate complete prepared-meal.json with Code Interpreter, including all 11 nutrient/reference values and sources. Reuse that file for proposal and confirmed Action, then getMeals. No extra estimate opt-in; material changes require reconfirmation.
       x-openai-isConsequential: true
       requestBody:
         required: true
