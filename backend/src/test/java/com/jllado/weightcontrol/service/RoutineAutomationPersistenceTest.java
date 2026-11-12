@@ -594,14 +594,14 @@ class RoutineAutomationPersistenceTest {
             BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO) : reference;
         var completeReference = new DishReference(basis.quantity(), basis.calories(), basis.proteinGrams(),
             basis.carbohydrateGrams(), basis.fatGrams(), basis.vitaminDMicrograms(), basis.omega3Milligrams(),
-            basis.magnesiumMilligrams(), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+            basis.magnesiumMilligrams(), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
         var dish = new CoachMealDishRequest(name, 60, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
             BigDecimal.valueOf(100), DishUnit.GRAM, completeReference, false, fruit,
             BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, "Test composition", false,
             BigDecimal.ZERO, "Test composition", false, BigDecimal.ZERO, "Test composition", false,
-            BigDecimal.ZERO, "Test composition", false);
+            BigDecimal.ZERO, "Test composition", false, BigDecimal.ZERO, "Test salt composition", false);
         return new CoachMealRequest(DAY, MealType.SNACK, 60, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
-            LocalTime.NOON, null, MealSource.MANUAL, confirmed, List.of(dish), 10, null, 2);
+            LocalTime.NOON, null, MealSource.MANUAL, confirmed, List.of(dish), 10, null, 3);
     }
     private MealRequest meal(LocalDate date, String name, boolean fruit) {
         return new MealRequest(date, MealType.SNACK, 100, null, null, null, null, null,

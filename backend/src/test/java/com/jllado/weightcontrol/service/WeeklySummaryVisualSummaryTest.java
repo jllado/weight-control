@@ -163,7 +163,7 @@ class WeeklySummaryVisualSummaryTest {
     }
     @Test void nutrientsPreserveZeroPartialEstimatesIndependentTotalAndEachPeriodsTarget() {
         var table=visual(WeeklySummaryEmailFixtures.populated()).nutrition();var rows=table.rows();
-        assertEquals(List.of("protein","carbohydrate","fat","vitaminD","omega3","fiber","magnesium"),rows.stream().map(WeeklySummaryEmailView.NutrientRow::key).toList());
+        assertEquals(List.of("protein","carbohydrate","fat","vitaminD","omega3","fiber","salt","magnesium"),rows.stream().map(WeeklySummaryEmailView.NutrientRow::key).toList());
         assertEquals("Carbs",rows.get(1).label());
         assertEquals("Goal met",rows.get(0).status().label());assertEquals("Above goal",rows.get(1).status().label());
         assertEquals("≥ 125.00 g",rows.get(0).target());assertEquals("≥ 120.00 g",rows.get(0).previousTarget());
@@ -179,7 +179,7 @@ class WeeklySummaryVisualSummaryTest {
         ObjectNode json=mapper.valueToTree(WeeklySummaryEmailFixtures.populated());json.remove("nutrition");json.remove("emailGoals");json.put("schemaVersion",5);
         var table=visual(mapper.treeToValue(json,WeeklySummarySnapshot.class)).nutrition();
         assertEquals("Nutrient evidence and targets were not captured in this report.",table.note());
-        assertFalse(table.hasYearAgo());assertEquals(7,table.rows().size());
+        assertFalse(table.hasYearAgo());assertEquals(8,table.rows().size());
         assertTrue(table.rows().stream().allMatch(row -> row.current().equals("Not available") && row.target().equals("Target unavailable") && row.status().color().equals("#486277")));
         assertTrue(visual(WeeklySummaryEmailFixtures.populated()).nutrition().note().contains("Targets captured with report"));
     }

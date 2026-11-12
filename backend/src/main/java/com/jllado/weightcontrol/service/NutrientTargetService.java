@@ -47,7 +47,8 @@ public class NutrientTargetService {
             new MacroTargetSettings(user.getMacroProteinTargetGrams(), user.getMacroFatTargetPercentage()),
             new PersonalNutrientTarget(user.getNutrientEpaDhaTargetMilligrams()),
             new PersonalNutrientTarget(user.getNutrientAlaTargetMilligrams()),
-            new PersonalNutrientTarget(user.getNutrientFiberTargetGrams())
+            new PersonalNutrientTarget(user.getNutrientFiberTargetGrams()),
+            new PersonalNutrientTarget(user.getNutrientSaltTargetGrams())
         ), macroTargets(user, calories));
     }
 
@@ -58,6 +59,7 @@ public class NutrientTargetService {
         if (overrides.epaDha() != null) user.setNutrientEpaDhaTargetMilligrams(overrides.epaDha().value());
         if (overrides.ala() != null) user.setNutrientAlaTargetMilligrams(overrides.ala().value());
         if (overrides.fiber() != null) user.setNutrientFiberTargetGrams(overrides.fiber().value());
+        if (overrides.salt() != null) user.setNutrientSaltTargetGrams(overrides.salt().value());
         if (overrides.macros() != null) {
             user.setMacroProteinTargetGrams(overrides.macros().proteinGrams());
             user.setMacroFatTargetPercentage(overrides.macros().fatPercentage());
@@ -120,7 +122,8 @@ public class NutrientTargetService {
             target(user.getNutrientMagnesiumTargetMilligrams(), magnesiumReference, NutrientTargetSource.EFSA_AI),
             target(user.getNutrientEpaDhaTargetMilligrams(), null, NutrientTargetSource.EFSA_AI),
             target(user.getNutrientAlaTargetMilligrams(), null, NutrientTargetSource.EFSA_AI),
-            target(user.getNutrientFiberTargetGrams(), null, NutrientTargetSource.EFSA_AI)
+            target(user.getNutrientFiberTargetGrams(), null, NutrientTargetSource.EFSA_AI),
+            target(user.getNutrientSaltTargetGrams(), new BigDecimal("5"), NutrientTargetSource.WHO)
         );
     }
 

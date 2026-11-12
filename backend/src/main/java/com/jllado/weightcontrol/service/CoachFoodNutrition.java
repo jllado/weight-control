@@ -25,10 +25,12 @@ final class CoachFoodNutrition {
                 || food.epaDhaMilligrams() == null || reference.epaDhaMilligrams() == null
                 || food.alaMilligrams() == null || reference.alaMilligrams() == null
                 || food.fiberGrams() == null || reference.fiberGrams() == null
+                || food.saltGrams() == null || reference.saltGrams() == null
                 || blank(food.nutrientSource()) || food.nutrientsEstimated() == null
                 || blank(food.epaDhaSource()) || food.epaDhaEstimated() == null
                 || blank(food.alaSource()) || food.alaEstimated() == null
                 || blank(food.fiberSource()) || food.fiberEstimated() == null
+                || blank(food.saltSource()) || food.saltEstimated() == null
                 || !CoachDishReferenceConsistency.matches(food)) {
                 throw new BadRequestException("New or changed Coach foods require sourced values or labeled estimates and matching references for every nutrient");
             }
@@ -68,6 +70,7 @@ final class CoachFoodNutrition {
             && same(old.getEpaDhaMilligrams(), next.epaDhaMilligrams())
             && same(old.getAlaMilligrams(), next.alaMilligrams())
             && same(old.getFiberGrams(), next.fiberGrams())
+            && same(old.getSaltGrams(), next.saltGrams())
             && Objects.equals(old.getNutrientSource(), next.nutrientSource())
             && Objects.equals(old.getNutrientsEstimated(), next.nutrientsEstimated())
             && Objects.equals(old.getEpaDhaSource(), next.epaDhaSource())
@@ -75,7 +78,9 @@ final class CoachFoodNutrition {
             && Objects.equals(old.getAlaSource(), next.alaSource())
             && Objects.equals(old.getAlaEstimated(), next.alaEstimated())
             && Objects.equals(old.getFiberSource(), next.fiberSource())
+            && Objects.equals(old.getSaltSource(), next.saltSource())
             && Objects.equals(old.getFiberEstimated(), next.fiberEstimated())
+            && Objects.equals(old.getSaltEstimated(), next.saltEstimated())
             && same(old.getReferenceQuantity(), ref.quantity())
             && Objects.equals(old.getReferenceCalories(), ref.calories())
             && same(old.getReferenceProteinGrams(), ref.proteinGrams())
@@ -86,7 +91,8 @@ final class CoachFoodNutrition {
             && same(old.getReferenceMagnesiumMilligrams(), ref.magnesiumMilligrams())
             && same(old.getReferenceEpaDhaMilligrams(), ref.epaDhaMilligrams())
             && same(old.getReferenceAlaMilligrams(), ref.alaMilligrams())
-            && same(old.getReferenceFiberGrams(), ref.fiberGrams());
+            && same(old.getReferenceFiberGrams(), ref.fiberGrams())
+            && same(old.getReferenceSaltGrams(), ref.saltGrams());
     }
 
     private static boolean same(BigDecimal left, BigDecimal right) {

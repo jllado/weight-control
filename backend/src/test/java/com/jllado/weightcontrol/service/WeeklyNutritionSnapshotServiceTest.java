@@ -30,16 +30,25 @@ class WeeklyNutritionSnapshotServiceTest {
         var partial = new NutrientCoverage(1, 1);
         var first = new NutrientSummary(BigDecimal.ONE, new BigDecimal("900"), new BigDecimal("200"), 2, 2, 1, 0,
             new BigDecimal("250"), coverage, coverage, coverage, coverage, null, new NutrientCoverage(0,0),
-            new BigDecimal("25"), coverage);
+            new BigDecimal("25"), coverage, new BigDecimal("4.99"), coverage);
         var second = new NutrientSummary(BigDecimal.ONE, new BigDecimal("900"), new BigDecimal("200"), 2, 2, 1, 0,
             new BigDecimal("150"), coverage, coverage, coverage, partial, null, new NutrientCoverage(0,0),
-            new BigDecimal("25"), coverage);
+            new BigDecimal("25"), coverage, new BigDecimal("9"), partial);
         when(nutrition.findBetween(user, friday.minusDays(6), friday)).thenReturn(List.of(
             new NutritionService.DailyNutritionSummary(friday.minusDays(1), 2050, new BigDecimal("120.00"), new BigDecimal("200"), new BigDecimal("60"), true, first, true, null),
             new NutritionService.DailyNutritionSummary(friday, 2589, new BigDecimal("120.01"), new BigDecimal("200"), new BigDecimal("60"), true, second, true, null)));
         var snapshot = new WeeklyNutritionSnapshotService(nutrition, plans, targets).capture(user, friday);
         assertEquals("Current targets captured when saved", snapshot.targetLabel());
         assertEquals(3, List.of(snapshot.current(), snapshot.previous(), snapshot.yearAgo()).size());
+        var salt = metric(snapshot.current(), "salt");
+        assertEquals(new BigDecimal("4.99"), salt.average());
+        assertEquals(1, salt.eligibleDays());
+        assertEquals(3, salt.coveredFoods());
+        assertEquals(new BigDecimal("5"), salt.target());
+        assertEquals(MacroTargetComparison.STRICT_MAXIMUM, salt.comparison());
+        user.setNutrientSaltTargetGrams(new BigDecimal("3"));
+        assertEquals(new BigDecimal("5"), snapshot.targets().salt().value());
+        assertEquals("GOAL_MET", NutrientAssessment.compare(salt.valueForAssessment(), salt.targetForAssessment(), salt.comparison(), true).code());
         var protein = metric(snapshot.current(), "protein");
         assertEquals(new BigDecimal("120.01"), protein.average());
         assertEquals(0, new BigDecimal("120.005").compareTo(protein.assessmentAverage()));

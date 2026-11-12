@@ -166,16 +166,18 @@ class MealServicePersistenceTest {
             changedFood(complete, "fiberGrams", null),
             changedFood(complete, "reference.fiberGrams", null), changedFood(complete, "fiberSource", ""),
             changedFood(complete, "epaDhaSource", null), changedFood(complete, "alaMilligrams", null),
-            changedFood(complete, "fiberGrams", 4))) {
+            changedFood(complete, "fiberGrams", 4), changedFood(complete, "saltGrams", null),
+            changedFood(complete, "reference.saltGrams", null), changedFood(complete, "saltSource", ""),
+            changedFood(complete, "saltEstimated", null), changedFood(complete, "saltGrams", 0.5))) {
             org.junit.jupiter.api.Assertions.assertThrows(BadRequestException.class,
-                () -> mealService.createConfirmed(owner, sourcedMeal(date, List.of(rejected), "draft", 2)));
+                () -> mealService.createConfirmed(owner, sourcedMeal(date, List.of(rejected), "draft", 3)));
         }
         assertEquals(0, mealRepository.findByUserOrderByMealDateDescIdAsc(user).size());
 
-        var saved = mealService.createConfirmed(user, sourcedMeal(date, List.of(complete), "saved", 2));
+        var saved = mealService.createConfirmed(user, sourcedMeal(date, List.of(complete), "saved", 3));
         var original = com.jllado.weightcontrol.api.dto.MealDtos.MealResponse.from(mealService.findForUser(user, saved.getId()));
         org.junit.jupiter.api.Assertions.assertThrows(BadRequestException.class,
-            () -> mealService.updateConfirmed(owner, saved.getId(), sourcedMeal(date, List.of(incomplete), "changed", 2)));
+            () -> mealService.updateConfirmed(owner, saved.getId(), sourcedMeal(date, List.of(incomplete), "changed", 3)));
         assertEquals(original, com.jllado.weightcontrol.api.dto.MealDtos.MealResponse.from(mealService.findForUser(user, saved.getId())));
     }
 
@@ -186,19 +188,20 @@ class MealServicePersistenceTest {
         user = userRepository.save(user);
         var date = LocalDate.now(DateTimes.USER_ZONE).minusDays(1);
         var food = coachFood("Oats", true);
-        var saved = mealService.createConfirmed(user, sourcedMeal(date, List.of(food), "before", 2));
+        var saved = mealService.createConfirmed(user, sourcedMeal(date, List.of(food), "before", 3));
 
         User owner = user;
         org.junit.jupiter.api.Assertions.assertThrows(BadRequestException.class,
             () -> mealService.updateConfirmed(owner, saved.getId(), sourcedMeal(date, List.of(food), "after", null)));
         assertEquals("before", mealService.findForUser(user, saved.getId()).getNotes());
 
-        mealService.updateConfirmed(user, saved.getId(), sourcedMeal(date, List.of(food), "after", 2));
+        mealService.updateConfirmed(user, saved.getId(), sourcedMeal(date, List.of(food), "after", 3));
         var readback = mealService.findForUser(user, saved.getId());
         assertEquals("after", readback.getNotes());
         assertEquals(new BigDecimal("1.00"), readback.getDishes().getFirst().getEpaDhaMilligrams());
         assertEquals(new BigDecimal("2.00"), readback.getDishes().getFirst().getAlaMilligrams());
         assertEquals(new BigDecimal("3.00"), readback.getDishes().getFirst().getFiberGrams());
+        assertEquals(new BigDecimal("0.25"), readback.getDishes().getFirst().getSaltGrams());
     }
 
     @Test
@@ -212,11 +215,11 @@ class MealServicePersistenceTest {
         var original = mealService.create(user, new MealRequest(date, MealType.LUNCH, 200, BigDecimal.ZERO, BigDecimal.ZERO,
             BigDecimal.ZERO, LocalTime.NOON, "before", List.of(complete.meal(), legacy.meal()), 30, 2));
 
-        mealService.updateConfirmed(user, original.getId(), sourcedMeal(date, List.of(complete, legacy), "metadata only", 2));
+        mealService.updateConfirmed(user, original.getId(), sourcedMeal(date, List.of(complete, legacy), "metadata only", 3));
         assertEquals("metadata only", mealService.findForUser(user, original.getId()).getNotes());
         User owner = user;
         org.junit.jupiter.api.Assertions.assertThrows(BadRequestException.class,
-            () -> mealService.updateConfirmed(owner, original.getId(), sourcedMeal(date, List.of(legacy, complete), "reordered", 2)));
+            () -> mealService.updateConfirmed(owner, original.getId(), sourcedMeal(date, List.of(legacy, complete), "reordered", 3)));
         assertEquals("metadata only", mealService.findForUser(user, original.getId()).getNotes());
     }
 
@@ -229,14 +232,15 @@ class MealServicePersistenceTest {
         var reference = new com.jllado.weightcontrol.api.dto.MealDtos.DishReference(new BigDecimal("100"), 100,
             BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
             complete ? BigDecimal.ZERO : null, BigDecimal.ZERO, complete ? new BigDecimal("1.00") : null,
-            complete ? new BigDecimal("2.00") : null, new BigDecimal("3.00"));
+            complete ? new BigDecimal("2.00") : null, new BigDecimal("3.00"), complete ? new BigDecimal("0.25") : null);
         return new CoachMealDishRequest(name, 100, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
             new BigDecimal("100"), com.jllado.weightcontrol.domain.DishUnit.GRAM, reference, false, false,
             BigDecimal.ZERO, complete ? BigDecimal.ZERO : null, BigDecimal.ZERO, "USDA comparable oats composition", true,
             complete ? new BigDecimal("1.00") : null, complete ? "USDA comparable oats EPA+DHA estimate" : null,
             complete ? true : null, complete ? new BigDecimal("2.00") : null,
             complete ? "USDA comparable oats ALA estimate" : null, complete ? true : null,
-            new BigDecimal("3.00"), "USDA comparable oats Fiber estimate", true);
+            new BigDecimal("3.00"), "USDA comparable oats Fiber estimate", true,
+            complete ? new BigDecimal("0.25") : null, complete ? "Comparable oats salt estimate" : null, complete ? true : null);
     }
 
     private CoachMealDishRequest changedFood(CoachMealDishRequest food, String field, Object value) {
@@ -307,7 +311,7 @@ class MealServicePersistenceTest {
     private CoachMealRequest coachRequest(LocalDate date, Integer rating) {
         return new CoachMealRequest(date, MealType.LUNCH, 100, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
             LocalTime.of(12, 0), null, MealSource.GPT_IMAGE_ESTIMATE, true,
-            List.of(coachFood("Rated dish", true)), 30, rating, 2);
+            List.of(coachFood("Rated dish", true)), 30, rating, 3);
     }
 
     @Test

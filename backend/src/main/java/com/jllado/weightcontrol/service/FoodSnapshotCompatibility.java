@@ -7,6 +7,10 @@ public final class FoodSnapshotCompatibility {
     private FoodSnapshotCompatibility() { }
 
     public static void requireAwareReplacement(Integer schemaVersion, Collection<? extends FoodPortion> previous) {
+        if (Integer.valueOf(3).equals(schemaVersion)) return;
+        if (previous.stream().anyMatch(food -> food.getSaltGrams() != null || food.getReferenceSaltGrams() != null)) {
+            throw new BadRequestException("Reload this record before replacing its salt values");
+        }
         if (Integer.valueOf(2).equals(schemaVersion)) return;
         if (previous.stream().anyMatch(food -> food.getEpaDhaMilligrams() != null || food.getReferenceEpaDhaMilligrams() != null
             || food.getAlaMilligrams() != null || food.getReferenceAlaMilligrams() != null

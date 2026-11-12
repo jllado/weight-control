@@ -54,6 +54,7 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	maxHeapSize = '1g'
 	systemProperty 'app.test.main-classpath', sourceSets.main.runtimeClasspath.asPath
 }
 

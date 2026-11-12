@@ -16,10 +16,13 @@ public final class DishNutrition {
         }
         BigDecimal quantity = request.quantity() == null ? BigDecimal.ONE : request.quantity();
         DishReference reference = request.reference() == null
-            ? new DishReference(quantity, request.calories(), request.proteinGrams(), request.carbohydrateGrams(), request.fatGrams(), request.vitaminDMicrograms(), request.omega3Milligrams(), request.magnesiumMilligrams(), request.epaDhaMilligrams(), request.alaMilligrams(), request.fiberGrams())
+            ? new DishReference(quantity, request.calories(), request.proteinGrams(), request.carbohydrateGrams(), request.fatGrams(), request.vitaminDMicrograms(), request.omega3Milligrams(), request.magnesiumMilligrams(), request.epaDhaMilligrams(), request.alaMilligrams(), request.fiberGrams(), request.saltGrams())
             : request.reference();
         if (request.fiberGrams() != null && reference.fiberGrams() == null) {
             throw new BadRequestException("Recorded fiber also needs a value for the reference portion");
+        }
+        if (request.saltGrams() != null && reference.saltGrams() == null) {
+            throw new BadRequestException("Recorded salt also needs a value for the reference portion");
         }
         dish.setQuantity(quantity);
         dish.setUnit(request.unit() == null ? DishUnit.SERVING : request.unit());
@@ -42,6 +45,9 @@ public final class DishNutrition {
         dish.setReferenceFiberGrams(reference.fiberGrams());
         dish.setFiberSource(request.fiberSource());
         dish.setFiberEstimated(request.fiberEstimated());
+        dish.setReferenceSaltGrams(reference.saltGrams());
+        dish.setSaltSource(request.saltSource());
+        dish.setSaltEstimated(request.saltEstimated());
         BigDecimal calories = scale(BigDecimal.valueOf(reference.calories()), quantity, reference.quantity(), 0);
         if (calories.compareTo(BigDecimal.valueOf(Integer.MAX_VALUE)) > 0) {
             throw new BadRequestException("Dish calories exceed the supported range");
@@ -56,6 +62,7 @@ public final class DishNutrition {
         dish.setEpaDhaMilligrams(macro(reference.epaDhaMilligrams(), quantity, reference.quantity()));
         dish.setAlaMilligrams(macro(reference.alaMilligrams(), quantity, reference.quantity()));
         dish.setFiberGrams(macro(reference.fiberGrams(), quantity, reference.quantity()));
+        dish.setSaltGrams(macro(reference.saltGrams(), quantity, reference.quantity()));
     }
 
     private static BigDecimal macro(BigDecimal value, BigDecimal quantity, BigDecimal referenceQuantity) {

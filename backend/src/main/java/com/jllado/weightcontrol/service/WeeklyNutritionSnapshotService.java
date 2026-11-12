@@ -48,6 +48,7 @@ public class WeeklyNutritionSnapshotService {
         measures.add(nutrient("epaDha", "EPA+DHA", "mg", days, NutrientSummary::epaDhaMilligrams, NutrientSummary::epaDhaCoverage, capturedTargets.epaDha()));
         measures.add(nutrient("ala", "ALA", "mg", days, NutrientSummary::alaMilligrams, NutrientSummary::alaCoverage, capturedTargets.ala()));
         measures.add(nutrient("fiber", "Fiber", "g", days, NutrientSummary::fiberGrams, NutrientSummary::fiberCoverage, capturedTargets.fiber()));
+        measures.add(nutrient("salt", "Salt", "g", days, NutrientSummary::saltGrams, NutrientSummary::saltCoverage, capturedTargets.salt()));
         measures.add(nutrient("magnesium", "Magnesium", "mg", days, NutrientSummary::magnesiumMilligrams, NutrientSummary::magnesiumCoverage, capturedTargets.magnesium()));
         int completed = (int) start.datesUntil(end.plusDays(1)).filter(date -> user.getLastCompletedDashboardDate() != null
             && !date.isAfter(user.getLastCompletedDashboardDate())).count();
@@ -98,7 +99,7 @@ public class WeeklyNutritionSnapshotService {
             recorded.stream().mapToInt(summary -> coverage.apply(summary).foodsWithValues()).sum(),
             recorded.stream().mapToInt(NutrientSummary::totalFoods).sum(),
             recorded.stream().mapToInt(summary -> coverage.apply(summary).estimatedFoods()).sum(),
-            target.value(), MacroTargetComparison.MINIMUM, null, meanRaw(eligible.stream().map(value).toList()), target.value());
+            target.value(), key.equals("salt") ? MacroTargetComparison.STRICT_MAXIMUM : MacroTargetComparison.MINIMUM, null, meanRaw(eligible.stream().map(value).toList()), target.value());
     }
 
     private BigDecimal meanRaw(List<BigDecimal> values) {

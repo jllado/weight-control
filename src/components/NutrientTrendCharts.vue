@@ -4,7 +4,7 @@
     <p v-else-if="error" role="alert">{{ error }}</p>
     <p v-else-if="!fieldsWithData.length">No completed days with recorded nutrient values in the selected period.</p>
     <template v-else>
-      <p class="trend-legend">Daily values · Green: goal met · Amber: below goal · Blue: reference or unavailable assessment. Current targets apply. Diamonds include estimates; outlined Fiber points are partial totals.</p>
+      <p class="trend-legend">Daily values · Green: goal met · Amber: goal not met · Blue: reference or unavailable assessment. Current targets apply. Diamonds include estimates; outlined Fiber and Salt points are partial totals.</p>
       <div v-for="field in fieldsWithData" :key="field.key" class="trend-chart">
         <h4>{{ field.label }} ({{ field.unit }})</h4>
         <div class="chart-canvas"><Chart class="nutrient-line-chart" type="line" :data="chart(field)" :options="options" :canvasProps="{role: 'img', 'aria-label': `${field.label} nutrient trend`, 'aria-describedby': `nutrient-chart-${field.key}`}" /></div>
@@ -39,7 +39,7 @@ export default {
     fieldsWithData() {
       const days = dayjs(this.dateKey).diff(dayjs(this.periodStart), 'day') + 1;
       return this.fields.filter(field => coveredNutrientDays(this.summaries, this.dateKey, days, field).length
-        || field.key === 'fiberGrams' && partialNutrientDays(this.summaries, this.dateKey, days, field).length);
+        || ['fiberGrams', 'saltGrams'].includes(field.key) && partialNutrientDays(this.summaries, this.dateKey, days, field).length);
     }
   },
   watch: {loadKey: {immediate: true, handler() { this.load(); }}},

@@ -865,7 +865,7 @@ test('weekly saved classifications and compact nutrient references remain separa
     const nutrient = (key, label, current, target, status) => ({key, label, current, target, status, previous: 'Not available', previousTarget: 'Unavailable', previousStatus: {label: 'Unavailable', color: '#63717b'}, previousDelta: {text: 'Not available', color: '#63717b'}, yearAgo: 'Not available', yearAgoTarget: 'Unavailable', yearAgoStatus: {label: 'Unavailable', color: '#63717b'}, yearAgoDelta: {text: 'Not available', color: '#63717b'}, coverage: '7 complete days'});
     summary.presentation.visualSummary = {
         routines: {value: '57%', completed: 4, opportunities: 7, days: [], previous: {text: '+14 pp'}, yearAgo: {text: '0 pp'}, watchouts: [], watchoutCount: 0}, overview: [], workouts: [{label: 'Strength sessions', current: '2', previous: '1', yearAgo: 'Not available', target: 'Plan: 2', status: {label: 'Planned count reached', color: '#287d4b'}, previousDelta: {text: '+1', color: '#63717b'}, yearAgoDelta: {text: 'Not available', color: '#63717b'}}],
-        nutrition: {note: 'Saved targets', rows: [nutrient('protein', 'Protein', '138.2 g', '≥115 g', good), nutrient('carbohydrate', 'Carbs', '310.6 g', '≤293.2 g', {label: 'Above goal', color: '#b33b35'}), nutrient('fat', 'Fat', '81.2 g', '≤77.8 g', {label: 'Above goal', color: '#b33b35'}), nutrient('vitaminD', 'Vitamin D', '5.3 µg', '15 µg reference', neutral), nutrient('omega3', 'Total omega-3', '1433 mg', 'EPA+DHA and ALA goals', below), nutrient('fiber', 'Fiber', '42.7 g', '≥25 g', good), nutrient('magnesium', 'Magnesium', '382 mg', '≥350 mg', good)], references: [nutrient('epaDha', 'EPA+DHA', '427 mg', '≥250 mg', good), nutrient('ala', 'ALA', '896 mg', '≥1600 mg', below)]}
+        nutrition: {note: 'Saved targets', rows: [nutrient('protein', 'Protein', '138.2 g', '≥115 g', good), nutrient('carbohydrate', 'Carbs', '310.6 g', '≤293.2 g', {label: 'Above goal', color: '#b33b35'}), nutrient('fat', 'Fat', '81.2 g', '≤77.8 g', {label: 'Above goal', color: '#b33b35'}), nutrient('vitaminD', 'Vitamin D', '5.3 µg', '15 µg reference', neutral), nutrient('omega3', 'Total omega-3', '1433 mg', 'EPA+DHA and ALA goals', below), nutrient('fiber', 'Fiber', '42.7 g', '≥25 g', good), nutrient('magnesium', 'Magnesium', '382 mg', '≥350 mg', good), nutrient('salt', 'Salt', '5 g', 'Below 5 g', {label: 'At or above limit', color: '#b33b35'})], references: [nutrient('epaDha', 'EPA+DHA', '427 mg', '≥250 mg', good), nutrient('ala', 'ALA', '896 mg', '≥1600 mg', below)]}
     };
     let liveReads = 0;
     await page.route('**/api/**', route => {
@@ -877,7 +877,7 @@ test('weekly saved classifications and compact nutrient references remain separa
     await page.addInitScript(date => window.history.replaceState({}, '', '/weekly-summaries/' + date), fridayDate);
     await page.goto('/');
     const overview = page.getByRole('tabpanel', {name: 'Overview', exact: true});
-    await expect(overview.getByRole('table', {name: 'Nutrition daily averages'}).getByRole('rowgroup').getByRole('row')).toHaveCount(7);
+    await expect(overview.getByRole('table', {name: 'Nutrition daily averages'}).getByRole('rowgroup').getByRole('row')).toHaveCount(8);
     await expect(overview.getByRole('table', {name: 'Workout activity overview'})).toBeVisible();
     await overview.getByRole('button', {name: 'View references'}).click();
     await expect(page.getByRole('table', {name: 'Omega-3 references'})).toBeVisible();
@@ -894,7 +894,11 @@ test('weekly saved classifications and compact nutrient references remain separa
     await expect(page.getByRole('row', {name: /Total sleep/})).toContainText('EXCELLENT');
     await page.getByRole('tab', {name: 'Nutrition', exact: true}).click();
     const nutrients = page.getByRole('table', {name: 'Weekly nutrition evidence'});
-    await expect(nutrients.getByRole('row')).toHaveCount(8);
+    await expect(nutrients.getByRole('row')).toHaveCount(9);
+    const salt = nutrients.getByRole('row', {name: /^Salt/});
+    await expect(salt).toContainText('Below 5 g');
+    await expect(salt).toContainText('At or above limit');
+    await expect(salt.getByRole('group', {name: /^Last week/})).toContainText('Not available');
     const missingBaseline = nutrients.getByRole('row', {name: /Vitamin D/}).getByRole('group', {name: /^Last week/}).locator('.metric-baseline-value');
     await expect(missingBaseline).toHaveText('Not available');
     await expect(nutrients.getByRole('row', {name: /Vitamin D/})).toContainText('Reference only');

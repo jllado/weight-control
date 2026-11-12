@@ -24,7 +24,8 @@ public final class CoachDishReferenceConsistency {
             && matches(dish.magnesiumMilligrams(), reference.magnesiumMilligrams(), quantity, referenceQuantity)
             && matches(dish.epaDhaMilligrams(), reference.epaDhaMilligrams(), quantity, referenceQuantity)
             && matches(dish.alaMilligrams(), reference.alaMilligrams(), quantity, referenceQuantity)
-            && matches(dish.fiberGrams(), reference.fiberGrams(), quantity, referenceQuantity);
+            && matches(dish.fiberGrams(), reference.fiberGrams(), quantity, referenceQuantity)
+            && matches(dish.saltGrams(), reference.saltGrams(), quantity, referenceQuantity);
     }
 
     private static boolean matches(BigDecimal consumed, BigDecimal reference, BigDecimal quantity, BigDecimal referenceQuantity) {

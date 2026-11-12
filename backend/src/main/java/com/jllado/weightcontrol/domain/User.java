@@ -103,6 +103,9 @@ public class User {
     @Column(name = "nutrient_fiber_target_grams", precision = 10, scale = 2)
     private BigDecimal nutrientFiberTargetGrams;
 
+    @Column(name = "nutrient_salt_target_grams", precision = 10, scale = 2)
+    private BigDecimal nutrientSaltTargetGrams;
+
     @Column(name = "macro_protein_target_grams", precision = 10, scale = 2)
     private BigDecimal macroProteinTargetGrams;
 

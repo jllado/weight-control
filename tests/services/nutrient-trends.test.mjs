@@ -62,8 +62,8 @@ test('legacy total omega-3 alone cannot establish subtype adequacy', () => {
 });
 
 test('daily and trend field choices use stored total omega-3 without changing food fields', () => {
-    assert.deepEqual(dailyNutrientFields.map(field => field.label), ['Vitamin D', 'Magnesium', 'Omega-3', 'Fiber']);
-    assert.deepEqual(trendNutrientFields.map(field => field.label), ['Vitamin D', 'Omega-3', 'Magnesium', 'Fiber']);
+    assert.deepEqual(dailyNutrientFields.map(field => field.label), ['Vitamin D', 'Magnesium', 'Omega-3', 'Fiber', 'Salt']);
+    assert.deepEqual(trendNutrientFields.map(field => field.label), ['Vitamin D', 'Omega-3', 'Magnesium', 'Fiber', 'Salt']);
 });
 
 test('legacy total omega-3 uses 26 and 25 fully covered days and excludes a partial selected day', () => {

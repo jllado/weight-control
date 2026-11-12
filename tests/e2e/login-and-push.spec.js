@@ -742,16 +742,16 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
 
 function foodWithNutrients(food) {
     return {vitaminDMicrograms: 0, omega3Milligrams: 1, magnesiumMilligrams: 10,
-        epaDhaMilligrams: null, alaMilligrams: null, fiberGrams: null,
+        epaDhaMilligrams: null, alaMilligrams: null, fiberGrams: null, saltGrams: null,
         nutrientSource: 'Test composition', nutrientsEstimated: false,
         ...food, ...(food.reference ? {reference: {vitaminDMicrograms: 0, omega3Milligrams: 1, magnesiumMilligrams: 10,
-            epaDhaMilligrams: null, alaMilligrams: null, fiberGrams: null, ...food.reference}} : {})};
+            epaDhaMilligrams: null, alaMilligrams: null, fiberGrams: null, saltGrams: null, ...food.reference}} : {})};
 }
 
 function fixtureNutrientSummary(meals) {
     const foods = meals.flatMap(meal => meal.dishes || []);
     const legacyFields = ['vitaminDMicrograms', 'omega3Milligrams', 'magnesiumMilligrams'];
-    const newFields = ['epaDhaMilligrams', 'alaMilligrams', 'fiberGrams'];
+    const newFields = ['epaDhaMilligrams', 'alaMilligrams', 'fiberGrams', 'saltGrams'];
     const known = foods.filter(food => legacyFields.every(key => food[key] != null));
     const coverage = (key, estimatedKey) => {
         const covered = foods.filter(food => food[key] != null);
@@ -765,6 +765,7 @@ function fixtureNutrientSummary(meals) {
         epaDhaCoverage: coverage('epaDhaMilligrams', 'epaDhaEstimated'),
         alaCoverage: coverage('alaMilligrams', 'alaEstimated'),
         fiberCoverage: coverage('fiberGrams', 'fiberEstimated'),
+        saltCoverage: coverage('saltGrams', 'saltEstimated'),
         foodsWithValues: known.length, totalFoods: foods.length, estimatedFoods: known.filter(food => food.nutrientsEstimated).length,
         mealsWithoutFoods: meals.filter(meal => !meal.dishes?.length).length};
 }
@@ -780,7 +781,7 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
     const decisionOutcomes = [];
     let meals = initialMeals.map(meal => ({...meal, dishes: (meal.dishes || []).map(foodWithNutrients)}));
     let nutrientTargetOverrides = {vitaminDMicrograms: null, omega3Milligrams: null, magnesiumMilligrams: null,
-        macros: {proteinGrams: null, fatPercentage: null}, epaDha: {value: null}, ala: {value: null}, fiber: {value: null}};
+        macros: {proteinGrams: null, fatPercentage: null}, epaDha: {value: null}, ala: {value: null}, fiber: {value: null}, salt: {value: null}};
     const nutrientTargetResponse = () => {
         const magnesium = profileResponse.sex === 'FEMALE' ? 300 : 350;
         const target = (override, reference) => ({value: override ?? reference, source: override == null ? reference == null ? 'NONE' : 'EFSA_AI' : 'PERSONAL', referenceValue: reference});
@@ -796,7 +797,8 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             magnesium: target(nutrientTargetOverrides.magnesiumMilligrams, magnesium),
             epaDha: target(nutrientTargetOverrides.epaDha.value, null),
             ala: target(nutrientTargetOverrides.ala.value, null),
-            fiber: target(nutrientTargetOverrides.fiber.value, null)
+            fiber: target(nutrientTargetOverrides.fiber.value, null),
+            salt: {...target(nutrientTargetOverrides.salt.value, 5), source: nutrientTargetOverrides.salt.value == null ? 'WHO' : 'PERSONAL'}
         }, overrides: nutrientTargetOverrides, macroTargets: {
             protein: {value: protein, comparison: 'MINIMUM', unavailableReason: null},
             fat: {value: fat, comparison: 'MAXIMUM', unavailableReason: fat == null ? 'Set a fat percentage' : null},
@@ -6132,7 +6134,7 @@ test('dashboard records meal calories and optional macronutrients', async ({page
         durationMinutes: 30,
         notes: null,
         dishes: [],
-        nutrientSchemaVersion: 2
+        nutrientSchemaVersion: 3
     });
     const lunch = panel.locator('.meal-entry').filter({hasText: 'Lunch'});
     await expect(lunch).toContainText('925 kcal');
@@ -6210,9 +6212,9 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     expect((await dishRequest).postDataJSON().dishes).toEqual([
         {name: 'Chicken', calories: 500, proteinGrams: 45, carbohydrateGrams: 80.25, fatGrams: 20, quantity: 1, unit: 'SERVING', fruit: false, reference: {quantity: 1, calories: 500, proteinGrams: 45, carbohydrateGrams: 80.25, fatGrams: 20}},
         {name: 'Rice', calories: 300, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, quantity: 1, unit: 'SERVING', fruit: false, reference: {quantity: 1, calories: 300, proteinGrams: null, carbohydrateGrams: null, fatGrams: null}}
-    ].map(foodWithNutrients).map(food => ({...food, nutrientSchemaVersion: 2, omega3Milligrams: null,
+    ].map(foodWithNutrients).map(food => ({...food, nutrientSchemaVersion: 3, omega3Milligrams: null,
         reference: {...food.reference, omega3Milligrams: null},
-        epaDhaSource: null, epaDhaEstimated: null, alaSource: null, alaEstimated: null, fiberSource: null, fiberEstimated: null})));
+        epaDhaSource: null, epaDhaEstimated: null, alaSource: null, alaEstimated: null, fiberSource: null, fiberEstimated: null, saltSource: null, saltEstimated: null})));
     await expect(lunch.locator('.meal-entry-dishes')).toContainText('Chicken · 500 kcalRice · 300 kcal');
 });
 
@@ -7802,7 +7804,7 @@ test('food autocomplete reuses unique latest foods with independent quantities',
 
 test('reusable dishes keep meal foods independent and support recipe management', async ({page}, testInfo) => {
     const rice = {name: 'Rice with a long ingredient description for responsive layout checks', calories: 101, proteinGrams: 1.01, carbohydrateGrams: null, fatGrams: 0, quantity: 100, unit: 'GRAM', fruit: false, reference: {quantity: 100, calories: 101, proteinGrams: 1.01, carbohydrateGrams: null, fatGrams: 0}};
-    const chicken = {...rice, name: 'Chicken', calories: 200, reference: {...rice.reference, calories: 200}};
+    const chicken = {...rice, name: 'Chicken', calories: 200, saltGrams: 1.25, saltSource: 'Product label', saltEstimated: false, reference: {...rice.reference, calories: 200, saltGrams: 1.25}};
     await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [{id: 1, date: '2026-08-12', mealType: 'SNACK', mealSequence: 1, mealTime: null, durationMinutes: null, calories: 301, proteinGrams: 2.02, carbohydrateGrams: null, fatGrams: 0, source: 'MANUAL', dishes: [rice, chicken]}]});
     let recipes = [];
     let failSave = true;
@@ -7843,11 +7845,11 @@ test('reusable dishes keep meal foods independent and support recipe management'
     await create.getByRole('button', {name: 'Save dish', exact: true}).click();
     await expect(create).not.toBeVisible();
     expect(mealWrites).toHaveLength(0);
-    expect(recipes[0].nutrientSchemaVersion).toBe(2);
+    expect(recipes[0].nutrientSchemaVersion).toBe(3);
     expect(recipes[0].ingredients).toMatchObject([rice, chicken].map(foodWithNutrients));
-    expect(recipes[0].ingredients[0]).toMatchObject({nutrientSchemaVersion: 2, epaDhaMilligrams: null,
+    expect(recipes[0].ingredients[0]).toMatchObject({nutrientSchemaVersion: 3, epaDhaMilligrams: null,
         epaDhaSource: null, epaDhaEstimated: null, alaMilligrams: null, alaSource: null, alaEstimated: null,
-        fiberGrams: null, fiberSource: null, fiberEstimated: null});
+        fiberGrams: null, saltGrams: null, fiberSource: null, fiberEstimated: null, saltSource: null, saltEstimated: null});
     await expect(form.locator('.meal-dish-row')).toHaveCount(2);
     await form.getByLabel('Add dish', {exact: true}).fill('chicken');
     await page.getByRole('option', {name: 'Chicken and rice', exact: true}).click();
@@ -7875,6 +7877,8 @@ test('reusable dishes keep meal foods independent and support recipe management'
     await expect(form).not.toBeVisible();
     expect(mealWrites[0].dishes.map(food => food.quantity)).toEqual([100, 100, 50, 50]);
     expect(mealWrites[0].calories).toBe(452);
+    expect(mealWrites[0].dishes[3]).toMatchObject({saltGrams: 0.63, saltSource: 'Product label', saltEstimated: false, reference: {saltGrams: 1.25}});
+    expect(recipes[0].ingredients[1].saltGrams).toBe(1.25);
     await openSpaRoute(page, '/calories?tab=dishes');
     await expect(page.getByRole('tab', {name: 'Dishes', exact: true})).toHaveAttribute('aria-selected', 'true');
     for (const width of [390, 1280]) {
@@ -14038,12 +14042,12 @@ test('dashboard keeps only compact 30-day nutrient averages below fasting in sta
     await expect(trends).toContainText('30 mg');
     await expect(trends).not.toContainText('30-day averages ending');
     await expect(trends.locator('.nutrient-trend-row > .p-col-5')).toHaveText([
-        '30-day Protein:', '30-day Carbs:', '30-day Fat:', '30-day Vitamin D:', '30-day Omega-3:', '30-day Magnesium:', '30-day Fiber:'
+        '30-day Protein:', '30-day Carbs:', '30-day Fat:', '30-day Vitamin D:', '30-day Omega-3:', '30-day Magnesium:', '30-day Fiber:', '30-day Salt:'
     ]);
     await expect(trends).not.toContainText('7-day');
-    await expect(trends.locator('.trend-change .sr-only, .trend-change-reason.sr-only')).toHaveCount(7);
+    await expect(trends.locator('.trend-change .sr-only, .trend-change-reason.sr-only')).toHaveCount(8);
     await expect(trends.locator('.trend-day-count')).toHaveCount(0);
-    await expect(trends.locator('.trend-sample.sr-only')).toHaveCount(7);
+    await expect(trends.locator('.trend-sample.sr-only')).toHaveCount(8);
     await expect(trends.getByRole('button')).toHaveCount(0);
     await expect(trends).not.toContainText('No current target');
     await expect(trends).not.toContainText('Targets unavailable');
@@ -14079,7 +14083,7 @@ test('dashboard keeps only compact 30-day nutrient averages below fasting in sta
 test('daily totals and sparse nutrient trends separate complete Omega-3 from partial Fiber', async ({page}, testInfo) => {
     const unknown = {name: 'Fish stew', quantity: 1, unit: 'SERVING', calories: 350, proteinGrams: 30,
         carbohydrateGrams: 20, fatGrams: 10, vitaminDMicrograms: 2, magnesiumMilligrams: 40,
-        omega3Milligrams: 100, epaDhaMilligrams: null, alaMilligrams: null, fiberGrams: null,
+        omega3Milligrams: 100, epaDhaMilligrams: null, alaMilligrams: null, fiberGrams: null, saltGrams: null,
         nutrientSource: 'Meal estimate', nutrientsEstimated: true};
     const partial = {name: 'Blueberries', quantity: 150, unit: 'GRAM', calories: 90, proteinGrams: 1,
         carbohydrateGrams: 21, fatGrams: 0, vitaminDMicrograms: 0, magnesiumMilligrams: 9,
@@ -14119,7 +14123,7 @@ test('daily totals and sparse nutrient trends separate complete Omega-3 from par
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
     const totals = page.getByRole('region', {name: 'Daily totals'});
     await expect(totals).toContainText('440 kcal');
-    await expect(totals.getByRole('region', {name: 'Daily nutrients'}).locator('dl > div')).toHaveCount(4);
+    await expect(totals.getByRole('region', {name: 'Daily nutrients'}).locator('dl > div')).toHaveCount(5);
     const omegaValue = totals.getByRole('button', {name: /^Omega-3 details:/});
     await expect(omegaValue).toHaveText('≥ 100 mg');
     await omegaValue.click();
@@ -14136,7 +14140,7 @@ test('daily totals and sparse nutrient trends separate complete Omega-3 from par
     await expect(fiber).toBeFocused();
     const trends = page.getByRole('region', {name: 'Nutrient trends'});
     await expect(trends.getByRole('heading')).toHaveCount(0);
-    await expect(trends.locator('.nutrient-trend-row')).toHaveCount(7);
+    await expect(trends.locator('.nutrient-trend-row')).toHaveCount(8);
     const omega = trends.locator('.nutrient-trend-row').filter({hasText: '30-day Omega-3:'});
     await expect(omega).toContainText('1000 mg/day');
     await expect(omega.locator('.trend-sample')).toContainText('1 fully covered day');
@@ -14159,7 +14163,7 @@ test('daily totals and sparse nutrient trends separate complete Omega-3 from par
                 left: element.getBoundingClientRect().left, top: element.getBoundingClientRect().top
             })));
             expect(new Set(boxes.map(box => Math.round(box.left))).size).toBe(1);
-            expect(new Set(boxes.map(box => Math.round(box.top))).size).toBe(4);
+            expect(new Set(boxes.map(box => Math.round(box.top))).size).toBe(5);
         }
         await totals.screenshot({path: testInfo.outputPath(`daily-totals-${width}.png`)});
         await trends.screenshot({path: testInfo.outputPath(`nutrient-trends-${width}.png`)});
@@ -14436,6 +14440,7 @@ test('nutrient target settings save, reload, and clear personal overrides', asyn
     await page.getByLabel('Omega-3 (EPA+DHA) minimum (mg/day)', {exact: true}).fill('250');
     await page.getByLabel('ALA minimum (mg/day)', {exact: true}).fill('1600');
     await page.getByLabel('Fiber minimum (g/day)', {exact: true}).fill('25');
+    await page.getByLabel('Salt limit (g/day, stay below)', {exact: true}).fill('4');
     await expect(page.getByText('243.75 g/day for today')).toBeVisible();
     await expect(page.locator('.p-toast-message')).toHaveCount(0);
     const targetPanel = page.locator('.p-panel').filter({has: page.getByRole('button', {name: 'Save nutrient targets'})});
@@ -14455,25 +14460,30 @@ test('nutrient target settings save, reload, and clear personal overrides', asyn
     expect(saved.epaDha.value).toBe(250);
     expect(saved.ala.value).toBe(1600);
     expect(saved.fiber.value).toBe(25);
+    expect(saved.salt.value).toBe(4);
     await openSpaRoute(page, '/settings');
     await expect(page.getByLabel('Vitamin D personal goal (µg/day, optional)', {exact: true})).toHaveValue('20');
     await expect(page.getByLabel('Protein minimum (g/day)', {exact: true})).toHaveValue('115');
+    await expect(page.getByLabel('Salt limit (g/day, stay below)', {exact: true})).toHaveValue('4');
     await expect(page.getByText('243.75 g/day for today')).toBeVisible();
     await page.getByLabel('Vitamin D personal goal (µg/day, optional)', {exact: true}).fill('');
+    await page.getByLabel('Salt limit (g/day, stay below)', {exact: true}).fill('');
     requestPromise = page.waitForRequest(request => request.url().includes('/api/nutrition/targets') && request.method() === 'PUT');
     await page.getByRole('button', {name: 'Save nutrient targets'}).click();
     expect((await requestPromise).postDataJSON().vitaminDMicrograms).toBeNull();
     await openSpaRoute(page, '/settings');
     await expect(page.getByLabel('Vitamin D personal goal (µg/day, optional)', {exact: true})).toHaveValue('');
+    await expect(page.getByLabel('Salt limit (g/day, stay below)', {exact: true})).toHaveValue('');
+    await expect(page.getByText('Blank: below 5 g/day.', {exact: false})).toBeVisible();
 });
 
 test('carbohydrate draft uses half-up precision and matches saved dated budget', async ({page}) => {
     await mockAuthenticatedDashboard(page, '2026-08-12');
     let overrides = {vitaminDMicrograms: null, omega3Milligrams: null, magnesiumMilligrams: null,
-        macros: {proteinGrams: null, fatPercentage: null}, epaDha: {value: null}, ala: {value: null}, fiber: {value: null}};
+        macros: {proteinGrams: null, fatPercentage: null}, epaDha: {value: null}, ala: {value: null}, fiber: {value: null}, salt: {value: null}};
     await page.route('**/api/nutrition/targets', route => {
         if (route.request().method() === 'PUT') overrides = route.request().postDataJSON();
-        return route.fulfill({json: {overrides, targets: {vitaminD: {referenceValue: 15}, magnesium: {referenceValue: 350}},
+        return route.fulfill({json: {overrides, targets: {vitaminD: {referenceValue: 15}, magnesium: {referenceValue: 350}, salt: {value: 5, referenceValue: 5, source: 'WHO'}},
             macroTargets: {calorieBudget: 2589, carbohydrate: {value: overrides.macros.proteinGrams == null ? null : 338.08}}}});
     });
     await openSpaRoute(page, '/settings');
@@ -14606,7 +14616,7 @@ test('nutrient trends average covered days and describe missing and estimated ev
     await openSpaRoute(page, '/');
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
     const trends = page.getByRole('region', {name: 'Nutrient trends'});
-    await expect(trends.locator('.nutrient-trend-row')).toHaveCount(7);
+    await expect(trends.locator('.nutrient-trend-row')).toHaveCount(8);
     for (const width of [320, 376, 390, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 900});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -14705,7 +14715,7 @@ test('nutrient settings wait for reads and protect pending drafts with accessibl
     await mockAuthenticatedDashboard(page, '2026-08-12');
     let releaseRead;
     const read = new Promise(resolve => { releaseRead = resolve; });
-    const response = {targets: {vitaminD: {value: 15, source: 'EFSA_AI', referenceValue: 15}, omega3: {value: null, source: 'NONE', referenceValue: null}, magnesium: {value: 350, source: 'EFSA_AI', referenceValue: 350}, epaDha: {value: 250, referenceValue: 250}, ala: {value: 1600, referenceValue: 1600}, fiber: {value: 25, referenceValue: 25}}, macroTargets: {calorieBudget: 2050, protein: {value: null}, fat: {value: null}, carbohydrate: {value: null}}, overrides: {vitaminDMicrograms: null, omega3Milligrams: null, magnesiumMilligrams: null, epaDha: {value: null}, ala: {value: null}, fiber: {value: null}, macros: {proteinGrams: null, fatPercentage: null}}};
+    const response = {targets: {vitaminD: {value: 15, source: 'EFSA_AI', referenceValue: 15}, omega3: {value: null, source: 'NONE', referenceValue: null}, magnesium: {value: 350, source: 'EFSA_AI', referenceValue: 350}, epaDha: {value: 250, referenceValue: 250}, ala: {value: 1600, referenceValue: 1600}, fiber: {value: 25, referenceValue: 25}, salt: {value: 5, referenceValue: 5, source: 'WHO'}}, macroTargets: {calorieBudget: 2050, protein: {value: null}, fat: {value: null}, carbohydrate: {value: null}}, overrides: {vitaminDMicrograms: null, omega3Milligrams: null, magnesiumMilligrams: null, epaDha: {value: null}, ala: {value: null}, fiber: {value: null}, salt: {value: null}, macros: {proteinGrams: null, fatPercentage: null}}};
     await page.route('**/api/nutrition/targets', async route => {
         await read;
         return route.fulfill({json: response});
@@ -14775,7 +14785,7 @@ test('fiber subtotals distinguish unknown foods and expose coverage on demand', 
         vitaminDMicrograms: 0, magnesiumMilligrams: 10, nutrientSource: 'Test composition', nutrientsEstimated: false};
     await mockAuthenticatedDashboard(page, '2026-08-12', {dashboardResponse: {...dashboard, anchorDate: '2026-08-12', dailyStatus: dashboardDailyStatus('2026-08-12'), lastCompletedDashboardDate: '2026-08-12'}, initialMeals: [
         {id: 1, date: '2026-08-12', mealType: 'LUNCH', mealSequence: 1, calories: 200, proteinGrams: 20, carbohydrateGrams: 20, fatGrams: 4, dishes: [
-            {...base, name: 'Unknown food', fiberGrams: null},
+            {...base, name: 'Unknown food', fiberGrams: null, saltGrams: null},
             {...base, name: 'Blueberries', fiberGrams: 3.6, fiberSource: 'Composition estimate', fiberEstimated: true}]},
         {id: 2, date: '2026-08-12', mealType: 'DINNER', mealSequence: 1, calories: 100, proteinGrams: 10, carbohydrateGrams: 10, fatGrams: 2, dishes: [
             {...base, name: 'Zero fiber food', fiberGrams: 0, fiberSource: 'Label', fiberEstimated: false}]}
@@ -14841,7 +14851,7 @@ test('nutrient meal edits refresh same totals and estimate provenance', async ({
     expect(payload.calories).toBe(200);
     expect(payload.dishes[0].vitaminDMicrograms).toBe(15);
     expect(payload.dishes[0].omega3Milligrams).toBe(1200);
-    expect(payload.nutrientSchemaVersion).toBe(2);
+    expect(payload.nutrientSchemaVersion).toBe(3);
     expect(payload.dishes[0].epaDhaMilligrams).toBe(800);
     expect(payload.dishes[0].epaDhaSource).toBe('Test EPA composition');
     expect(payload.dishes[0].alaMilligrams).toBeNull();
@@ -17644,4 +17654,105 @@ test('planned rest resumes a legacy prepared choice before stretching with its o
     await expect(rest.getByLabel('Rest duration (seconds)', {exact: true})).toHaveValue('75');
     await rest.getByRole('button', {name: 'Continue without rest', exact: true}).click();
     await expect(guided.getByLabel('Rest after each set (seconds)', {exact: true})).toHaveValue('0');
+});
+
+test('salt catalog portions retain sources and references through meal save and reload', async ({page}) => {
+    const reference = {quantity: 100, calories: 200, proteinGrams: 10, carbohydrateGrams: 20, fatGrams: 8,
+        vitaminDMicrograms: 0, magnesiumMilligrams: 20, saltGrams: 1.25};
+    const food = {...reference, name: 'Label food', unit: 'GRAM', reference, nutrientSource: 'Label',
+        saltSource: 'Product label: 1.25 g/100 g', saltEstimated: false};
+    await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [
+        {id: 1, date: '2026-08-11', mealType: 'LUNCH', mealSequence: 1, calories: 200, proteinGrams: 10, carbohydrateGrams: 20, fatGrams: 8, dishes: [food]},
+        {id: 2, date: '2026-08-12', mealType: 'LUNCH', mealSequence: 1, calories: 0, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, dishes: []}
+    ]});
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await openSpaRoute(page, '/calories?tab=foods');
+    await page.getByRole('button', {name: 'Edit Label food', exact: true}).click();
+    const dialog = page.getByRole('dialog', {name: 'Food', exact: true});
+    await expect(dialog.getByLabel('Salt (g)', {exact: true})).toHaveValue('1.25');
+    await dialog.getByLabel('Salt (g) source (when recorded)', {exact: true}).fill('');
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(dialog.getByRole('alert')).toBeVisible();
+    await dialog.getByLabel('Salt (g) source (when recorded)', {exact: true}).fill('Product label: 1.25 g/100 g');
+    const catalogSave = page.waitForRequest(request => /\/api\/foods\/\d+$/.test(request.url()) && request.method() === 'PUT');
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    expect((await catalogSave).postDataJSON()).toMatchObject({saltGrams: 1.25, nutrientSchemaVersion: 3, reference: {saltGrams: 1.25}});
+    await openSpaRoute(page, '/meals/2/edit?from=history');
+    const form = page.locator('#meal-form');
+    await form.getByLabel('Reuse a saved food', {exact: true}).fill('Label food');
+    await page.getByRole('option').click();
+    await dialog.getByLabel('Quantity', {exact: true}).fill('50');
+    await dialog.getByLabel('Quantity', {exact: true}).press('Tab');
+    await expect(dialog.getByLabel('Salt (g)', {exact: true})).toHaveValue('0.63');
+    for (const width of [376, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        const field = await dialog.getByLabel('Salt (g)', {exact: true}).boundingBox();
+        const source = await dialog.getByLabel('Salt (g) source (when recorded)', {exact: true}).boundingBox();
+        expect(source.y).toBeGreaterThan(field.y + field.height);
+    }
+    await dialog.getByRole('button', {name: 'Apply', exact: true}).click();
+    await expect(form.locator('.meal-dish-row')).toContainText('50 g · 100 kcal');
+    const saved = page.waitForRequest(request => request.url().endsWith('/api/meals/2') && request.method() === 'PUT');
+    await form.getByRole('button', {name: 'Save', exact: true}).click();
+    expect((await saved).postDataJSON().dishes[0]).toMatchObject({saltGrams: 0.63, saltSource: 'Product label: 1.25 g/100 g', saltEstimated: false, reference: {saltGrams: 1.25}});
+    await expect(form).not.toBeVisible();
+    await openSpaRoute(page, '/meals/2/edit?from=history');
+    await form.getByRole('button', {name: 'Edit food 1', exact: true}).click();
+    await expect(dialog.getByLabel('Salt (g)', {exact: true})).toHaveValue('0.63');
+    await expect(dialog.getByLabel('Salt (g) source (when recorded)', {exact: true})).toHaveValue('Product label: 1.25 g/100 g');
+    expect(errors).toEqual([]);
+});
+
+test('salt daily lower bounds and completed-day trends retain strict limits and independent coverage', async ({page}) => {
+    const base = {quantity: 100, unit: 'GRAM', calories: 100, proteinGrams: 10, carbohydrateGrams: 10, fatGrams: 2,
+        vitaminDMicrograms: 0, magnesiumMilligrams: 10, nutrientSource: 'Composition'};
+    await mockAuthenticatedDashboard(page, '2026-10-24', {dashboardResponse: {...dashboard, anchorDate: '2026-10-24',
+        dailyStatus: dashboardDailyStatus('2026-10-24'), lastCompletedDashboardDate: '2026-10-24'}, initialMeals: [
+        {id: 1, date: '2026-10-24', mealType: 'LUNCH', mealSequence: 1, calories: 200, proteinGrams: 20, carbohydrateGrams: 20, fatGrams: 4, dishes: [
+            {...base, name: 'Unknown food'}, {...base, name: 'Estimated food', saltGrams: 5, saltSource: 'Composition estimate', saltEstimated: true}]},
+        {id: 2, date: '2026-10-24', mealType: 'DINNER', mealSequence: 1, calories: 100, proteinGrams: 10, carbohydrateGrams: 10, fatGrams: 2, dishes: [
+            {...base, name: 'Zero salt food', saltGrams: 0, saltSource: 'Label', saltEstimated: false}]}
+    ]});
+    const nutrientDay = (date, saltGrams, covered = 1, total = 1, completed = true) => ({date, completed,
+        nutrients: {saltGrams, saltCoverage: {foodsWithValues: covered, estimatedFoods: date === '2026-10-24' ? 1 : 0}, totalFoods: total, mealsWithoutFoods: 0}});
+    await page.route('**/api/nutrition/daily-summaries?*', route => route.fulfill({json: [
+        nutrientDay('2026-09-24', 4), nutrientDay('2026-10-20', 0), nutrientDay('2026-10-21', 5),
+        nutrientDay('2026-10-22', 4, 1, 2), nutrientDay('2026-10-23', 1, 1, 1, false), nutrientDay('2026-10-24', 5, 2, 3)
+    ]}));
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await openSpaRoute(page, '/');
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
+    const totals = page.getByRole('region', {name: 'Daily totals'});
+    const value = totals.getByRole('button', {name: /^Salt details:/});
+    await expect(value).toHaveText('≥ 5 g');
+    await expect(value).toHaveClass(/target-missed/);
+    await expect(page.locator('.meal-entry').nth(1).getByRole('button', {name: /^Salt details:/})).toHaveText('0 g');
+    const trend = page.getByRole('region', {name: 'Nutrient trends'}).locator('.nutrient-trend-row').filter({hasText: '30-day Salt:'});
+    await expect(trend.locator('.trend-average')).toHaveText('2.5 g/day');
+    await expect(trend.locator('.trend-average')).toHaveClass(/target-met/);
+    await expect(trend.locator('.trend-sample')).toContainText('2 fully covered days');
+    await expect(trend.locator('.trend-change')).toHaveClass(/good/);
+    for (const width of [376, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await value.click();
+        const detail = page.getByRole('dialog', {name: 'Salt details'});
+        await expect(detail).toContainText('2 of 3 foods');
+        await expect(detail).toContainText('Includes estimates');
+        await expect(detail).toContainText('At or above 5 g limit');
+        await page.keyboard.press('Escape');
+        await expect(value).toBeFocused();
+    }
+    await page.locator('.dashboard-charts-trigger').scrollIntoViewIfNeeded();
+    const charts = page.locator('#measures-chart');
+    await charts.getByRole('tab', {name: 'Nutrition', exact: true}).click();
+    const chart = charts.getByRole('img', {name: 'Salt nutrient trend'});
+    await expect(chart).toHaveAccessibleDescription(/2026-10-20: 0 g · Below 5 g/);
+    await expect(chart).toHaveAccessibleDescription(/2026-10-21: 5 g · At or above 5 g limit/);
+    await expect(chart).toHaveAccessibleDescription(/2026-10-22: ≥4 g partial lower bound \(1\/2 foods\).*not yet established/);
+    await expect(chart).toHaveAccessibleDescription(/2026-10-24: ≥5 g partial lower bound \(2\/3 foods; includes estimates\).*At or above 5 g limit/);
+    expect(errors).toEqual([]);
 });

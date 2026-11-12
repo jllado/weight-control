@@ -27,7 +27,9 @@ public final class NutrientSummaryService {
             total(foods, FoodPortion::getAlaMilligrams),
             coverage(foods, FoodPortion::getAlaMilligrams, FoodPortion::getAlaEstimated),
             total(foods, FoodPortion::getFiberGrams),
-            coverage(foods, FoodPortion::getFiberGrams, FoodPortion::getFiberEstimated));
+            coverage(foods, FoodPortion::getFiberGrams, FoodPortion::getFiberEstimated),
+            total(foods, FoodPortion::getSaltGrams),
+            coverage(foods, FoodPortion::getSaltGrams, FoodPortion::getSaltEstimated));
     }
 
     private static BigDecimal total(List<? extends FoodPortion> foods, Function<FoodPortion, BigDecimal> value) {

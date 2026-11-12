@@ -16,7 +16,7 @@ function toPayload(meal) {
         durationMinutes: meal.durationMinutes,
         notes: meal.notes,
         dishes: meal.dishes.map(foodPayload),
-        nutrientSchemaVersion: 2
+        nutrientSchemaVersion: 3
     };
 }
 

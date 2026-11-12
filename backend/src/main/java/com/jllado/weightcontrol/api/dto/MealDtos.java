@@ -79,7 +79,7 @@ public final class MealDtos {
         String notes,
         List<@Valid MealDishRequest> dishes,
         @Positive @JsonDeserialize(using = WholeNumberDeserializer.class) Integer durationMinutes,
-        @Min(2) @Max(2) Integer nutrientSchemaVersion
+        @Min(2) @Max(3) Integer nutrientSchemaVersion
     ) {
         @JsonIgnore
         @AssertTrue(message = "Duration is required when a meal has a start time")
@@ -113,7 +113,12 @@ public final class MealDtos {
         String nutrientSource,
         Boolean nutrientsEstimated, BigDecimal epaDhaMilligrams, String epaDhaSource, Boolean epaDhaEstimated,
         BigDecimal alaMilligrams, String alaSource, Boolean alaEstimated,
-        BigDecimal fiberGrams, String fiberSource, Boolean fiberEstimated) {
+        BigDecimal fiberGrams, String fiberSource, Boolean fiberEstimated,
+        BigDecimal saltGrams, String saltSource, Boolean saltEstimated) {
+        public CatalogFoodResponse(Long id, String name, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, boolean fruit, DishUnit unit, DishReference reference, BigDecimal vitaminDMicrograms, BigDecimal omega3Milligrams, BigDecimal magnesiumMilligrams, String nutrientSource, Boolean nutrientsEstimated, BigDecimal epaDhaMilligrams, String epaDhaSource, Boolean epaDhaEstimated, BigDecimal alaMilligrams, String alaSource, Boolean alaEstimated, BigDecimal fiberGrams, String fiberSource, Boolean fiberEstimated) {
+            this(id, name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, fruit, unit, reference, vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, nutrientSource, nutrientsEstimated, epaDhaMilligrams, epaDhaSource, epaDhaEstimated, alaMilligrams, alaSource, alaEstimated, fiberGrams, fiberSource, fiberEstimated, null, null, null);
+        }
+
         public CatalogFoodResponse(Long id, String name, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, boolean fruit, DishUnit unit, DishReference reference) {
             this(id, name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, fruit, unit, reference, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         }
@@ -124,7 +129,7 @@ public final class MealDtos {
         }
         public static CatalogFoodResponse from(CatalogFood food) {
             return new CatalogFoodResponse(food.getId(), food.getName(), food.getCalories(), food.getProteinGrams(),
-                food.getCarbohydrateGrams(), food.getFatGrams(), food.getQuantity(), food.isFruit(), food.getUnit(), DishReference.from(food), food.getVitaminDMicrograms(), food.getOmega3Milligrams(), food.getMagnesiumMilligrams(), food.getNutrientSource(), food.getNutrientsEstimated(), food.getEpaDhaMilligrams(), food.getEpaDhaSource(), food.getEpaDhaEstimated(), food.getAlaMilligrams(), food.getAlaSource(), food.getAlaEstimated(), food.getFiberGrams(), food.getFiberSource(), food.getFiberEstimated());
+                food.getCarbohydrateGrams(), food.getFatGrams(), food.getQuantity(), food.isFruit(), food.getUnit(), DishReference.from(food), food.getVitaminDMicrograms(), food.getOmega3Milligrams(), food.getMagnesiumMilligrams(), food.getNutrientSource(), food.getNutrientsEstimated(), food.getEpaDhaMilligrams(), food.getEpaDhaSource(), food.getEpaDhaEstimated(), food.getAlaMilligrams(), food.getAlaSource(), food.getAlaEstimated(), food.getFiberGrams(), food.getFiberSource(), food.getFiberEstimated(), food.getSaltGrams(), food.getSaltSource(), food.getSaltEstimated());
         }
     }
 
@@ -149,13 +154,21 @@ public final class MealDtos {
         @Size(max = 500) String alaSource, Boolean alaEstimated,
         @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fiberGrams,
         @Size(max = 500) String fiberSource, Boolean fiberEstimated,
-        @Min(2) @Max(2) Integer nutrientSchemaVersion) {
+        @Min(2) @Max(3) Integer nutrientSchemaVersion,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal saltGrams,
+        @Size(max = 500) String saltSource, Boolean saltEstimated) {
+        public MealDishRequest(String name, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, DishUnit unit, DishReference reference, boolean fruit, BigDecimal vitaminDMicrograms, BigDecimal omega3Milligrams, BigDecimal magnesiumMilligrams, String nutrientSource, Boolean nutrientsEstimated, BigDecimal epaDhaMilligrams, String epaDhaSource, Boolean epaDhaEstimated, BigDecimal alaMilligrams, String alaSource, Boolean alaEstimated, BigDecimal fiberGrams, String fiberSource, Boolean fiberEstimated, Integer nutrientSchemaVersion) {
+            this(name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference, fruit, vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, nutrientSource, nutrientsEstimated, epaDhaMilligrams, epaDhaSource, epaDhaEstimated, alaMilligrams, alaSource, alaEstimated, fiberGrams, fiberSource, fiberEstimated, nutrientSchemaVersion, null, null, null);
+        }
+
         @JsonIgnore
-        @AssertTrue(message = "Recorded EPA+DHA, ALA, and fiber need their own source and estimate flag")
+        @AssertTrue(message = "Recorded EPA+DHA, ALA, fiber, and salt need their own source and estimate flag")
         public boolean isNewNutrientEvidenceComplete() {
             return hasNewNutrientEvidence(epaDhaMilligrams, epaDhaSource, epaDhaEstimated)
                 && hasNewNutrientEvidence(alaMilligrams, alaSource, alaEstimated)
-                && hasNewNutrientEvidence(fiberGrams, fiberSource, fiberEstimated);
+                && hasNewNutrientEvidence(fiberGrams, fiberSource, fiberEstimated)
+                && hasNewNutrientEvidence(saltGrams != null ? saltGrams : reference == null ? null : reference.saltGrams(),
+                    saltSource, saltEstimated);
         }
         public MealDishRequest(String name, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, DishUnit unit, DishReference reference, boolean fruit,
             BigDecimal vitaminDMicrograms, BigDecimal omega3Milligrams, BigDecimal magnesiumMilligrams, String nutrientSource, Boolean nutrientsEstimated,
@@ -191,7 +204,12 @@ public final class MealDtos {
         @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal magnesiumMilligrams,
         @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal epaDhaMilligrams,
         @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal alaMilligrams,
-        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fiberGrams) {
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fiberGrams,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal saltGrams) {
+        public DishReference(BigDecimal quantity, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal vitaminDMicrograms, BigDecimal omega3Milligrams, BigDecimal magnesiumMilligrams, BigDecimal epaDhaMilligrams, BigDecimal alaMilligrams, BigDecimal fiberGrams) {
+            this(quantity, calories, proteinGrams, carbohydrateGrams, fatGrams, vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, epaDhaMilligrams, alaMilligrams, fiberGrams, null);
+        }
+
         public DishReference(BigDecimal quantity, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams,
             BigDecimal vitaminDMicrograms, BigDecimal omega3Milligrams, BigDecimal magnesiumMilligrams, BigDecimal epaDhaMilligrams) {
             this(quantity, calories, proteinGrams, carbohydrateGrams, fatGrams, vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, epaDhaMilligrams, null, null);
@@ -205,7 +223,7 @@ public final class MealDtos {
         }
 
         public static DishReference from(com.jllado.weightcontrol.domain.FoodPortion dish) {
-            return new DishReference(dish.getReferenceQuantity(), dish.getReferenceCalories(), dish.getReferenceProteinGrams(), dish.getReferenceCarbohydrateGrams(), dish.getReferenceFatGrams(), dish.getReferenceVitaminDMicrograms(), dish.getReferenceOmega3Milligrams(), dish.getReferenceMagnesiumMilligrams(), dish.getReferenceEpaDhaMilligrams(), dish.getReferenceAlaMilligrams(), dish.getReferenceFiberGrams());
+            return new DishReference(dish.getReferenceQuantity(), dish.getReferenceCalories(), dish.getReferenceProteinGrams(), dish.getReferenceCarbohydrateGrams(), dish.getReferenceFatGrams(), dish.getReferenceVitaminDMicrograms(), dish.getReferenceOmega3Milligrams(), dish.getReferenceMagnesiumMilligrams(), dish.getReferenceEpaDhaMilligrams(), dish.getReferenceAlaMilligrams(), dish.getReferenceFiberGrams(), dish.getReferenceSaltGrams());
         }
     }
 
@@ -223,7 +241,7 @@ public final class MealDtos {
         @NotEmpty List<@Valid CoachMealDishRequest> dishes,
         @Positive @JsonDeserialize(using = WholeNumberDeserializer.class) Integer durationMinutes,
         @Min(1) @Max(10) @JsonDeserialize(using = RequiredWholeNumberDeserializer.class) Integer rating,
-        @NotNull @Min(2) @Max(2) Integer nutrientSchemaVersion
+        @NotNull @Min(2) @Max(3) Integer nutrientSchemaVersion
     ) {
         public CoachMealRequest {
             dishes = dishes == null ? List.of() : dishes;
@@ -276,7 +294,13 @@ public final class MealDtos {
         @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal alaMilligrams,
         @Size(max = 500) String alaSource, Boolean alaEstimated,
         @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fiberGrams,
-        @Size(max = 500) String fiberSource, Boolean fiberEstimated) {
+        @Size(max = 500) String fiberSource, Boolean fiberEstimated,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal saltGrams,
+        @Size(max = 500) String saltSource, Boolean saltEstimated) {
+        public CoachMealDishRequest(String name, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, DishUnit unit, DishReference reference, boolean addToCatalog, Boolean fruit, BigDecimal vitaminDMicrograms, BigDecimal omega3Milligrams, BigDecimal magnesiumMilligrams, String nutrientSource, Boolean nutrientsEstimated, BigDecimal epaDhaMilligrams, String epaDhaSource, Boolean epaDhaEstimated, BigDecimal alaMilligrams, String alaSource, Boolean alaEstimated, BigDecimal fiberGrams, String fiberSource, Boolean fiberEstimated) {
+            this(name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference, addToCatalog, fruit, vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, nutrientSource, nutrientsEstimated, epaDhaMilligrams, epaDhaSource, epaDhaEstimated, alaMilligrams, alaSource, alaEstimated, fiberGrams, fiberSource, fiberEstimated, null, null, null);
+        }
+
         public CoachMealDishRequest(String name, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, DishUnit unit, DishReference reference, boolean addToCatalog, Boolean fruit,
             BigDecimal vitaminDMicrograms, BigDecimal omega3Milligrams, BigDecimal magnesiumMilligrams, String nutrientSource, Boolean nutrientsEstimated,
             BigDecimal epaDhaMilligrams, String epaDhaSource, Boolean epaDhaEstimated) {
@@ -305,7 +329,7 @@ public final class MealDtos {
             return new MealDishRequest(name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference, Boolean.TRUE.equals(fruit),
                 vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, nutrientSource, nutrientsEstimated,
                 epaDhaMilligrams, epaDhaSource, epaDhaEstimated, alaMilligrams, alaSource, alaEstimated,
-                fiberGrams, fiberSource, fiberEstimated, null);
+                fiberGrams, fiberSource, fiberEstimated, null, saltGrams, saltSource, saltEstimated);
         }
     }
 
@@ -359,13 +383,18 @@ public final class MealDtos {
         String nutrientSource,
         Boolean nutrientsEstimated, BigDecimal epaDhaMilligrams, String epaDhaSource, Boolean epaDhaEstimated,
         BigDecimal alaMilligrams, String alaSource, Boolean alaEstimated,
-        BigDecimal fiberGrams, String fiberSource, Boolean fiberEstimated) {
+        BigDecimal fiberGrams, String fiberSource, Boolean fiberEstimated,
+        BigDecimal saltGrams, String saltSource, Boolean saltEstimated) {
+        public MealDishResponse(Long id, int position, String name, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, boolean fruit, DishUnit unit, DishReference reference, BigDecimal vitaminDMicrograms, BigDecimal omega3Milligrams, BigDecimal magnesiumMilligrams, String nutrientSource, Boolean nutrientsEstimated, BigDecimal epaDhaMilligrams, String epaDhaSource, Boolean epaDhaEstimated, BigDecimal alaMilligrams, String alaSource, Boolean alaEstimated, BigDecimal fiberGrams, String fiberSource, Boolean fiberEstimated) {
+            this(id, position, name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, fruit, unit, reference, vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, nutrientSource, nutrientsEstimated, epaDhaMilligrams, epaDhaSource, epaDhaEstimated, alaMilligrams, alaSource, alaEstimated, fiberGrams, fiberSource, fiberEstimated, null, null, null);
+        }
+
         public MealDishResponse(Long id, int position, String name, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, boolean fruit, DishUnit unit, DishReference reference) {
             this(id, position, name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, fruit, unit, reference, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         }
 
         public static MealDishResponse from(com.jllado.weightcontrol.domain.MealDish dish) {
-            return new MealDishResponse(dish.getId(), dish.getPosition(), dish.getName(), dish.getCalories(), dish.getProteinGrams(), dish.getCarbohydrateGrams(), dish.getFatGrams(), dish.getQuantity(), dish.isFruit(), dish.getUnit(), DishReference.from(dish), dish.getVitaminDMicrograms(), dish.getOmega3Milligrams(), dish.getMagnesiumMilligrams(), dish.getNutrientSource(), dish.getNutrientsEstimated(), dish.getEpaDhaMilligrams(), dish.getEpaDhaSource(), dish.getEpaDhaEstimated(), dish.getAlaMilligrams(), dish.getAlaSource(), dish.getAlaEstimated(), dish.getFiberGrams(), dish.getFiberSource(), dish.getFiberEstimated());
+            return new MealDishResponse(dish.getId(), dish.getPosition(), dish.getName(), dish.getCalories(), dish.getProteinGrams(), dish.getCarbohydrateGrams(), dish.getFatGrams(), dish.getQuantity(), dish.isFruit(), dish.getUnit(), DishReference.from(dish), dish.getVitaminDMicrograms(), dish.getOmega3Milligrams(), dish.getMagnesiumMilligrams(), dish.getNutrientSource(), dish.getNutrientsEstimated(), dish.getEpaDhaMilligrams(), dish.getEpaDhaSource(), dish.getEpaDhaEstimated(), dish.getAlaMilligrams(), dish.getAlaSource(), dish.getAlaEstimated(), dish.getFiberGrams(), dish.getFiberSource(), dish.getFiberEstimated(), dish.getSaltGrams(), dish.getSaltSource(), dish.getSaltEstimated());
         }
     }
 }

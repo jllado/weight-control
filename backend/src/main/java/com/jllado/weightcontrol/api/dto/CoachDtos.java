@@ -189,17 +189,22 @@ public final class CoachDtos {
         Boolean nutrientsEstimated,
         BigDecimal epaDhaMilligrams, String epaDhaSource, Boolean epaDhaEstimated,
         BigDecimal alaMilligrams, String alaSource, Boolean alaEstimated,
-        BigDecimal fiberGrams, String fiberSource, Boolean fiberEstimated) {
+        BigDecimal fiberGrams, String fiberSource, Boolean fiberEstimated,
+        BigDecimal saltGrams, String saltSource, Boolean saltEstimated) {
+        public NutritionDishData(String name, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, boolean fruit, com.jllado.weightcontrol.domain.DishUnit unit, MealDtos.DishReference reference, BigDecimal vitaminDMicrograms, BigDecimal omega3Milligrams, BigDecimal magnesiumMilligrams, String nutrientSource, Boolean nutrientsEstimated, BigDecimal epaDhaMilligrams, String epaDhaSource, Boolean epaDhaEstimated, BigDecimal alaMilligrams, String alaSource, Boolean alaEstimated, BigDecimal fiberGrams, String fiberSource, Boolean fiberEstimated) {
+            this(name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, fruit, unit, reference, vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, nutrientSource, nutrientsEstimated, epaDhaMilligrams, epaDhaSource, epaDhaEstimated, alaMilligrams, alaSource, alaEstimated, fiberGrams, fiberSource, fiberEstimated, null, null, null);
+        }
+
         public NutritionDishData(String name, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, boolean fruit, com.jllado.weightcontrol.domain.DishUnit unit, MealDtos.DishReference reference) {
             this(name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, fruit, unit, reference, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         }
 
         public static NutritionDishData from(MealDtos.CatalogFoodResponse food) {
-            return new NutritionDishData(food.name(), food.calories(), food.proteinGrams(), food.carbohydrateGrams(), food.fatGrams(), food.quantity(), food.fruit(), food.unit(), food.reference(), food.vitaminDMicrograms(), food.omega3Milligrams(), food.magnesiumMilligrams(), food.nutrientSource(), food.nutrientsEstimated(), food.epaDhaMilligrams(), food.epaDhaSource(), food.epaDhaEstimated(), food.alaMilligrams(), food.alaSource(), food.alaEstimated(), food.fiberGrams(), food.fiberSource(), food.fiberEstimated());
+            return new NutritionDishData(food.name(), food.calories(), food.proteinGrams(), food.carbohydrateGrams(), food.fatGrams(), food.quantity(), food.fruit(), food.unit(), food.reference(), food.vitaminDMicrograms(), food.omega3Milligrams(), food.magnesiumMilligrams(), food.nutrientSource(), food.nutrientsEstimated(), food.epaDhaMilligrams(), food.epaDhaSource(), food.epaDhaEstimated(), food.alaMilligrams(), food.alaSource(), food.alaEstimated(), food.fiberGrams(), food.fiberSource(), food.fiberEstimated(), food.saltGrams(), food.saltSource(), food.saltEstimated());
         }
 
         public static NutritionDishData from(MealDish dish) {
-            return new NutritionDishData(dish.getName(), dish.getCalories(), dish.getProteinGrams(), dish.getCarbohydrateGrams(), dish.getFatGrams(), dish.getQuantity(), dish.isFruit(), dish.getUnit(), MealDtos.DishReference.from(dish), dish.getVitaminDMicrograms(), dish.getOmega3Milligrams(), dish.getMagnesiumMilligrams(), dish.getNutrientSource(), dish.getNutrientsEstimated(), dish.getEpaDhaMilligrams(), dish.getEpaDhaSource(), dish.getEpaDhaEstimated(), dish.getAlaMilligrams(), dish.getAlaSource(), dish.getAlaEstimated(), dish.getFiberGrams(), dish.getFiberSource(), dish.getFiberEstimated());
+            return new NutritionDishData(dish.getName(), dish.getCalories(), dish.getProteinGrams(), dish.getCarbohydrateGrams(), dish.getFatGrams(), dish.getQuantity(), dish.isFruit(), dish.getUnit(), MealDtos.DishReference.from(dish), dish.getVitaminDMicrograms(), dish.getOmega3Milligrams(), dish.getMagnesiumMilligrams(), dish.getNutrientSource(), dish.getNutrientsEstimated(), dish.getEpaDhaMilligrams(), dish.getEpaDhaSource(), dish.getEpaDhaEstimated(), dish.getAlaMilligrams(), dish.getAlaSource(), dish.getAlaEstimated(), dish.getFiberGrams(), dish.getFiberSource(), dish.getFiberEstimated(), dish.getSaltGrams(), dish.getSaltSource(), dish.getSaltEstimated());
         }
     }
 
