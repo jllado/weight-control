@@ -19,7 +19,7 @@
       <div class="dish-name"><label for="nutrient-source">Nutrient source</label><InputText id="nutrient-source" v-model="draft.nutrientSource" maxlength="500" /></div>
       <div class="dish-name fruit-control"><Checkbox inputId="nutrients-estimated" v-model="draft.nutrientsEstimated" :binary="true" /><label for="nutrients-estimated">Includes estimated nutrients</label></div>
       <small class="dish-name">Macros are optional; leave unknown values blank.</small>
-      <p v-if="invalid" class="error dish-name" role="alert">Enter a name, positive quantity, non-negative calories, vitamin D, magnesium and their source. Recorded EPA+DHA, ALA and fiber also need a source.</p>
+      <p v-if="invalid" class="error dish-name" role="alert">Enter a name, positive quantity, non-negative calories, vitamin D, magnesium and their source. Recorded EPA+DHA, ALA, fiber and salt also need a source.</p>
     </div>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
     </SaveFields>

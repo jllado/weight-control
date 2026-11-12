@@ -314,9 +314,9 @@ public class WeeklySummaryEmailViewFactory {
     private String partialAmount(BigDecimal value, String unit, boolean partial) { return value == null ? UNAVAILABLE : (partial ? "≥ " : "") + (unit.equals("min") ? value.setScale(2, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString() + " min" : amount(value, unit, 0)) + (partial ? " · Partial coverage" : ""); }
 
     private NutritionTable nutritionTable(WeeklyNutritionSnapshot nutrition) {
-        var keys = List.of("protein", "carbohydrate", "fat", "vitaminD", "omega3", "fiber", "magnesium");
-        var labels = List.of("Protein", "Carbs", "Fat", "Vitamin D", "Total omega-3", "Fiber", "Magnesium");
-        var units = List.of("g", "g", "g", "µg", "mg", "g", "mg");
+        var keys = List.of("protein", "carbohydrate", "fat", "vitaminD", "omega3", "fiber", "salt", "magnesium");
+        var labels = List.of("Protein", "Carbs", "Fat", "Vitamin D", "Total omega-3", "Fiber", "Salt", "Magnesium");
+        var units = List.of("g", "g", "g", "µg", "mg", "g", "g", "mg");
         var rows = new ArrayList<NutrientRow>();
         for (int index = 0; index < keys.size(); index++)
             rows.add(nutrientRow(nutrition, keys.get(index), labels.get(index), units.get(index)));
@@ -357,7 +357,7 @@ public class WeeklySummaryEmailViewFactory {
     }
     private String nutrientTarget(WeeklyNutritionSnapshot.Measure measure) {
         return measure == null || measure.target() == null || measure.comparison() == null || measure.unavailableReason() != null ? "Target unavailable"
-            : (measure.comparison() == MacroTargetComparison.MINIMUM ? "≥ " : "≤ ") + amount(measure.target(), measure.unit(), 2);
+            : (measure.comparison() == MacroTargetComparison.MINIMUM ? "≥ " : measure.comparison() == MacroTargetComparison.STRICT_MAXIMUM ? "< " : "≤ ") + amount(measure.target(), measure.unit(), 2);
     }
     private String nutrientTarget(WeeklyNutritionSnapshot nutrition, WeeklyNutritionSnapshot.Measure measure, String key) {
         if (key.equals("omega3")) return nutrition == null ? "Target unavailable" : "See report references";

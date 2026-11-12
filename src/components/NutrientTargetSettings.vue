@@ -41,6 +41,11 @@
             <label for="fiber-target">Fiber minimum (g/day)</label>
             <InputNumber inputId="fiber-target" v-model="values.fiber.value" :min="0.01" :max="99999999.99" :maxFractionDigits="2" :useGrouping="false" />
           </div>
+          <div>
+            <label for="salt-target">Salt limit (g/day, stay below)</label>
+            <InputNumber inputId="salt-target" v-model="values.salt.value" :min="0.01" :max="99999999.99" :maxFractionDigits="2" :useGrouping="false" :inputProps="{'aria-describedby': 'salt-reference'}" />
+            <small id="salt-reference">Blank: below {{ targets.salt.referenceValue }} g/day. Reaching the limit does not meet the goal.</small>
+          </div>
         </div>
         <p>Omega-3 feedback checks the EPA+DHA and ALA minima separately.</p>
         <p v-if="values.omega3Milligrams != null" class="legacy-target">Historical total omega-3 target: {{ values.omega3Milligrams }} mg/day (read only; separate from the overall assessment).</p>

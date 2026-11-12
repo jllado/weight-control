@@ -921,3 +921,5 @@ Acceptance covers the reported multi-food lunch through clarification, complete 
 The meal estimate policy accepts food-specific model estimates after saved-reference lookup and bounded research, with explicit basis, uncertainty and estimate flags. It supersedes mandatory reported-zero and separate-isomer proof for approximate new/changed food proposals; actual source claims still require a source that was read. Preserve known labels, independent nutrients, matching references, arithmetic and consent. Do not backfill or relabel historical data.
 
 Meal preflight uses enabled Code Interpreter with Decimal/HALF_UP scaling and sums before the readable proposal. Reuse that computed body for inspection and confirmation, preserve known reference values, disclose every catalog addition and keep registration false for uncertain matches. Verify the calculation capability in the saved/live GPT configuration.
+
+- Salt delivery: implement grams/coverage/strict personal limit, reviewed all-date owner enrichment, version 3 food replacements and coordinated private GPT publication; verify immutable history, saved/live configuration and a fresh no-save proposal.

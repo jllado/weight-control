@@ -35,7 +35,7 @@ class NutrientTargetServiceTest {
         when(caloriePlans.effectiveTargets(owner, date, date)).thenReturn(java.util.List.of(
             new WeeklyCaloriePlanService.EffectiveCalorieTarget(date, 2050, 0)));
         var request = mapper.readValue("""
-            {"vitaminDMicrograms":20,"epaDha":{"value":250},"ala":{"value":1600},"fiber":{"value":25},
+            {"vitaminDMicrograms":20,"epaDha":{"value":250},"ala":{"value":1600},"fiber":{"value":25},"salt":{"value":3},
              "macros":{"proteinGrams":115,"fatPercentage":30}}
             """, NutrientTargetOverrides.class);
 
@@ -50,6 +50,9 @@ class NutrientTargetServiceTest {
         assertEquals(250, saved.at("/targets/epaDha/value").asInt());
         assertEquals(1600, saved.at("/targets/ala/value").asInt());
         assertEquals(25, saved.at("/targets/fiber/value").asInt());
+        assertEquals(3, saved.at("/targets/salt/value").asInt());
+        assertEquals(5, saved.at("/targets/salt/referenceValue").asInt());
+        assertEquals("PERSONAL", saved.at("/targets/salt/source").asText());
         assertEquals("PERSONAL", saved.at("/targets/epaDha/source").asText());
 
         var legacy = mapper.valueToTree(service.update(owner, new NutrientTargetOverrides(null, null, null), date));
@@ -57,11 +60,12 @@ class NutrientTargetServiceTest {
         assertEquals(250, legacy.at("/overrides/epaDha/value").asInt());
         assertEquals(1600, legacy.at("/overrides/ala/value").asInt());
         assertEquals(25, legacy.at("/overrides/fiber/value").asInt());
+        assertEquals(3, legacy.at("/overrides/salt/value").asInt());
         var another = mapper.valueToTree(service.resolve(new User(), date));
         assertEquals("NONE", another.at("/epaDha/source").asText());
 
         var clear = mapper.readValue("""
-            {"epaDha":{"value":null},"ala":{"value":null},"fiber":{"value":null},
+            {"epaDha":{"value":null},"ala":{"value":null},"fiber":{"value":null},"salt":{"value":null},
              "macros":{"proteinGrams":null,"fatPercentage":null}}
             """, NutrientTargetOverrides.class);
         var cleared = mapper.valueToTree(service.update(owner, clear, date));
@@ -70,6 +74,8 @@ class NutrientTargetServiceTest {
         assertEquals("NONE", cleared.at("/targets/epaDha/source").asText());
         assertEquals("NONE", cleared.at("/targets/ala/source").asText());
         assertEquals("NONE", cleared.at("/targets/fiber/source").asText());
+        assertEquals("WHO", cleared.at("/targets/salt/source").asText());
+        assertEquals(5, cleared.at("/targets/salt/value").asInt());
     }
 
     @Test

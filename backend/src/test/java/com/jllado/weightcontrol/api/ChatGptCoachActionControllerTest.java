@@ -1639,7 +1639,7 @@ class ChatGptCoachActionControllerTest {
     }
 
     @Test
-    void coachMealWriteAcceptsSourceBackedEstimatedFiberAtAScaledPortion() throws Exception {
+    void coachMealWriteAcceptsSourceBackedEstimatedFiberAndSaltAtAScaledPortion() throws Exception {
         when(currentUserService.requireUser()).thenReturn(user);
         when(personalRecordMutationService.createConfirmedMeal(eq(user), any())).thenReturn(meal());
         var mapper = new ObjectMapper();
@@ -1648,6 +1648,7 @@ class ChatGptCoachActionControllerTest {
         var reference = (com.fasterxml.jackson.databind.node.ObjectNode) dish.get("reference");
         reference.put("quantity", 100);
         reference.put("fiberGrams", 8);
+        reference.put("saltGrams", 1.25);
         dish.put("quantity", 75);
         dish.put("calories", 525);
         dish.put("proteinGrams", 30);
@@ -1657,6 +1658,8 @@ class ChatGptCoachActionControllerTest {
         dish.put("omega3Milligrams", 0.75);
         dish.put("fiberGrams", 6);
         dish.put("fiberSource", "Estimated matching composition: 8 g per 100 g");
+        dish.put("saltGrams", 0.94).put("saltSource", "Matching label: 1.25 g salt per 100 g").put("saltEstimated", true);
+        body.put("nutrientSchemaVersion", 3);
         body.put("calories", 525);
         body.put("proteinGrams", 30);
         body.put("carbohydrateGrams", 52.5);
@@ -1668,6 +1671,10 @@ class ChatGptCoachActionControllerTest {
         verify(personalRecordMutationService).createConfirmedMeal(eq(user), captured.capture());
         assertEquals(new BigDecimal("6"), captured.getValue().dishes().getFirst().fiberGrams());
         assertEquals(new BigDecimal("8"), captured.getValue().dishes().getFirst().reference().fiberGrams());
+        assertEquals(new BigDecimal("0.94"), captured.getValue().dishes().getFirst().saltGrams());
+        assertEquals(new BigDecimal("1.25"), captured.getValue().dishes().getFirst().reference().saltGrams());
+        assertEquals("Matching label: 1.25 g salt per 100 g", captured.getValue().dishes().getFirst().saltSource());
+        assertEquals(3, captured.getValue().nutrientSchemaVersion());
     }
 
     private String mealJson(boolean confirmed) {

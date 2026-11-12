@@ -34,7 +34,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class MealServiceTest {
 
     @ParameterizedTest
-    @ValueSource(strings = {"EPA", "ALA", "FIBER", "EPA_REFERENCE", "ALA_REFERENCE", "FIBER_REFERENCE"})
+    @ValueSource(strings = {"EPA", "ALA", "FIBER", "EPA_REFERENCE", "ALA_REFERENCE", "FIBER_REFERENCE", "SALT", "SALT_REFERENCE"})
     void rejectsUnawareReplacementBeforeClearingKnownNewNutrientsEvenWhenNewListIsEmpty(String nutrient) {
         var owner = user(1L);
         var date = LocalDate.now(DateTimes.USER_ZONE);
@@ -45,6 +45,8 @@ class MealServiceTest {
             case "EPA" -> dish.setEpaDhaMilligrams(BigDecimal.ZERO);
             case "ALA" -> dish.setAlaMilligrams(BigDecimal.ZERO);
             case "FIBER" -> dish.setFiberGrams(BigDecimal.ZERO);
+            case "SALT" -> dish.setSaltGrams(BigDecimal.ZERO);
+            case "SALT_REFERENCE" -> dish.setReferenceSaltGrams(BigDecimal.ZERO);
             case "EPA_REFERENCE" -> dish.setReferenceEpaDhaMilligrams(BigDecimal.ZERO);
             case "ALA_REFERENCE" -> dish.setReferenceAlaMilligrams(BigDecimal.ZERO);
             case "FIBER_REFERENCE" -> dish.setReferenceFiberGrams(BigDecimal.ZERO);

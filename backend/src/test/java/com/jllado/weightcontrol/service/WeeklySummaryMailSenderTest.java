@@ -35,6 +35,33 @@ import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
 class WeeklySummaryMailSenderTest {
 
     @Test
+    void saltEmailUsesCapturedStrictLimitInBothMimePartsAndKeepsLegacyUnknown() throws Exception {
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+        ObjectNode json = mapper.valueToTree(WeeklySummaryEmailFixtures.populated());
+        var nutrition = (ObjectNode) json.get("nutrition");
+        for (String period : List.of("current", "previous", "yearAgo")) {
+            var measures = (com.fasterxml.jackson.databind.node.ArrayNode) nutrition.path(period).path("measures");
+            measures.add(mapper.valueToTree(new WeeklyNutritionSnapshot.Measure("salt", "Salt", "g",
+                new BigDecimal(period.equals("current") ? "5" : "4.99"), 7, 7, 7, 7, 0,
+                new BigDecimal("5"), com.jllado.weightcontrol.domain.MacroTargetComparison.STRICT_MAXIMUM, null)));
+        }
+        var frozen = mapper.treeToValue(json, WeeklySummarySnapshot.class);
+        var message = renderWorkoutEmail(frozen);
+        for (String body : List.of(htmlContent(message), plainText(message))) {
+            assertTrue(body.contains("Salt"));
+            assertTrue(body.contains("At or above limit"));
+            assertTrue(body.contains("Goal met"));
+        }
+        assertTrue(htmlContent(message).contains("&lt; 5.00 g"));
+        assertTrue(plainText(message).contains("< 5.00 g"));
+        assertEquals(new BigDecimal("5"), frozen.nutrition().current().measures().getLast().target());
+        var legacy = new WeeklySummaryEmailViewFactory().visualSummary(WeeklySummaryEmailFixtures.populated(), null);
+        var salt = legacy.nutrition().rows().stream().filter(row -> row.key().equals("salt")).findFirst().orElseThrow();
+        assertEquals("No captured nutrient evidence", salt.coverage());
+        assertEquals("Target unavailable", salt.target());
+    }
+
+    @Test
     void workoutEmailShowsEachPeriodsSavedTargetsStatusesAndColors() throws Exception {
         ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
         ObjectNode json = mapper.valueToTree(WeeklySummaryEmailFixtures.populated());

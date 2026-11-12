@@ -42,7 +42,7 @@ export default {
   methods: {
     currentRows(field) { return coveredNutrientDays(this.summaries, this.dateKey, 30, field); },
     previousRows(field) { return coveredNutrientDays(this.summaries, this.previousEnd, 30, field); },
-    partialRows(field) { return field.key === 'fiberGrams' ? partialNutrientDays(this.summaries, this.dateKey, 30, field) : []; },
+    partialRows(field) { return ['fiberGrams', 'saltGrams'].includes(field.key) ? partialNutrientDays(this.summaries, this.dateKey, 30, field) : []; },
     hasOnlyPartialDays(field) { return !this.currentRows(field).length && this.partialRows(field).length > 0; },
     averageLabel(field) { return averageNutrientLabel(this.currentRows(field), field); },
     sampleAccessibleLabel(field) {
@@ -65,7 +65,7 @@ export default {
       if (!this.hasComparablePeriods(field) || field.key === 'omega3Milligrams' || !this.targetStatus(field)?.className) return '';
       const change = this.changeLabel(field);
       if (change === '0') return '';
-      const minimum = field.targetKey !== 'carbohydrate' && field.targetKey !== 'fat';
+      const minimum = field.targetKey !== 'carbohydrate' && field.targetKey !== 'fat' && field.key !== 'saltGrams';
       return change.startsWith('+') === minimum ? 'good' : 'bad';
     },
     targetStatus(field) {

@@ -750,3 +750,9 @@ Acceptance covers the reported multi-food lunch through clarification, complete 
 The meal estimate policy accepts food-specific model estimates after saved-reference lookup and bounded research, with explicit basis, uncertainty and estimate flags. It supersedes mandatory reported-zero and separate-isomer proof for approximate new/changed food proposals; actual source claims still require a source that was read. Preserve known labels, independent nutrients, matching references, arithmetic and consent. Do not backfill or relabel historical data.
 
 Meal preflight uses enabled Code Interpreter with Decimal/HALF_UP scaling and sums before the readable proposal. Reuse that computed body for inspection and confirmation, preserve known reference values, disclose every catalog addition and keep registration false for uncertain matches. Verify the calculation capability in the saved/live GPT configuration.
+
+## Salt nutrient
+
+Food, recipe and meal contracts add salt grams with independent consumed/reference values, source and estimate flag. Version 3 replacements protect known salt from unaware clients; version 2 remains compatible for older nutrient fields. NUTRITION context and future weekly snapshots expose salt coverage and a WHO default limit strictly below 5 g/day or a personal override; partial below-limit evidence stays unknown and a known subtotal at/above the limit fails. Preserve historical snapshots and other nutrient semantics.
+
+Deploy the additive application migration and complete reviewed owner-wide salt enrichment before publishing the matching private GPT schema and eleven-nutrient instructions. Verify exact saved/live configuration, private authentication and a fresh no-save meal proposal with salt/source/reference scaling. Salt research and unit conversion happen before confirmation; no extra estimate-permission step is introduced.

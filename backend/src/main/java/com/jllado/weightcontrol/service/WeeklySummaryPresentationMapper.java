@@ -52,7 +52,7 @@ public final class WeeklySummaryPresentationMapper {
         String coverage = measure.eligibleDays() + (measure.eligibleDays() == 1 ? " complete day" : " complete days");
         if (measure.totalFoods() > 0) coverage += " · " + measure.coveredFoods() + "/" + measure.totalFoods() + " foods covered · " + measure.estimatedFoods() + " estimated";
         String target = measure.target() == null ? "Target unavailable" : "Current target "
-            + (measure.comparison() == MacroTargetComparison.MINIMUM ? "≥" : "≤") + measure.target().stripTrailingZeros().toPlainString() + " " + measure.unit();
+            + (measure.comparison() == MacroTargetComparison.MINIMUM ? "≥" : measure.comparison() == MacroTargetComparison.STRICT_MAXIMUM ? "<" : "≤") + measure.target().stripTrailingZeros().toPlainString() + " " + measure.unit();
         return intake + " · " + coverage + " · " + target + (measure.unavailableReason() == null ? "" : " · " + measure.unavailableReason());
     }
     private static Highlight highlight(String key, String label, BigDecimal current, BigDecimal previous, String unit, String coverage) {

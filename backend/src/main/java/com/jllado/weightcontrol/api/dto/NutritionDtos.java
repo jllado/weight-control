@@ -20,7 +20,12 @@ public final class NutritionDtos {
         BigDecimal epaDhaMilligrams, NutrientCoverage vitaminDCoverage, NutrientCoverage omega3Coverage,
         NutrientCoverage magnesiumCoverage, NutrientCoverage epaDhaCoverage,
         BigDecimal alaMilligrams, NutrientCoverage alaCoverage,
-        BigDecimal fiberGrams, NutrientCoverage fiberCoverage) {
+        BigDecimal fiberGrams, NutrientCoverage fiberCoverage,
+        BigDecimal saltGrams, NutrientCoverage saltCoverage) {
+        public NutrientSummary(BigDecimal vitaminDMicrograms, BigDecimal omega3Milligrams, BigDecimal magnesiumMilligrams, int foodsWithValues, int totalFoods, int estimatedFoods, int mealsWithoutFoods, BigDecimal epaDhaMilligrams, NutrientCoverage vitaminDCoverage, NutrientCoverage omega3Coverage, NutrientCoverage magnesiumCoverage, NutrientCoverage epaDhaCoverage, BigDecimal alaMilligrams, NutrientCoverage alaCoverage, BigDecimal fiberGrams, NutrientCoverage fiberCoverage) {
+            this(vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, foodsWithValues, totalFoods, estimatedFoods, mealsWithoutFoods, epaDhaMilligrams, vitaminDCoverage, omega3Coverage, magnesiumCoverage, epaDhaCoverage, alaMilligrams, alaCoverage, fiberGrams, fiberCoverage, null, new NutrientCoverage(0, 0));
+        }
+
         public NutrientSummary(BigDecimal vitaminDMicrograms, BigDecimal omega3Milligrams, BigDecimal magnesiumMilligrams,
             int foodsWithValues, int totalFoods, int estimatedFoods, int mealsWithoutFoods) {
             this(vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, foodsWithValues, totalFoods, estimatedFoods, mealsWithoutFoods,
@@ -30,12 +35,17 @@ public final class NutritionDtos {
         }
     }
 
-    public enum NutrientTargetSource { PERSONAL, EFSA_AI, NONE }
+    public enum NutrientTargetSource { PERSONAL, EFSA_AI, WHO, NONE }
 
     public record NutrientTargetValue(BigDecimal value, NutrientTargetSource source, BigDecimal referenceValue) { }
 
     public record NutrientTargetsResponse(NutrientTargetValue vitaminD, NutrientTargetValue omega3, NutrientTargetValue magnesium,
-        NutrientTargetValue epaDha, NutrientTargetValue ala, NutrientTargetValue fiber) {
+        NutrientTargetValue epaDha, NutrientTargetValue ala, NutrientTargetValue fiber,
+        NutrientTargetValue salt) {
+        public NutrientTargetsResponse(NutrientTargetValue vitaminD, NutrientTargetValue omega3, NutrientTargetValue magnesium, NutrientTargetValue epaDha, NutrientTargetValue ala, NutrientTargetValue fiber) {
+            this(vitaminD, omega3, magnesium, epaDha, ala, fiber, null);
+        }
+
         public NutrientTargetsResponse(NutrientTargetValue vitaminD, NutrientTargetValue omega3, NutrientTargetValue magnesium,
             NutrientTargetValue epaDha) {
             this(vitaminD, omega3, magnesium, epaDha, null, null);
@@ -62,7 +72,12 @@ public final class NutritionDtos {
         @DecimalMin("0.01") @Digits(integer = 8, fraction = 2) BigDecimal omega3Milligrams,
         @DecimalMin("0.01") @Digits(integer = 8, fraction = 2) BigDecimal magnesiumMilligrams,
         @Valid MacroTargetSettings macros, @Valid PersonalNutrientTarget epaDha,
-        @Valid PersonalNutrientTarget ala, @Valid PersonalNutrientTarget fiber) {
+        @Valid PersonalNutrientTarget ala, @Valid PersonalNutrientTarget fiber,
+        @Valid PersonalNutrientTarget salt) {
+        public NutrientTargetOverrides(BigDecimal vitaminDMicrograms, BigDecimal omega3Milligrams, BigDecimal magnesiumMilligrams, MacroTargetSettings macros, PersonalNutrientTarget epaDha, PersonalNutrientTarget ala, PersonalNutrientTarget fiber) {
+            this(vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, macros, epaDha, ala, fiber, null);
+        }
+
         public NutrientTargetOverrides(BigDecimal vitaminDMicrograms, BigDecimal omega3Milligrams, BigDecimal magnesiumMilligrams) {
             this(vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, null, null, null, null);
         }

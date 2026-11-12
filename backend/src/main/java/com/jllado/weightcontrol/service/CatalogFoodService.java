@@ -64,7 +64,7 @@ public class CatalogFoodService {
                 food.getVitaminDMicrograms(), food.getOmega3Milligrams(), food.getMagnesiumMilligrams(), food.getNutrientSource(), food.getNutrientsEstimated(),
                 food.getEpaDhaMilligrams(), food.getEpaDhaSource(), food.getEpaDhaEstimated(),
                 food.getAlaMilligrams(), food.getAlaSource(), food.getAlaEstimated(),
-                food.getFiberGrams(), food.getFiberSource(), food.getFiberEstimated(), 2));
+                food.getFiberGrams(), food.getFiberSource(), food.getFiberEstimated(), 3, food.getSaltGrams(), food.getSaltSource(), food.getSaltEstimated()));
             oldName.setDeleted(true);
         }
         apply(food, request);

@@ -30,6 +30,10 @@ class CoachNutritionDishDataTest {
         dish.setReferenceFiberGrams(BigDecimal.ZERO);
         dish.setFiberSource("Fish composition");
         dish.setFiberEstimated(false);
+        dish.setSaltGrams(new BigDecimal("0.12"));
+        dish.setReferenceSaltGrams(new BigDecimal("0.12"));
+        dish.setSaltSource("Matching salmon salt composition");
+        dish.setSaltEstimated(true);
 
         var coach = CoachDtos.NutritionDishData.from(dish);
         assertEquals(new BigDecimal("1200.00"), coach.epaDhaMilligrams());
@@ -41,12 +45,16 @@ class CoachNutritionDishDataTest {
         assertEquals(new BigDecimal("1200.00"), coach.reference().epaDhaMilligrams());
         assertEquals(new BigDecimal("20.00"), coach.reference().alaMilligrams());
         assertEquals(BigDecimal.ZERO, coach.reference().fiberGrams());
+        assertEquals(new BigDecimal("0.12"), coach.saltGrams());
+        assertEquals(new BigDecimal("0.12"), coach.reference().saltGrams());
+        assertEquals("Matching salmon salt composition", coach.saltSource());
+        assertTrue(coach.saltEstimated());
 
         var catalog = new MealDtos.CatalogFoodResponse(1L, coach.name(), coach.calories(), coach.proteinGrams(),
             coach.carbohydrateGrams(), coach.fatGrams(), coach.quantity(), coach.fruit(), coach.unit(), coach.reference(),
             coach.vitaminDMicrograms(), coach.omega3Milligrams(), coach.magnesiumMilligrams(), coach.nutrientSource(),
             coach.nutrientsEstimated(), coach.epaDhaMilligrams(), coach.epaDhaSource(), coach.epaDhaEstimated(),
-            coach.alaMilligrams(), coach.alaSource(), coach.alaEstimated(), coach.fiberGrams(), coach.fiberSource(), coach.fiberEstimated());
+            coach.alaMilligrams(), coach.alaSource(), coach.alaEstimated(), coach.fiberGrams(), coach.fiberSource(), coach.fiberEstimated(), coach.saltGrams(), coach.saltSource(), coach.saltEstimated());
         assertEquals(coach, CoachDtos.NutritionDishData.from(catalog));
     }
 }

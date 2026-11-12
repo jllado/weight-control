@@ -11,6 +11,7 @@ public final class NutrientAssessment {
     private static final Result MET = new Result("GOAL_MET", "Goal met", "#2f855a");
     private static final Result BELOW = new Result("BELOW_GOAL", "Below goal", "#c05621");
     private static final Result ABOVE = new Result("ABOVE_GOAL", "Above goal", "#c05621");
+    private static final Result LIMIT = new Result("AT_OR_ABOVE_LIMIT", "At or above limit", "#c05621");
     private static final Result UNKNOWN = new Result("UNAVAILABLE", "Not available", "#486277");
     public static Result vitaminD(BigDecimal intake, BigDecimal target, NutrientTargetSource source, boolean complete) {
         if (target != null && source == NutrientTargetSource.EFSA_AI)
@@ -29,6 +30,8 @@ public final class NutrientAssessment {
         if (intake == null || target == null || comparison == null) return UNKNOWN;
         if (comparison == MacroTargetComparison.MINIMUM)
             return intake.compareTo(target) >= 0 ? MET : complete ? BELOW : UNKNOWN;
+        if (comparison == MacroTargetComparison.STRICT_MAXIMUM)
+            return intake.compareTo(target) >= 0 ? LIMIT : complete ? MET : UNKNOWN;
         return intake.compareTo(target) > 0 ? ABOVE : complete ? MET : UNKNOWN;
     }
 }

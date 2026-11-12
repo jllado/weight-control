@@ -11,13 +11,14 @@ export const legacyNutrientFields = [
 export const newNutrientFields = [
     {key: 'epaDhaMilligrams', label: 'Omega-3 (EPA+DHA)', unit: 'mg', sourceKey: 'epaDhaSource', estimatedKey: 'epaDhaEstimated', coverageKey: 'epaDhaCoverage'},
     {key: 'alaMilligrams', label: 'ALA', unit: 'mg', sourceKey: 'alaSource', estimatedKey: 'alaEstimated', coverageKey: 'alaCoverage'},
-    {key: 'fiberGrams', label: 'Fiber', unit: 'g', sourceKey: 'fiberSource', estimatedKey: 'fiberEstimated', coverageKey: 'fiberCoverage'}
+    {key: 'fiberGrams', label: 'Fiber', unit: 'g', sourceKey: 'fiberSource', estimatedKey: 'fiberEstimated', coverageKey: 'fiberCoverage'},
+    {key: 'saltGrams', label: 'Salt', unit: 'g', sourceKey: 'saltSource', estimatedKey: 'saltEstimated', coverageKey: 'saltCoverage'}
 ];
 export const nutrientFields = [legacyNutrientFields[0], legacyNutrientFields[2], ...newNutrientFields];
 export const totalOmega3Field = {...legacyNutrientFields[1], label: 'Omega-3'};
-export const dailyNutrientFields = [legacyNutrientFields[0], legacyNutrientFields[2], totalOmega3Field, newNutrientFields[2]];
+export const dailyNutrientFields = [legacyNutrientFields[0], legacyNutrientFields[2], totalOmega3Field, newNutrientFields[2], newNutrientFields[3]];
 export const requiredNutrientFields = [legacyNutrientFields[0], legacyNutrientFields[2]];
-export const trendNutrientFields = [legacyNutrientFields[0], totalOmega3Field, legacyNutrientFields[2], newNutrientFields[2]];
+export const trendNutrientFields = [legacyNutrientFields[0], totalOmega3Field, legacyNutrientFields[2], newNutrientFields[2], newNutrientFields[3]];
 export const storedNutrientFields = [...legacyNutrientFields, ...newNutrientFields];
 export const nutritionFields = ['calories', 'proteinGrams', 'carbohydrateGrams', 'fatGrams', ...storedNutrientFields.map(field => field.key)];
 
@@ -57,7 +58,7 @@ export function macroSummary(dish) {
 }
 
 export function foodPayload(food) {
-    const payload = {nutrientSchemaVersion: 2, ...Object.fromEntries(['name', ...nutritionFields, 'quantity', 'unit', 'reference', 'fruit', 'nutrientSource', 'nutrientsEstimated',
+    const payload = {nutrientSchemaVersion: 3, ...Object.fromEntries(['name', ...nutritionFields, 'quantity', 'unit', 'reference', 'fruit', 'nutrientSource', 'nutrientsEstimated',
         ...newNutrientFields.flatMap(field => [field.sourceKey, field.estimatedKey])].map(key => [key, food[key]]))};
     newNutrientFields.forEach(field => {
         if (payload[field.key] == null) {

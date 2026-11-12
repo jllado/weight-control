@@ -79,7 +79,7 @@ dd { margin: .25rem 0 0; }
 .compact dl { margin: .25rem 0; gap: .25rem .75rem; }
 .compact dl > div { display: flex; gap: .25rem; min-width: 0; }
 .compact dd { margin: 0; }
-.daily dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; }
+.daily dl { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .75rem; }
 .daily dl > div { min-width: 0; }
 .daily dt { overflow-wrap: anywhere; }
 @container (max-width: 64rem) {

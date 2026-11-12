@@ -28,7 +28,8 @@ public interface CatalogFoodRepository extends JpaRepository<CatalogFood, Long> 
             nutrient_source, nutrients_estimated,
             epa_dha_milligrams, reference_epa_dha_milligrams, epa_dha_source, epa_dha_estimated,
             ala_milligrams, reference_ala_milligrams, ala_source, ala_estimated,
-            fiber_grams, reference_fiber_grams, fiber_source, fiber_estimated)
+            fiber_grams, reference_fiber_grams, fiber_source, fiber_estimated,
+            salt_grams, reference_salt_grams, salt_source, salt_estimated)
         VALUES (:userId, :name, :normalizedName, false, :#{#food.fruit}, :#{#food.quantity}, :#{#food.unit.name()},
             :#{#food.calories}, :#{#food.proteinGrams}, :#{#food.carbohydrateGrams}, :#{#food.fatGrams},
             :#{#food.referenceQuantity}, :#{#food.referenceCalories}, :#{#food.referenceProteinGrams},
@@ -38,7 +39,8 @@ public interface CatalogFoodRepository extends JpaRepository<CatalogFood, Long> 
             :#{#food.nutrientSource}, :#{#food.nutrientsEstimated},
             :#{#food.epaDhaMilligrams}, :#{#food.referenceEpaDhaMilligrams}, :#{#food.epaDhaSource}, :#{#food.epaDhaEstimated},
             :#{#food.alaMilligrams}, :#{#food.referenceAlaMilligrams}, :#{#food.alaSource}, :#{#food.alaEstimated},
-            :#{#food.fiberGrams}, :#{#food.referenceFiberGrams}, :#{#food.fiberSource}, :#{#food.fiberEstimated})
+            :#{#food.fiberGrams}, :#{#food.referenceFiberGrams}, :#{#food.fiberSource}, :#{#food.fiberEstimated},
+            :#{#food.saltGrams}, :#{#food.referenceSaltGrams}, :#{#food.saltSource}, :#{#food.saltEstimated})
         ON DUPLICATE KEY UPDATE id = id
         """, nativeQuery = true)
     void insertIfAbsent(@Param("userId") Long userId, @Param("name") String name,

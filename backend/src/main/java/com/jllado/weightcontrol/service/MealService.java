@@ -156,7 +156,7 @@ public class MealService {
             fruit, dish.vitaminDMicrograms(), dish.omega3Milligrams(), dish.magnesiumMilligrams(), dish.nutrientSource(), dish.nutrientsEstimated(),
             dish.epaDhaMilligrams(), dish.epaDhaSource(), dish.epaDhaEstimated(),
             dish.alaMilligrams(), dish.alaSource(), dish.alaEstimated(),
-            dish.fiberGrams(), dish.fiberSource(), dish.fiberEstimated(), request.nutrientSchemaVersion()
+            dish.fiberGrams(), dish.fiberSource(), dish.fiberEstimated(), request.nutrientSchemaVersion(), dish.saltGrams(), dish.saltSource(), dish.saltEstimated()
             );
         }).toList();
         mealRequest = new MealRequest(mealRequest.date(), mealRequest.mealType(), mealRequest.calories(), mealRequest.proteinGrams(), mealRequest.carbohydrateGrams(), mealRequest.fatGrams(), mealRequest.mealTime(), mealRequest.notes(), dishes, mealRequest.durationMinutes(), request.nutrientSchemaVersion());

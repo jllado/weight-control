@@ -7,7 +7,7 @@ export function nutrientValue(item, field) {
 
 export function nutrientCoverage(item, field) {
     const nutrients = item?.nutrients;
-    return nutrients?.[field.coverageKey] ?? (['epaDhaMilligrams', 'alaMilligrams'].includes(field.key) ? null : {
+    return nutrients?.[field.coverageKey] ?? (['epaDhaMilligrams', 'alaMilligrams', 'saltGrams'].includes(field.key) ? null : {
         foodsWithValues: nutrients?.foodsWithValues ?? 0, estimatedFoods: nutrients?.estimatedFoods ?? 0
     });
 }
@@ -57,6 +57,11 @@ export function nutrientMinimumStatus(rows, field, target) {
     return {label: met ? 'At or above current minimum' : 'Below current minimum', className: met ? 'target-met' : 'target-missed'};
 }
 
+function nutrientMaximumStatus(rows, field, target) {
+    const met = sumCents(rows, field) < BigInt(rows.length) * cents(target);
+    return {label: met ? `Below ${target} g` : `At or above ${target} g limit`, className: met ? 'target-met' : 'target-missed'};
+}
+
 export function omega3TrendStatus(rows, field, targets) {
     return combinedOmegaStatus(omegaFields.map(component => {
         const covered = rows.filter(row => isNutrientCovered(row, component));
@@ -78,31 +83,32 @@ function combinedOmegaStatus(statuses) {
 
 export function nutrientTargetStatus(rows, field, targets) {
     if (field.key === 'omega3Milligrams') return omega3TrendStatus(rows, field, targets);
-    const key = {vitaminDMicrograms: 'vitaminD', magnesiumMilligrams: 'magnesium', fiberGrams: 'fiber'}[field.key];
+    const key = {vitaminDMicrograms: 'vitaminD', magnesiumMilligrams: 'magnesium', fiberGrams: 'fiber', saltGrams: 'salt'}[field.key];
     const target = targets[key];
     if (target?.value == null || !rows.length) return null;
     if (key === 'vitaminD' && target.source !== 'PERSONAL') return {className: '', label: 'Reference only'};
-    return nutrientMinimumStatus(rows, field, target.value);
+    return key === 'salt' ? nutrientMaximumStatus(rows, field, target.value) : nutrientMinimumStatus(rows, field, target.value);
 }
 
-function dailyMinimumStatus(summary, field, target, completed) {
+function dailyTargetStatus(summary, field, target, completed) {
     if (summary[field.key] == null || target == null) return null;
-    const status = nutrientMinimumStatus([{nutrients: summary}], field, target);
+    const maximum = field.key === 'saltGrams';
+    const status = (maximum ? nutrientMaximumStatus : nutrientMinimumStatus)([{nutrients: summary}], field, target);
     const coverage = nutrientCoverage({nutrients: summary}, field);
     const partial = !completed || summary.totalFoods === 0 || summary.mealsWithoutFoods > 0 || coverage?.foodsWithValues !== summary.totalFoods;
-    return partial && status.className === 'target-missed'
-        ? {className: '', label: 'Partial recorded total; the minimum is not yet established.'} : status;
+    return partial && status.className === (maximum ? 'target-met' : 'target-missed')
+        ? {className: '', label: maximum ? `Partial recorded total; below ${target} g is not yet established.` : 'Partial recorded total; the minimum is not yet established.'} : status;
 }
 
 export function dailyNutrientStatus(summary, field, targets, completed = true) {
     if (!targets) return null;
     if (field.key === 'omega3Milligrams') {
-        return combinedOmegaStatus(omegaFields.map(component => dailyMinimumStatus(summary, component, targets[component.targetKey]?.value, completed)?.className));
+        return combinedOmegaStatus(omegaFields.map(component => dailyTargetStatus(summary, component, targets[component.targetKey]?.value, completed)?.className));
     }
     if (summary[field.key] == null) return null;
-    const key = {vitaminDMicrograms: 'vitaminD', magnesiumMilligrams: 'magnesium', fiberGrams: 'fiber'}[field.key];
+    const key = {vitaminDMicrograms: 'vitaminD', magnesiumMilligrams: 'magnesium', fiberGrams: 'fiber', saltGrams: 'salt'}[field.key];
     if (key === 'vitaminD' && targets.vitaminD?.value != null && targets.vitaminD.source !== 'PERSONAL') return {className: '', label: 'Reference only'};
-    return dailyMinimumStatus(summary, field, targets[key]?.value, completed);
+    return dailyTargetStatus(summary, field, targets[key]?.value, completed);
 }
 
 export function macroTargetStatus(rows, field, fatPercentage) {
@@ -156,16 +162,16 @@ export function nutrientChartData(summaries, from, to, field, targets = null) {
             const row = rows.get(day.format('YYYY-MM-DD'));
             return row && isNutrientCovered(row, field) ? `${nutrientValue(row, field)} ${field.unit}${nutrientCoverage(row, field)?.estimatedFoods ? ' (includes estimates)' : ''}${chartStatusLabel(row, field, targets)}` : null;
         })}];
-    if (field.key === 'fiberGrams') {
+    if (['fiberGrams', 'saltGrams'].includes(field.key)) {
         const partial = labels.map(day => {
             const row = rows.get(day.format('YYYY-MM-DD'));
             return row?.completed && nutrientValue(row, field) != null && !isNutrientCovered(row, field) ? nutrientValue(row, field) : null;
         });
         datasets.push({label: 'Partial recorded lower bound', data: partial, showLine: false, spanGaps: false,
-            pointBackgroundColor: '#fff', pointBorderColor: pointColors, pointBorderWidth: 2, pointRadius: 5,
+            pointBackgroundColor: '#fff', pointBorderColor: pointColors, pointStyle, pointBorderWidth: 2, pointRadius: 5,
             pointLabels: labels.map((day, index) => {
                 const row = rows.get(day.format('YYYY-MM-DD'));
-                return partial[index] == null ? null : `≥${partial[index]} ${field.unit} (${nutrientCoverage(row, field).foodsWithValues}/${row.nutrients.totalFoods} foods${row.nutrients.mealsWithoutFoods ? `; ${row.nutrients.mealsWithoutFoods} meal(s) without foods` : ''}${nutrientCoverage(row, field).estimatedFoods ? '; includes estimates' : ''})`;
+                return partial[index] == null ? null : `≥${partial[index]} ${field.unit} (${nutrientCoverage(row, field).foodsWithValues}/${row.nutrients.totalFoods} foods${row.nutrients.mealsWithoutFoods ? `; ${row.nutrients.mealsWithoutFoods} meal(s) without foods` : ''}${nutrientCoverage(row, field).estimatedFoods ? '; includes estimates' : ''})${chartStatusLabel(row, field, targets)}`;
             })});
     }
     return {labels: labels.map(day => day.format('D MMM')), datasets};
@@ -184,9 +190,9 @@ export function nutrientChartRows(summaries, from, to, field, targets = null) {
         const item = rows.get(day.format('YYYY-MM-DD'));
         if (!item) return {date: day.format('YYYY-MM-DD'), description: 'no daily total recorded'};
         if (!item.completed) return {date: day.format('YYYY-MM-DD'), description: 'day not marked complete'};
-        if (field.key === 'fiberGrams' && nutrientValue(item, field) != null && !isNutrientCovered(item, field)) {
+        if (['fiberGrams', 'saltGrams'].includes(field.key) && nutrientValue(item, field) != null && !isNutrientCovered(item, field)) {
             const coverage = nutrientCoverage(item, field);
-            return {date: day.format('YYYY-MM-DD'), description: `≥${nutrientValue(item, field)} ${field.unit} partial lower bound (${coverage.foodsWithValues}/${item.nutrients.totalFoods} foods${item.nutrients.mealsWithoutFoods ? `; ${item.nutrients.mealsWithoutFoods} meal(s) without foods` : ''}${coverage.estimatedFoods ? '; includes estimates' : ''})`};
+            return {date: day.format('YYYY-MM-DD'), description: `≥${nutrientValue(item, field)} ${field.unit} partial lower bound (${coverage.foodsWithValues}/${item.nutrients.totalFoods} foods${item.nutrients.mealsWithoutFoods ? `; ${item.nutrients.mealsWithoutFoods} meal(s) without foods` : ''}${coverage.estimatedFoods ? '; includes estimates' : ''})${chartStatusLabel(item, field, targets)}`};
         }
         if (!isNutrientCovered(item, field)) {
             const nutrients = item.nutrients;

@@ -120,10 +120,10 @@ const dashboard = {
 function nutrientTargetsForDate(date) {
     const day = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][new Date(`${date}T00:00:00Z`).getUTCDay()];
     return {
-        targets: Object.fromEntries([['vitaminD', 15], ['omega3', null], ['magnesium', 350], ['epaDha', null], ['ala', null], ['fiber', null]]
-            .map(([key, value]) => [key, {value, source: value == null ? 'NONE' : 'EFSA_AI', referenceValue: value}])),
+        targets: Object.fromEntries([['vitaminD', 15], ['omega3', null], ['magnesium', 350], ['epaDha', null], ['ala', null], ['fiber', null], ['salt', 5]]
+            .map(([key, value]) => [key, {value, source: value == null ? 'NONE' : key === 'salt' ? 'WHO' : 'EFSA_AI', referenceValue: value}])),
         overrides: {vitaminDMicrograms: null, omega3Milligrams: null, magnesiumMilligrams: null,
-            macros: {proteinGrams: null, fatPercentage: null}, epaDha: {value: null}, ala: {value: null}, fiber: {value: null}},
+            macros: {proteinGrams: null, fatPercentage: null}, epaDha: {value: null}, ala: {value: null}, fiber: {value: null}, salt: {value: null}},
         macroTargets: {protein: {value: null, comparison: 'MINIMUM', unavailableReason: 'Set a protein target'},
             carbohydrate: {value: null, comparison: 'MAXIMUM', unavailableReason: 'Set protein and fat targets'},
             fat: {value: null, comparison: 'MAXIMUM', unavailableReason: 'Set a fat percentage'}, calorieBudget: profile.typicalCaloriesPerDay[day]}

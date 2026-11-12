@@ -15,7 +15,7 @@ public final class DishRecipeDtos {
         @NotBlank @Size(max = 255) String name,
         @NotNull @Positive @Digits(integer = 8, fraction = 3) BigDecimal servings,
         @NotEmpty List<@NotNull @Valid MealDishRequest> ingredients,
-        @Min(2) @Max(2) Integer nutrientSchemaVersion
+        @Min(2) @Max(3) Integer nutrientSchemaVersion
     ) {
         public RecipeRequest(String name, BigDecimal servings, List<MealDishRequest> ingredients) {
             this(name, servings, ingredients, null);
@@ -23,9 +23,10 @@ public final class DishRecipeDtos {
     }
     public record CoachRecipeRequest(@NotNull @Valid RecipeRequest recipe, boolean confirmed) {
         @JsonIgnore
-        @AssertTrue(message = "Coach recipe nutrientSchemaVersion must be 2")
+        @AssertTrue(message = "Coach recipe nutrientSchemaVersion must be 2 or 3")
         public boolean isNutrientSchemaVersionCurrent() {
-            return recipe == null || Integer.valueOf(2).equals(recipe.nutrientSchemaVersion());
+            return recipe == null || Integer.valueOf(2).equals(recipe.nutrientSchemaVersion())
+                || Integer.valueOf(3).equals(recipe.nutrientSchemaVersion());
         }
     }
     public record RecipeResponse(Long id, String name, BigDecimal servings, List<MealDishRequest> ingredients) {
@@ -35,7 +36,7 @@ public final class DishRecipeDtos {
                     food.getVitaminDMicrograms(), food.getOmega3Milligrams(), food.getMagnesiumMilligrams(), food.getNutrientSource(), food.getNutrientsEstimated(),
                     food.getEpaDhaMilligrams(), food.getEpaDhaSource(), food.getEpaDhaEstimated(),
                     food.getAlaMilligrams(), food.getAlaSource(), food.getAlaEstimated(),
-                    food.getFiberGrams(), food.getFiberSource(), food.getFiberEstimated(), 2)).toList());
+                    food.getFiberGrams(), food.getFiberSource(), food.getFiberEstimated(), 3, food.getSaltGrams(), food.getSaltSource(), food.getSaltEstimated())).toList());
         }
     }
 }

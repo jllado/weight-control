@@ -106,4 +106,16 @@ public abstract class FoodPortion {
 
     @Column(name = "fiber_estimated")
     private Boolean fiberEstimated;
+
+    @Column(name = "salt_grams", precision = 10, scale = 2)
+    private BigDecimal saltGrams;
+
+    @Column(name = "reference_salt_grams", precision = 10, scale = 2)
+    private BigDecimal referenceSaltGrams;
+
+    @Column(name = "salt_source", length = 500)
+    private String saltSource;
+
+    @Column(name = "salt_estimated")
+    private Boolean saltEstimated;
 }
