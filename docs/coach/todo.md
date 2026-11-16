@@ -364,6 +364,7 @@ cd backend && ./gradlew test
 - [x] Update Coach amount, exact-value, uncertainty, and ambiguity rules.
 - [x] Verify navigation, discard/error handling, quantity round trips, migration, Coach validation, and responsive layouts.
 - [x] Limit manual meal preloads to the latest 14 earlier entries of the selected type, with dish-only titles and separate dates; preserve independent drafts and existing Coach contracts.
+- [x] Add dashboard whole-day copying with editable independent snapshots, exact nutrient/reference preservation, atomic save, food summaries and kcal in both source selectors; verify app behavior without changing Coach Actions or publication.
 
 Release acceptance requires the release artifact gate, a successful production deployment, and publication of the private GPT instructions and schema.
 

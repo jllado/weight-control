@@ -1,7 +1,7 @@
 <template>
   <section id="meal-form" class="meal-editor-form" aria-label="Meal">
     <SaveFields :saving="saving">
-    <h1>{{ meal ? 'Edit meal' : 'New meal' }}</h1>
+    <h1 :tabindex="local_mode ? -1 : null">{{ meal ? 'Edit meal' : 'New meal' }}</h1>
     <p v-if="fixed_date">{{ format_date(fform.date) }}</p>
     <br>
     <div v-if="!fixed_date" class="p-flex-row p-pb-5">
@@ -11,23 +11,34 @@
       </span>
       <span class="error">{{ vv.date?.$errors[0]?.$message }}</span>
     </div>
-    <div class="p-flex-row p-pb-5">
+    <p v-if="local_mode"><strong>{{ meal_label }}</strong></p>
+    <div v-else class="p-flex-row p-pb-5">
       <span class="p-float-label">
-        <Dropdown inputId="meal-type" v-model="vv.mealType.$model" :options="available_meal_types" optionLabel="label" optionValue="value" appendTo="body" class="entry-dropdown" @change="apply_default_duration" />
-        <label for="meal-type">Meal</label>
+        <Dropdown inputId="meal-type" aria-labelledby="meal-type-label" :aria-describedby="save_attempted ? 'meal-type-error' : null" v-model="vv.mealType.$model" :options="available_meal_types" optionLabel="label" optionValue="value" appendTo="body" class="entry-dropdown" @change="apply_default_duration" />
+        <label id="meal-type-label" for="meal-type">Meal</label>
       </span>
-      <span class="error">{{ vv.mealType?.$errors[0]?.$message }}</span>
+      <span v-if="save_attempted" id="meal-type-error" class="error">{{ vv.mealType?.$errors[0]?.$message }}</span>
     </div>
-    <div v-if="!meal" class="p-flex-row p-pb-5">
+    <div v-if="fixed_date && !meal && !fform.mealType" class="p-flex-row p-pb-5">
       <span class="p-float-label">
-        <Dropdown inputId="reuse-meal" v-model="selected_meal" :options="previous_meals" optionLabel="label" appendTo="body" :disabled="!fform.mealType" placeholder="Start from scratch" emptyMessage="No earlier meals of this type." :panelStyle="{maxWidth: 'calc(100vw - 2rem)'}" @change="copy_previous_meal">
-          <template #option="{option}"><div class="meal-preload-option"><strong>{{ option.title }}</strong><small>{{ option.dateFormat }}</small></div></template>
+        <Dropdown inputId="reuse-day" aria-labelledby="reuse-day-label" :modelValue="null" :options="previous_days" optionLabel="label" appendTo="body" :disabled="target_has_meals" placeholder="Choose a day" emptyMessage="No earlier days recorded." :panelStyle="{maxWidth: 'calc(100vw - 2rem)'}" @update:modelValue="select_day">
+          <template #option="{option}"><MealPreloadOption :option="option" /></template>
         </Dropdown>
-        <label for="reuse-meal">Preload a previous meal</label>
+        <label id="reuse-day-label" for="reuse-day">Preload a previous day</label>
+      </span>
+      <small v-if="target_has_meals">This day already has meals. Choose a meal type to add one meal.</small>
+    </div>
+    <div v-if="!meal && (!fixed_date || fform.mealType)" class="p-flex-row p-pb-5">
+      <span class="p-float-label">
+        <Dropdown inputId="reuse-meal" aria-labelledby="reuse-meal-label" v-model="selected_meal" :options="previous_meals" optionLabel="label" appendTo="body" :disabled="!fform.mealType" placeholder="Start from scratch" emptyMessage="No earlier meals of this type." :panelStyle="{maxWidth: 'calc(100vw - 2rem)'}" @change="copy_previous_meal">
+          <template #option="{option}"><MealPreloadOption :option="option" /></template>
+        </Dropdown>
+        <label id="reuse-meal-label" for="reuse-meal">Preload a previous meal</label>
       </span>
       <small v-if="!fform.mealType">Choose a meal type to see previous meals.</small>
     </div>
-    <div v-if="!fform.dishes.length && calorie_shortcuts.length" class="p-flex-row p-pb-5">
+    <template v-if="meal || !fixed_date || fform.mealType">
+    <div v-if="!local_mode && !fform.dishes.length && calorie_shortcuts.length" class="p-flex-row p-pb-5">
       <div class="meal-shortcut-label">Shortcuts</div>
       <div class="meal-shortcut-buttons action-group">
         <Button v-for="shortcut in calorie_shortcuts" :key="shortcut.key" :label="shortcut.label" class="p-button-sm p-button-outlined" @click="apply_shortcut(shortcut.calories)" />
@@ -85,7 +96,7 @@
       <FoodPicker class="meal-dish-reuse" :foods="catalog_foods" inputId="reuse-dish" @select="reuse_dish" />
       <p v-if="food_error" role="alert">{{ food_error }} <Button label="Retry" class="p-button-text" @click="load_foods" /></p>
       <DishRecipePicker ref="recipePicker" class="meal-dish-reuse" @apply="fform.dishes.push(...$event)" />
-      <Button label="Save as dish" class="p-button-outlined" :disabled="!selected_foods.length" @click="create_recipe" />
+      <Button label="Save as dish" class="p-button-outlined" :disabled="local_mode || !selected_foods.length" @click="create_recipe" />
       <p v-if="!fform.dishes.length">Add foods to calculate the meal total automatically.</p>
       <div v-for="(dish, index) in fform.dishes" :key="dish.key" class="meal-dish-row">
         <Checkbox v-model="selected_foods" :value="dish.key" :inputId="`select-food-${index}`" :ariaLabel="`Select food ${index + 1}`" />
@@ -100,18 +111,19 @@
       </span>
     </div>
     <p v-if="save_error" role="alert" class="error">{{ save_error }}</p>
+    </template>
     </SaveFields>
     <footer class="meal-editor-footer">
-      <div role="status"><strong>{{ fform.dishes.length ? calculated_calories : (fform.calories ?? 0) }} kcal</strong><div>{{ fform.dishes.length ? calculated_macro_summary : macro_summary(fform) }}</div></div>
+      <div v-if="meal || !fixed_date || fform.mealType" role="status"><strong>{{ displayed_calories }} kcal</strong><div>{{ fform.dishes.length && (!local_mode || nutrition_changed) ? calculated_macro_summary : macro_summary(fform) }}</div></div>
       <div class="meal-dish-actions action-group">
-      <Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" :loading="saving" :disabled="saving || !!dish_draft" @click="save" :aria-busy="saving" />
+      <Button v-if="meal || !fixed_date || fform.mealType" :label="saving ? 'Saving…' : local_mode ? 'Apply' : 'Save'" icon="pi pi-check" :loading="saving" :disabled="saving || !!dish_draft" @click="save" :aria-busy="saving" />
       <Button label="Cancel" icon="pi pi-times" :disabled="saving" @click="close_modal" class="p-button-secondary" />
       </div>
     </footer>
     <Dialog v-if="recipe_draft" header="Save as dish" :visible="true" modal appendTo="body" :closable="false" :closeOnEscape="false" :style="{width: 'min(40rem, 95vw)'}">
       <DishRecipeForm :recipe="recipe_draft" independent @saved="recipe_saved" @close="recipe_draft = null" />
     </Dialog>
-    <DishForm v-if="dish_draft" :dish="dish_draft" @apply="apply_dish" @close="dish_draft = null" />
+    <DishForm v-if="dish_draft" :dish="dish_draft" :preserve_snapshot="local_mode && dish_index !== null" @apply="apply_dish" @close="dish_draft = null" />
   </section>
 </template>
 
@@ -121,7 +133,7 @@ import foodService from '../services/FoodService';
 import {reactive, toRef} from "vue";
 import {useVuelidate} from "@vuelidate/core";
 import {integer, minValue, required, requiredIf} from "@vuelidate/validators";
-import Meal, {MealType, mealTypeOptions} from "@/model/Meal";
+import Meal, {MealType, mealTypeOptions, formatMealType} from "@/model/Meal";
 import {calorieShortcutOptions} from "@/model/UserProfile";
 import {userState} from '../state';
 import dayjs from 'dayjs';
@@ -130,12 +142,15 @@ import MealDurationPicker from './MealDurationPicker.vue';
 import FoodPicker from './FoodPicker.vue';
 import DishRecipePicker from './DishRecipePicker.vue';
 import DishRecipeForm from './DishRecipeForm.vue';
-import {normalizeDish, quantityLabel, macroSummary, foodPayload} from '../model/Dish';
+import {normalizeDish, quantityLabel, macroSummary, foodPayload, nutritionFields} from '../model/Dish';
+
+import MealPreloadOption from './MealPreloadOption.vue';
+import {copyFoodSnapshot, copyMealSnapshot, foodTitle, previousDays} from '../model/MealDayCopy';
 
 export default {
   name: "MealForm",
-  components: {MealDurationPicker, DishForm, FoodPicker, DishRecipePicker, DishRecipeForm},
-  emits: ["onSave", "onClose"],
+  components: {MealPreloadOption, MealDurationPicker, DishForm, FoodPicker, DishRecipePicker, DishRecipeForm},
+  emits: ["onSave", "onClose", "copyDay", "apply"],
   props: {
     meal: Object,
     meals: {
@@ -147,7 +162,8 @@ export default {
       default: () => []
     },
     initial_date: Date,
-    fixed_date: Boolean
+    fixed_date: Boolean,
+    local_mode: Boolean
   },
   data() {
     const locale = {
@@ -177,7 +193,7 @@ export default {
     const rules = {
       date: {required},
       mealType: {required},
-      mealTime: {required: requiredIf(() => this.has_ongoing_fast)},
+      mealTime: {required: requiredIf(() => !this.local_mode && this.has_ongoing_fast)},
       durationMinutes: {required: requiredIf(() => !!fform.mealTime), integer, minValue: minValue(1)},
       calories: {required: requiredIf(() => !fform.dishes.length), integer, minValue: minValue(0)},
       proteinGrams: {minValue: minValue(0)},
@@ -203,11 +219,19 @@ export default {
       save_error: '',
       catalog_foods: [],
       food_error: '',
-      saved_snapshot: ''
+      saved_snapshot: '',
+      save_attempted: false
     }
   },
   mounted() { this.load_foods(); this.load_form(); this.saved_snapshot = JSON.stringify(this.fform); },
   computed: {
+    meal_label() { return this.local_mode ? formatMealType(this.meal.mealType, this.meal.mealSequence) : ''; },
+    previous_days() { return previousDays(this.meals, this.fform.date); },
+    target_has_meals() { return this.meals.some(meal => dayjs(meal.date).isSame(this.fform.date, 'day')); },
+    nutrition_changed() {
+      return this.local_mode && JSON.stringify(this.fform.dishes.map(dish => nutritionFields.map(key => dish[key]))) !== JSON.stringify(this.meal.dishes.map(dish => nutritionFields.map(key => dish[key])));
+    },
+    displayed_calories() { return this.fform.dishes.length && (!this.local_mode || this.nutrition_changed) ? this.calculated_calories : (this.fform.calories ?? 0); },
     dirty() { return !!this.dish_draft || !!this.recipe_draft || JSON.stringify(this.fform) !== this.saved_snapshot; },
     has_ongoing_fast() {
       return this.fasting_periods.some(period => period.source === 'AUTOMATIC' && !period.endTime);
@@ -234,8 +258,7 @@ export default {
           .sort((left, right) => dayjs(right.date).valueOf() - dayjs(left.date).valueOf() || right.id - left.id)
           .slice(0, 14)
           .map(candidate => {
-            const count = candidate.dishes.length;
-            const title = count ? candidate.dishes[0].name + (count > 1 ? ` + ${count - 1} ${count === 2 ? 'food' : 'foods'}` : '') : 'No foods';
+            const title = foodTitle(candidate.dishes);
             return {...candidate, title, label: `${title} · ${candidate.dateFormat}`};
           });
     },
@@ -248,11 +271,12 @@ export default {
     }
   },
   methods: {
+    select_day(day) { if (!this.dirty || window.confirm('Discard unsaved meal changes?')) this.$emit('copyDay', day); },
     async load_foods() { this.food_error = ''; try { this.catalog_foods = await foodService.get_all(); } catch { this.food_error = 'Unable to load saved foods.'; } },
     quantity_label: quantityLabel,
     macro_summary: macroSummary,
     format_date(date) { return dayjs(date).format('DD/MM/YYYY'); },
-    edit_dish(index) { this.dish_index = index; this.dish_draft = normalizeDish(this.fform.dishes[index]); },
+    edit_dish(index) { this.dish_index = index; this.dish_draft = this.local_mode ? {...copyFoodSnapshot(this.fform.dishes[index]), key: this.fform.dishes[index].key} : normalizeDish(this.fform.dishes[index]); },
     apply_dish(dish) {
       if (this.dish_index === null) this.fform.dishes.push(dish);
       else this.fform.dishes.splice(this.dish_index, 1, dish);
@@ -271,14 +295,14 @@ export default {
     load_form() {
       this.vv.date.$model = this.meal?.date || this.initial_date || new Date();
       this.vv.mealType.$model = this.meal?.mealType || null;
-      this.vv.mealTime.$model = this.meal?.mealTime || null;
+      this.vv.mealTime.$model = this.local_mode && this.meal.mealTime ? dayjs(`1970-01-01T${this.meal.mealTime}`).toDate() : this.meal?.mealTime || null;
       this.vv.durationMinutes.$model = this.meal?.durationMinutes ?? null;
       this.vv.calories.$model = this.meal?.calories ?? null;
       this.vv.proteinGrams.$model = this.meal?.proteinGrams ?? null;
       this.vv.carbohydrateGrams.$model = this.meal?.carbohydrateGrams ?? null;
       this.vv.fatGrams.$model = this.meal?.fatGrams ?? null;
-      this.vv.notes.$model = this.meal?.notes || '';
-      this.vv.dishes.$model = (this.meal?.dishes || []).map(dish => ({...normalizeDish(dish), key: dish.id || crypto.randomUUID()}));
+      this.vv.notes.$model = this.local_mode ? this.meal.notes : this.meal?.notes || '';
+      this.vv.dishes.$model = (this.meal?.dishes || []).map(dish => ({...(this.local_mode ? copyFoodSnapshot(dish) : normalizeDish(dish)), key: dish.id || crypto.randomUUID()}));
     },
     add_dish() {
       const firstDish = this.vv.dishes.$model.length === 0;
@@ -335,8 +359,20 @@ export default {
     },
     async save() {
       if (this.saving) return;
+      this.save_attempted = true;
       this.vv.$touch();
       if (this.vv.$invalid) {
+        return;
+      }
+      if (this.local_mode) {
+        const snapshot = copyMealSnapshot({...this.fform, mealSequence: this.meal.mealSequence});
+        if (this.nutrition_changed && snapshot.dishes.length) {
+          ['calories', 'proteinGrams', 'carbohydrateGrams', 'fatGrams'].forEach(key => {
+            snapshot[key] = snapshot.dishes.some(dish => dish[key] === null) ? null : Math.round(snapshot.dishes.reduce((sum, dish) => sum + dish[key], 0) * 100) / 100;
+          });
+        }
+        this.saved_snapshot = JSON.stringify(this.fform);
+        this.$emit('apply', snapshot);
         return;
       }
       const meal = new Meal();
@@ -385,7 +421,6 @@ h1 { font-size: 1.5rem; margin-top: 0; }
 .meal-editor-form :deep(.p-inputnumber), .meal-editor-form :deep(.p-inputtext), .meal-editor-form :deep(.p-dropdown), .meal-editor-form :deep(.p-calendar) { width: 100%; min-width: 0; }
 .meal-timing { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; }
 .meal-shortcut-label { margin-bottom: .5rem; }
-.meal-preload-option { display: flex; flex-direction: column; gap: .35rem; white-space: normal; overflow-wrap: anywhere; min-width: 0; }
 .meal-dishes-header, .meal-dish-row, .meal-editor-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .meal-dishes-header, .meal-dish-reuse { margin-bottom: 1rem; }
 .meal-dish-row { padding: .75rem 0; border-bottom: 1px solid var(--surface-border); }

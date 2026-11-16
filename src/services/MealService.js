@@ -2,6 +2,7 @@ import dayjs from 'dayjs';
 import {del, get, post, put} from './api';
 import Meal from '../model/Meal';
 import {foodPayload} from '../model/Dish';
+import {copyMealSnapshot} from '../model/MealDayCopy';
 import {celebratePersonalRecords} from './CelebrationService';
 
 function toPayload(meal) {
@@ -34,6 +35,11 @@ export default {
             : await post('/meals', toPayload(meal));
         celebratePersonalRecords(response.recordAchievements);
         return toMeal(response.result);
+    },
+    async copy_day(date, meals) {
+        const response = await post('/meals/copy-day', {date: dayjs(date).format('YYYY-MM-DD'), meals: meals.map(copyMealSnapshot)});
+        celebratePersonalRecords(response.recordAchievements);
+        return response.result.map(toMeal);
     },
     async rate(meal, rating) {
         return toMeal(await put(`/meals/${meal.id}/rating`, {rating}));

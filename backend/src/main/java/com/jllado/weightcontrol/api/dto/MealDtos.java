@@ -98,6 +98,80 @@ public final class MealDtos {
         }
     }
 
+    public record CopyDayRequest(@NotNull LocalDate date, @NotEmpty List<@NotNull @Valid MealSnapshotRequest> meals) {
+    }
+
+    public record MealSnapshotRequest(
+        @NotNull MealType mealType,
+        @NotNull @Positive @JsonDeserialize(using = WholeNumberDeserializer.class) Integer mealSequence,
+        @NotNull @DecimalMin("0") @JsonDeserialize(using = WholeNumberDeserializer.class) Integer calories,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal proteinGrams,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal carbohydrateGrams,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fatGrams,
+        LocalTime mealTime,
+        @Positive @JsonDeserialize(using = WholeNumberDeserializer.class) Integer durationMinutes,
+        String notes,
+        @NotNull List<@NotNull @Valid DishSnapshotRequest> dishes
+    ) {
+        @JsonIgnore
+        @AssertTrue(message = "Duration is required when a meal has a start time")
+        public boolean isDurationValid() {
+            return mealTime == null || durationMinutes != null;
+        }
+
+        @JsonIgnore
+        @AssertTrue(message = "Fixed meal types must have sequence 1")
+        public boolean isSequenceValid() {
+            return mealType == MealType.SNACK || mealSequence == null || mealSequence == 1;
+        }
+    }
+
+    public record DishSnapshotRequest(
+        @NotBlank @Size(max = 255) String name,
+        @NotNull @DecimalMin("0") @JsonDeserialize(using = WholeNumberDeserializer.class) Integer calories,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal proteinGrams,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal carbohydrateGrams,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fatGrams,
+        @NotNull @Positive @Digits(integer = 8, fraction = 3) BigDecimal quantity,
+        @NotNull DishUnit unit,
+        @NotNull @Valid DishReferenceSnapshot reference,
+        boolean fruit,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal vitaminDMicrograms,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal omega3Milligrams,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal magnesiumMilligrams,
+        @Size(max = 500) String nutrientSource,
+        Boolean nutrientsEstimated,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal epaDhaMilligrams,
+        @Size(max = 500) String epaDhaSource,
+        Boolean epaDhaEstimated,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal alaMilligrams,
+        @Size(max = 500) String alaSource,
+        Boolean alaEstimated,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fiberGrams,
+        @Size(max = 500) String fiberSource,
+        Boolean fiberEstimated,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal saltGrams,
+        @Size(max = 500) String saltSource,
+        Boolean saltEstimated
+    ) {
+    }
+
+    public record DishReferenceSnapshot(
+        @NotNull @Positive @Digits(integer = 8, fraction = 3) BigDecimal quantity,
+        @NotNull @DecimalMin("0") @JsonDeserialize(using = WholeNumberDeserializer.class) Integer calories,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal proteinGrams,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal carbohydrateGrams,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fatGrams,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal vitaminDMicrograms,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal omega3Milligrams,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal magnesiumMilligrams,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal epaDhaMilligrams,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal alaMilligrams,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fiberGrams,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal saltGrams
+    ) {
+    }
+
     public record MealRatingRequest(@NotNull @Min(1) @Max(10) @JsonDeserialize(using = WholeNumberDeserializer.class) Integer rating) {
     }
 
