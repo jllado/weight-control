@@ -262,6 +262,15 @@ public class PersonalRecordService {
             .toList();
     }
 
+    public List<RecordAchievementResponse> rebuildAndFindMealDayAchievements(User user, Map<String, BigDecimal> previousValues, List<Meal> meals, java.time.LocalDate date) {
+        return rebuildRecords(user).stream()
+            .filter(record -> meals.stream().anyMatch(meal -> record.source().contributes(PersonalRecordSourceType.MEAL, meal.getId()))
+                || record.source().type() == PersonalRecordSourceType.NUTRITION_DAY && record.date().equals(date))
+            .filter(record -> isNewRecord(record, previousValues.get(record.series().key())))
+            .map(record -> toAchievement(record, previousValues.get(record.series().key())))
+            .toList();
+    }
+
     public void rebuild(User user) {
         rebuildRecords(user);
     }

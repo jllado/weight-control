@@ -9,6 +9,7 @@ import com.jllado.weightcontrol.api.dto.LipidPanelDtos.LipidPanelRequest;
 import com.jllado.weightcontrol.api.dto.MoodDtos.MoodRequest;
 import com.jllado.weightcontrol.api.dto.SleepDtos.SleepRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.MealRequest;
+import com.jllado.weightcontrol.api.dto.MealDtos.CopyDayRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRequest;
 import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineRequest;
 import com.jllado.weightcontrol.api.dto.DecisionOutcomeDtos.DecisionOutcomeRequest;
@@ -198,6 +199,13 @@ public class PersonalRecordMutationService {
         var previous = personalRecordService.captureCurrentValues(user);
         Meal result = mealService.create(user, request);
         return achieved(user, previous, PersonalRecordSourceType.MEAL, result.getId(), result, result.getMealDate(), true);
+    }
+
+    public MutationResult<List<Meal>> copyMealDay(User user, CopyDayRequest request) {
+        var previous = personalRecordService.captureCurrentValues(user);
+        var result = mealService.copyDay(user, request);
+        var achievements = personalRecordService.rebuildAndFindMealDayAchievements(user, previous, result, request.date());
+        return achieved(user, result, achievements);
     }
 
     public MutationResult<Meal> updateMeal(User user, Long id, MealRequest request) {

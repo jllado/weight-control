@@ -66,6 +66,9 @@ class MealServiceTest {
     }
 
     @Mock
+    private com.jllado.weightcontrol.repository.UserRepository userRepository;
+
+    @Mock
     private MealRepository repository;
 
     @Mock

@@ -1,6 +1,7 @@
 package com.jllado.weightcontrol.api;
 
 import com.jllado.weightcontrol.api.dto.MealDtos.MealRequest;
+import com.jllado.weightcontrol.api.dto.MealDtos.CopyDayRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.MealResponse;
 import com.jllado.weightcontrol.api.dto.MealDtos.MealRatingRequest;
 import com.jllado.weightcontrol.domain.User;
@@ -36,6 +37,12 @@ public class MealController {
     public RecordMutationResponse<MealResponse> create(@Valid @RequestBody MealRequest request) {
         var result = mutationService.createMeal(currentUserService.requireUser(), request);
         return new RecordMutationResponse<>(MealResponse.from(result.result()), result.achievements());
+    }
+
+    @PostMapping("/copy-day")
+    public RecordMutationResponse<List<MealResponse>> copyDay(@Valid @RequestBody CopyDayRequest request) {
+        var result = mutationService.copyMealDay(currentUserService.requireUser(), request);
+        return new RecordMutationResponse<>(result.result().stream().map(MealResponse::from).toList(), result.achievements());
     }
 
     @PutMapping("/{id}")

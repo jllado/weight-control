@@ -19,7 +19,7 @@
       <div class="dish-name"><label for="nutrient-source">Nutrient source</label><InputText id="nutrient-source" v-model="draft.nutrientSource" maxlength="500" /></div>
       <div class="dish-name fruit-control"><Checkbox inputId="nutrients-estimated" v-model="draft.nutrientsEstimated" :binary="true" /><label for="nutrients-estimated">Includes estimated nutrients</label></div>
       <small class="dish-name">Macros are optional; leave unknown values blank.</small>
-      <p v-if="invalid" class="error dish-name" role="alert">Enter a name, positive quantity, non-negative calories, vitamin D, magnesium and their source. Recorded EPA+DHA, ALA, fiber and salt also need a source.</p>
+      <p v-if="invalid" class="error dish-name" role="alert">{{ preserve_snapshot ? 'Enter a name, positive quantity and non-negative recorded nutrients.' : 'Enter a name, positive quantity, non-negative calories, vitamin D, magnesium and their source. Recorded EPA+DHA, ALA, fiber and salt also need a source.' }}</p>
     </div>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
     </SaveFields>
@@ -33,10 +33,10 @@ import Checkbox from 'primevue/checkbox';
 import {dishReference, dishUnits, normalizeDish, nutritionFields, nutrientFields, requiredNutrientFields, newNutrientFields, scaleNutrition} from '../model/Dish';
 export default {
   components: {InputSwitch, Checkbox},
-  props: {dish: {type: Object, required: true}, saveLabel: {type: String, default: 'Apply'}, saving: Boolean, error: {type: String, default: ''}},
+  props: {dish: {type: Object, required: true}, saveLabel: {type: String, default: 'Apply'}, saving: Boolean, preserve_snapshot: Boolean, error: {type: String, default: ''}},
   emits: ['apply', 'close'],
   data() {
-    return {draft: normalizeDish(this.dish), invalid: false, scale_nutrition: true, units: dishUnits, fields: [
+    return {draft: this.preserve_snapshot ? {...this.dish, reference: {...this.dish.reference}} : normalizeDish(this.dish), invalid: false, scale_nutrition: true, units: dishUnits, fields: [
       {key: 'calories', label: 'Calories'}, {key: 'proteinGrams', label: 'Protein (g)'},
       {key: 'carbohydrateGrams', label: 'Carbohydrates (g)'}, {key: 'fatGrams', label: 'Fat (g)'},
       ...nutrientFields.map(field => ({...field, label: `${field.label} (${field.unit})`}))
@@ -52,6 +52,11 @@ export default {
     },
     reset_reference() { if (this.draft.quantity > 0) this.draft.reference = dishReference(this.draft); },
     apply() {
+      if (this.preserve_snapshot) {
+        this.invalid = !this.draft.name.trim() || !(this.draft.quantity > 0) || this.draft.calories === null || nutritionFields.some(key => this.draft[key] != null && this.draft[key] < 0);
+        if (!this.invalid) this.$emit('apply', {...this.draft, reference: {...this.draft.reference}});
+        return;
+      }
       this.invalid = !this.draft.name.trim() || !(this.draft.quantity > 0) || this.draft.calories === null || this.draft.calories < 0
         || requiredNutrientFields.some(field => this.draft[field.key] === null || this.draft[field.key] < 0)
         || !this.draft.nutrientSource.trim()

@@ -253,16 +253,18 @@ public class ChatGptCoachActionController {
 
     @PostMapping("/meals")
     public MealResponse createMeal(@Valid @RequestBody CoachMealRequest request) {
+        var user = currentUserService.requireUser();
         return CoachActionTiming.time("createMeal", "request", () -> actionNotifications.execute(
-            currentUserService.requireUser(), mealLabel(request.mealType()) + " saved", dashboardUrl("calories", request.date()),
-            () -> MealResponse.from(personalRecordMutationService.createConfirmedMeal(currentUserService.requireUser(), request))
+            user, mealLabel(request.mealType()) + " saved", dashboardUrl("calories", request.date()),
+            () -> MealResponse.from(personalRecordMutationService.createConfirmedMeal(user, request))
         ));
     }
 
     @PutMapping(value = "/meals/{id}", params = "target!=RATING")
     public MealResponse updateMeal(@PathVariable Long id, @Valid @RequestBody CoachMealRequest request) {
-        return actionNotifications.execute(currentUserService.requireUser(), mealLabel(request.mealType()) + " updated", dashboardUrl("calories", request.date()),
-            () -> MealResponse.from(personalRecordMutationService.updateConfirmedMeal(currentUserService.requireUser(), id, request))
+        var user = currentUserService.requireUser();
+        return actionNotifications.execute(user, mealLabel(request.mealType()) + " updated", dashboardUrl("calories", request.date()),
+            () -> MealResponse.from(personalRecordMutationService.updateConfirmedMeal(user, id, request))
         );
     }
 
@@ -270,7 +272,7 @@ public class ChatGptCoachActionController {
     public MealResponse rateMeal(@PathVariable Long id, @Valid @RequestBody CoachMealRatingRequest request) {
         var user = currentUserService.requireUser();
         return actionNotifications.execute(user, "Meal rated", dashboardUrl("calories", mealService.findForUser(user, id).getMealDate()),
-            () -> MealResponse.from(mealService.rateConfirmed(currentUserService.requireUser(), id, request))
+            () -> MealResponse.from(mealService.rateConfirmed(user, id, request))
         );
     }
 
@@ -278,7 +280,7 @@ public class ChatGptCoachActionController {
     public DeletionResponse deleteMeal(@PathVariable Long id, @Valid @RequestBody ConfirmedRequest request) {
         var user = currentUserService.requireUser();
         return actionNotifications.execute(user, "Meal deleted", dashboardUrl("calories", mealService.findForUser(user, id).getMealDate()), () -> {
-            personalRecordMutationService.deleteConfirmedMeal(currentUserService.requireUser(), id, request.confirmed());
+            personalRecordMutationService.deleteConfirmedMeal(user, id, request.confirmed());
             return new DeletionResponse(true);
         });
     }

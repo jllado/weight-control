@@ -6748,14 +6748,14 @@ test('meal form and growl fit a mobile viewport', async ({page}) => {
     const panel = tabs.locator('.p-tabview-panel:visible');
     await panel.getByRole('button', {name: 'New', exact: true}).click();
     const dialog = page.locator('#meal-form');
+    await dialog.locator('#meal-type').click();
+    await page.getByRole('option', {name: 'Lunch', exact: true}).click();
+    await expect(dialog.locator('#meal-type')).toHaveText('Lunch');
     const fieldWidths = await dialog.evaluate(element => ({
         mealType: element.querySelector('.entry-dropdown').getBoundingClientRect().width,
         calories: element.querySelector('#calories').getBoundingClientRect().width
     }));
     expect(Math.abs(fieldWidths.mealType - fieldWidths.calories)).toBeLessThanOrEqual(1);
-    await dialog.locator('#meal-type').click();
-    await page.getByRole('option', {name: 'Lunch', exact: true}).click();
-    await expect(dialog.locator('#meal-type')).toHaveText('Lunch');
     await dialog.getByLabel('Calories').fill('500');
     await dialog.getByRole('button', {name: 'Save', exact: true}).click();
 
@@ -7537,6 +7537,7 @@ test('meal preloads show the latest 14 matching earlier entries with dish titles
         await expect(options).toHaveCount(14);
         await expect(options.first().locator('strong')).toHaveText(`${longName} + 2 foods`);
         await expect(options.first().locator('small')).toHaveText('16/08/2026');
+        await expect(options.first()).toContainText('200 kcal');
         await expect(options.nth(1).locator('strong')).toHaveText('No foods');
         await expect(options.last().locator('strong')).toHaveText('Dish 3');
         await page.screenshot({path: testInfo.outputPath(`meal-preloads-${width}.png`), animations: 'disabled'});
@@ -17688,9 +17689,11 @@ test('salt catalog portions retain sources and references through meal save and 
     for (const width of [376, 1280]) {
         await page.setViewportSize({width, height: 900});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-        const field = await dialog.getByLabel('Salt (g)', {exact: true}).boundingBox();
-        const source = await dialog.getByLabel('Salt (g) source (when recorded)', {exact: true}).boundingBox();
-        expect(source.y).toBeGreaterThan(field.y + field.height);
+        await expect.poll(() => dialog.evaluate(element => {
+            const field = element.querySelector('#dish-saltGrams').getBoundingClientRect();
+            const source = element.querySelector('#dish-saltSource').getBoundingClientRect();
+            return source.top - field.bottom;
+        })).toBeGreaterThan(0);
     }
     await dialog.getByRole('button', {name: 'Apply', exact: true}).click();
     await expect(form.locator('.meal-dish-row')).toContainText('50 g · 100 kcal');

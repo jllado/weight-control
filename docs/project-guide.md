@@ -120,6 +120,9 @@ Every new DAILY and WEEKLY reflection save carries `warningReview` with today's 
 - `MealService` registers only Coach foods marked `addToCatalog` in the confirmed meal transaction; manual meal saves do not extend the catalog. Coach selects genuinely new foods after targeted FOODS searches; truncated previews and uncertain matches remain meal-only. Deleted or renamed names remain suppressed until explicitly added through Foods.
 - `DishForm.vue` optionally scales nutrition; disabling its toggle redefines the portion reference without changing recorded nutrition values.
 
+- Dashboard → New meal offers the latest 14 earlier nutrition days while no meal type is selected, only when the dashboard date has no meals. Day and meal choices show a food summary, source date and kcal. A copied day is an independent editable draft; one session-authenticated `POST /api/meals/copy-day` saves every meal atomically to the fixed dashboard date.
+- Day-copy snapshots preserve consumed nutrients, portion references, provenance, unknown values and saved aggregates exactly; ordinary meal writes retain their reference-scaling contract. Intentional draft portion edits use the existing scaling toggle. The batch coordinates ordinary and Coach meal mutations through the user lock, then reconciles fasting, routines and personal records. It does not copy ratings, completion flags or assessments, or add a Coach Action.
+
 - Food snapshots carry vitamin D, total omega-3 and magnesium with provenance; portion scaling and daily coverage share the food helpers. See [food nutrients](food-nutrients.md) for the required historical backfill and Coach delivery.
 
 ### Backend persistence changes

@@ -21,12 +21,12 @@
 import dayjs from 'dayjs';
 import nutritionService from '../services/NutritionService';
 import {dailyNutrientStatus} from '../model/NutrientTrends';
-import {nutrientFields, dailyNutrientFields, formatNutritionValue} from '../model/Dish';
+import {nutrientFields, totalOmega3Field, dailyNutrientFields, formatNutritionValue} from '../model/Dish';
 export default {
-  props: {date: {type: [String, Date], default: null}, summary: {type: Object, required: true}, compact: {type: Boolean, default: false}, daily: {type: Boolean, default: false}, completed: {type: Boolean, default: false}},
+  props: {include_total: Boolean, date: {type: [String, Date], default: null}, summary: {type: Object, required: true}, compact: {type: Boolean, default: false}, daily: {type: Boolean, default: false}, completed: {type: Boolean, default: false}},
   data() { return {selectedField: null, detailTrigger: null, targets: null, requestId: 0}; },
   computed: {
-    fields() { return this.daily ? dailyNutrientFields : nutrientFields; },
+    fields() { return this.daily ? dailyNutrientFields : this.include_total ? [...nutrientFields, totalOmega3Field] : nutrientFields; },
     dateKey() { return this.daily ? dayjs(this.date).format('YYYY-MM-DD') : null; },
     omegaReferences() { return [
       {key: 'epaDha', label: 'EPA+DHA', value: this.summary.epaDhaMilligrams, target: this.targets.epaDha?.value},
