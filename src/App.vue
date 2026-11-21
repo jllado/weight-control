@@ -1,8 +1,9 @@
 <template>
   <div class="p-mb-5" v-if="this.state.authenticated && $route.name !== 'GuidedWorkoutPage'" >
-    <Menubar :model="items" class="app-menubar">
+    <Menubar ref="navigation" :model="items" class="app-menubar" :class="{'navigation-filtered': searchingMenu}"
+             @keydown.capture="onNavigationKeydown" @focus="onNavigationFocus">
       <template #start>
-        <RouterLink to="/" v-tooltip.bottom="{value: 'Home', id: 'home-shortcut-tooltip'}" @focus="tooltipEvent($event, 'mouseenter')" @blur="tooltipEvent($event, 'mouseleave')" aria-describedby="home-shortcut-tooltip" class="p-button p-component p-button-sm p-button-outlined p-button-icon-only home-button" aria-label="Home" title="Home">
+        <RouterLink :to="homeDestination.to" v-tooltip.bottom="{value: 'Home', id: 'home-shortcut-tooltip'}" @focus="tooltipEvent($event, 'mouseenter')" @blur="tooltipEvent($event, 'mouseleave')" aria-describedby="home-shortcut-tooltip" class="p-button p-component p-button-sm p-button-outlined p-button-icon-only home-button" aria-label="Home" title="Home">
           <span class="p-button-icon pi pi-home" aria-hidden="true" />
         </RouterLink>
       </template>
@@ -20,6 +21,8 @@
         </a>
       </template>
       <template #end>
+        <NavigationSearch ref="navigationSearch" :groups="searchGroups" @filter="searchingMenu = $event"
+                          @focus-search="closeDesktopGroups" @selected="$refs.navigation.hide()" />
         <div class="app-header-actions">
           <Button class="p-button-sm p-button-outlined coach-button" label="Open Coach" aria-label="Open Coach" icon="chatgpt-icon" :pt="{icon: {'aria-hidden': true}}" @click="openCoach()" />
           <UrgePause />
@@ -68,6 +71,7 @@
 
 <script>
 import Tooltip from 'primevue/tooltip';
+import NavigationSearch from './components/NavigationSearch.vue';
 import WorkoutTimerResume from './components/WorkoutTimerResume.vue';
 import GuidedWorkout from './components/GuidedWorkout.vue';
 import { userState } from './state';
@@ -83,9 +87,11 @@ import {afterLogin, loginQuery} from './services/MealNavigation';
 export default {
   name: "app",
   directives: {tooltip: Tooltip},
-  components: {UrgePause, NotificationBell, WinCelebration, WorkoutTimerResume, GuidedWorkout},
+  components: {NavigationSearch, UrgePause, NotificationBell, WinCelebration, WorkoutTimerResume, GuidedWorkout},
   data() {
     return {
+      homeDestination: {label: 'Home', icon: 'pi pi-home', to: '/'},
+      settingsDestination: {label: 'Settings', icon: 'pi pi-cog', to: '/settings'},
       items: [
         {
           label:'Track',
@@ -126,6 +132,8 @@ export default {
           ]
         }
       ],
+      searchingMenu: false,
+      keyboardOpenedMenu: false,
       accountMenuVisible: false,
       installPromptDismissed: window.localStorage.getItem('install-prompt-dismissed') === 'true',
       state: userState(),
@@ -141,9 +149,12 @@ export default {
     showInstallPrompt() {
       return this.canInstall && !this.installPromptDismissed;
     },
+    searchGroups() {
+      return [{label: 'Navigation', items: [this.homeDestination]}, ...this.items, {label: 'Account', items: [this.settingsDestination]}];
+    },
     accountItems() {
       return [
-        {label: 'Settings', icon: 'pi pi-cog', command: () => this.$router.push('/settings')},
+        this.settingsDestination,
         ...(this.canInstall ? [{label: 'Install app', icon: 'pi pi-download', command: this.installApp}] : []),
         {separator: true},
         {label: 'Log out', icon: 'pi pi-sign-out', command: this.logout}
@@ -188,6 +199,18 @@ export default {
     }
   },
   methods: {
+    onNavigationKeydown(event) {
+      if (event.target.closest('.p-menubar-button')) this.keyboardOpenedMenu = ['Enter', ' '].includes(event.key);
+    },
+    onNavigationFocus() {
+      if (this.keyboardOpenedMenu && this.$refs.navigation.mobileActive) {
+        this.keyboardOpenedMenu = false;
+        this.$refs.navigationSearch.focus();
+      }
+    },
+    closeDesktopGroups() {
+      if (!this.$refs.navigation.mobileActive) this.$refs.navigation.hide();
+    },
     tooltipEvent(event, type) { event.currentTarget.dispatchEvent(new MouseEvent(type)); },
     openCoach,
     isGroupActive(item) {
@@ -337,6 +360,7 @@ export default {
   white-space: nowrap;
 }
 .app-menubar {
+  --mobile-search-height: 3.1rem;
   flex-wrap: wrap;
   row-gap: 0.35rem;
 }
@@ -362,8 +386,20 @@ export default {
   flex-wrap: nowrap;
 }
 .app-menubar .p-menubar-end {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
   margin-left: auto;
   max-width: 100%;
+}
+@media (max-width: 960px) {
+  .app-menubar.p-menubar-mobile-active .p-menubar-root-list { top: calc(100% + var(--mobile-search-height)); }
+  .app-menubar.navigation-filtered.p-menubar-mobile-active .p-menubar-root-list { display: none; }
+}
+@media (min-width: 961px) and (max-width: 1240px) {
+  .app-header-actions :is(.coach-button, .coach-notes-button, .agenda-button) .p-button-label { display: none; }
+  .app-header-actions :is(.coach-button, .coach-notes-button, .agenda-button) { width: var(--app-icon-button-size); height: var(--app-icon-button-size); padding: 0; justify-content: center; }
+  .app-header-actions :is(.coach-button, .coach-notes-button, .agenda-button) .p-button-icon { margin: 0; }
 }
 .app-menu-chevron {
   margin-left: 0.5rem;

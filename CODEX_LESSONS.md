@@ -2,6 +2,8 @@
 
 Read relevant entries before planning, implementation, and review. Each lesson includes the context needed to apply it; current user requirements and repository contracts take precedence. Update superseded guidance after a correction is verified.
 
+- **Check search result context in the selected state.** Nova’s secondary gray made group names difficult to read on white and on a highlighted result. Keep group names legible alongside destination names and verify the foreground and background contrast in both states. Capture a keyboard-selected row at the supported desktop widths and a touch result on mobile.
+
 - **Use one order for intake through a meal.** Comparing clock times for some pairs and insertion order for others can create a cycle. Sort known times first and untimed meals last, using saved IDs to break ties. Verify the cumulative intake for every meal in a copied day with mixed times and payload order.
 
 - **Preserve dated scoring evidence.** A current profile override or renamed catalog exercise can change the apparent basis of an old score. Resolve settings effective on the event date and match dated plan targets by stable exercise identity when available. Verify a historical edit after changing both the profile and an exercise name, and compare the untouched records before and after.
