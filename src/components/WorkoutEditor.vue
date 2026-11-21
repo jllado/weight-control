@@ -298,7 +298,8 @@
 <script>
 import WorkoutPhaseTimers from './WorkoutPhaseTimers.vue';
 import WorkoutSourcePicker from './WorkoutSourcePicker.vue';
-import {weekdays, dayLabel, copyPlan} from '@/model/WorkoutPlan';
+import {copyPlan} from '@/model/WorkoutPlan';
+import {dayLabel, planningWeek, weekdaysFrom} from '@/model/PlanningWeek';
 import SaunaRoundsEditor from './SaunaRoundsEditor.vue';
 import {timerState, workoutPhases, openTimerEditor, closeTimerEditor, createTimerDraft, createTransferredTimerDraft, saveTimerForm, startPhase, stopPhase, setPhaseMinutes, discardTimer, resumeTimer} from '@/services/WorkoutTimerService';
 import ExercisePicture from './ExercisePicture.vue';
@@ -542,7 +543,7 @@ export default {
     previousSourceOptions() { return this.preload_options.map(option => ({...option, workout: this.preload_workouts.find(workout => workout.id === option.id)})); },
     plannedSourceOptions() {
       if (!this.active_plan) return [];
-      return weekdays.flatMap(weekday => {
+      return weekdaysFrom(planningWeek(this.workout_form.workoutDate).firstDay).flatMap(weekday => {
         const day = this.active_plan.days.find(candidate => candidate.day === weekday);
         const titles = day.sessions.map((session, index) => this.planSessionTitle(session, index));
         return day.sessions.map((session, index) => ({id: `${this.active_plan.id}:${day.day}:${index}`, session,

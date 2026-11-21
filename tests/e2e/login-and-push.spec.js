@@ -2708,7 +2708,7 @@ test('dashboard shows the overall improvement label and contribution details', a
         dashboardResponse: {
             ...dashboard,
             dailyStatus: {...dashboardDailyStatus(dashboard.anchorDate), routinesStatus: 68},
-            lastWeekDailyStatus: {...dashboardDailyStatus(dashboard.anchorDate), routinesStatus: 74.8}
+            lastWeekDailyStatus: {...dashboardDailyStatus('2026-08-07'), routinesStatus: 74.8}
         },
         overallProgressResponse: {
             status: 'SLIGHTLY_IMPROVING', score: 0.45,
@@ -2730,6 +2730,7 @@ test('dashboard shows the overall improvement label and contribution details', a
     await expect(overview).toHaveCount(1);
     await expect(performance.locator('.performance-score-value')).toHaveText('68/100');
     await expect(performance.locator('.performance-score-trend')).toHaveText('↓ 6.8');
+    await expect(performance.locator('.performance-score-trend')).toHaveAttribute('aria-label', 'Compared with 07/08/2026: ↓ 6.8');
     await expect(performance.locator('.performance-score-trend')).toHaveClass(/bad/);
     await expect(progress.getByText('Slightly improving')).toBeVisible();
     await expect(progress.locator('.overall-progress-score')).toHaveText('0.45');
@@ -6093,7 +6094,7 @@ test('dashboard opens Coach with one prompt to rate every selected-date meal', a
     const coachPage = await coachPagePromise;
     await expect(coachPage).toHaveTitle('Coach');
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
-        .toBe('Rate all my meals recorded on 2026-08-12, including meals already rated. Check meals from this Saturday through 2026-08-12, my calorie targets and weekly-average cap, and my active coaching plan. Propose one integer score out of 10 and one improvement for each meal, in the returned meal order. Show the complete meal-by-meal list, then ask whether I want to save all the proposed ratings. Make no writes until I explicitly confirm the full list. Then save each meal\'s rating only. If any write fails, read back every meal, report saved and unsaved ratings accurately, and stop without rolling back or claiming full success.');
+        .toBe('Rate all my meals recorded on 2026-08-12, including meals already rated. Check meals from 2026-08-08 through 2026-08-12, my calorie targets and weekly-average cap, and my active coaching plan. Propose one integer score out of 10 and one improvement for each meal, in the returned meal order. Show the complete meal-by-meal list, then ask whether I want to save all the proposed ratings. Make no writes until I explicitly confirm the full list. Then save each meal\'s rating only. If any write fails, read back every meal, report saved and unsaved ratings accurately, and stop without rolling back or claiming full success.');
     await coachPage.close();
 
     await page.getByRole('button', {name: 'Previous Day', exact: true}).click();
@@ -6155,7 +6156,7 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     await rateMeal.click();
     const coachPage = await coachPagePromise;
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
-        .toBe('Rate my Lunch on 2026-08-12 out of 10. Check the meals from this Saturday through that date, my calorie targets and weekly-average cap, and my active coaching plan. Suggest one improvement, present the proposed score for my confirmation, then save that rating to the meal after I confirm the exact score.');
+        .toBe('Rate my Lunch on 2026-08-12 out of 10. Check the meals from 2026-08-08 through 2026-08-12, my calorie targets and weekly-average cap, and my active coaching plan. Suggest one improvement, present the proposed score for my confirmation, then save that rating to the meal after I confirm the exact score.');
     await coachPage.close();
 
     for (const calories of [150, 250]) {
@@ -7168,7 +7169,7 @@ test('nutrition history summarizes macros and manages meals and fasting periods'
     await rateMeal.click();
     const coachPage = await coachPagePromise;
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
-        .toBe('Rate my Lunch on 2026-08-12 out of 10. Check the meals from this Saturday through that date, my calorie targets and weekly-average cap, and my active coaching plan. Suggest one improvement, present the proposed score for my confirmation, then save that rating to the meal after I confirm the exact score.');
+        .toBe('Rate my Lunch on 2026-08-12 out of 10. Check the meals from 2026-08-08 through 2026-08-12, my calorie targets and weekly-average cap, and my active coaching plan. Suggest one improvement, present the proposed score for my confirmation, then save that rating to the meal after I confirm the exact score.');
     await coachPage.close();
     await expect(rows.nth(1)).toContainText('Snack 1');
     await expect(rows.nth(1)).toContainText('150 kcal');
@@ -8443,7 +8444,7 @@ async function prepareSingleSetGuidedWorkout(page, accountEmail = 'jllado@gmail.
     state.setCurrent({...state.current, days: state.current.days.map(day => day.day === 'SUNDAY' ? {day: day.day, rest: false, note: null, sessions: [{name: 'Screen lock test', note: null, lines: [{exerciseId: 1, exerciseName: state.exercises[0].name, exerciseDescription: state.exercises[0].description, exerciseType: 'TRAINING', trackingMode: 'REPS', stretchingUnit: 'SECONDS', segments: [{repetitions: 8, weight: 20}]}]}]} : day)});
     await page.route('**/api/workout-plans/current', route => route.fulfill({json: state.current}));
     await openSpaRoute(page, '/workouts?tab=plan');
-    await page.getByRole('region', {name: 'Weekly workout plan'}).locator('.plan-day').nth(6).locator('.plan-day-toggle').click();
+    await page.getByRole('region', {name: 'Weekly workout plan'}).locator('[data-weekday="SUNDAY"]').locator('.plan-day-toggle').click();
     await page.getByRole('button', {name: 'Start guided', exact: true}).click();
     return page.getByRole('region', {name: 'Guided workout', exact: true});
 }
@@ -10256,7 +10257,7 @@ for (const planning of [false, true]) {
                 await page.getByRole('dialog', {name: 'New weekly plan'}).getByRole('button', {name: 'Start blank'}).click();
                 await section.getByLabel('Start date', {exact: true}).fill('2026-09-14');
                 await section.getByLabel('Review date', {exact: true}).fill('2026-10-26');
-                await section.locator('.plan-day').first().getByRole('button', {name: 'Add session', exact: true}).click();
+                await section.locator('[data-weekday="MONDAY"]').getByRole('button', {name: 'Add session', exact: true}).click();
             } else { await page.getByRole('button', {name: 'New', exact: true}).click(); await continueWorkoutStarter(page); }
             const editor = page.getByRole('dialog', {name: planning ? 'Planned workout' : 'Workout', exact: true});
             await expect(editor).toBeVisible();
@@ -10337,7 +10338,7 @@ for (const planning of [false, true]) {
             await page.getByRole('dialog', {name: 'New weekly plan'}).getByRole('button', {name: 'Start blank', exact: true}).click();
             await section.getByLabel('Start date', {exact: true}).fill('2026-09-14');
             await section.getByLabel('Review date', {exact: true}).fill('2026-10-26');
-            await section.locator('.plan-day').first().getByRole('button', {name: 'Add session', exact: true}).click();
+            await section.locator('[data-weekday="MONDAY"]').getByRole('button', {name: 'Add session', exact: true}).click();
         } else {
             await page.getByRole('button', {name: 'New', exact: true}).click();
             await continueWorkoutStarter(page);
@@ -10365,7 +10366,7 @@ for (const planning of [false, true]) {
             await page.getByRole('dialog', {name: 'New weekly plan'}).getByRole('button', {name: 'Start blank'}).click();
             await section.getByLabel('Start date', {exact: true}).fill('2026-09-14');
             await section.getByLabel('Review date', {exact: true}).fill('2026-10-26');
-            await section.locator('.plan-day').first().getByRole('button', {name: 'Add session', exact: true}).click();
+            await section.locator('[data-weekday="MONDAY"]').getByRole('button', {name: 'Add session', exact: true}).click();
         } else { await page.getByRole('button', {name: 'New', exact: true}).click(); await continueWorkoutStarter(page); }
 
         const editor = page.getByRole('dialog', {name: planning ? 'Planned workout' : 'Workout', exact: true});
@@ -10479,7 +10480,7 @@ for (const planning of [false, true]) {
             await page.getByRole('dialog', {name: 'New weekly plan'}).getByRole('button', {name: 'Start blank'}).click();
             await section.getByLabel('Start date', {exact: true}).fill('2026-09-14');
             await section.getByLabel('Review date', {exact: true}).fill('2026-10-26');
-            await section.locator('.plan-day').first().getByRole('button', {name: 'Add session', exact: true}).click();
+            await section.locator('[data-weekday="MONDAY"]').getByRole('button', {name: 'Add session', exact: true}).click();
         } else {
             await page.getByRole('button', {name: 'New', exact: true}).click();
             await continueWorkoutStarter(page);
@@ -10543,7 +10544,7 @@ for (const planning of [false, true]) {
         await expect(editor).toBeHidden();
         let lines;
         if (planning) {
-            for (let index = 1; index < 7; index++) await section.locator('.plan-day').nth(index).getByRole('button', {name: 'Rest', exact: true}).click();
+            for (const day of ['TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']) await section.locator(`[data-weekday="${day}"]`).getByRole('button', {name: 'Rest', exact: true}).click();
             await section.getByRole('button', {name: 'Save plan', exact: true}).click();
             await expect(section.getByRole('button', {name: 'Edit plan', exact: true})).toBeVisible();
             lines = state.current.days[0].sessions[0].lines;
@@ -10570,7 +10571,7 @@ test('weekly workout plan creates detailed days, copies, preserves failed drafts
     await section.getByLabel('Start date', {exact: true}).fill('2026-09-14');
     await section.getByLabel('Review date', {exact: true}).fill('2026-10-26');
     await section.getByLabel('Notes (optional)', {exact: true}).fill('A six-week commitment.');
-    const monday = section.locator('.plan-day').nth(0);
+    const monday = section.locator('[data-weekday="MONDAY"]');
     await monday.getByRole('button', {name: 'Add session', exact: true}).click();
     const editor = page.getByRole('dialog', {name: 'Planned workout', exact: true});
     await expect(editor.getByRole('region', {name: 'Workout timing'})).toHaveCount(0);
@@ -10589,13 +10590,13 @@ test('weekly workout plan creates detailed days, copies, preserves failed drafts
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(editor).toBeHidden();
     await expect(monday).toContainText('20 kg × 8 reps');
-    const tuesday = section.locator('.plan-day').nth(1);
+    const tuesday = section.locator('[data-weekday="TUESDAY"]');
     await tuesday.getByRole('button', {name: 'Copy', exact: true}).click();
     const copyDialog = page.getByRole('dialog', {name: 'Copy a day'});
     await copyDialog.getByLabel('Copy from').click();
     await page.getByRole('option', {name: 'Monday', exact: true}).click();
     await copyDialog.getByRole('button', {name: 'Copy', exact: true}).click();
-    for (let index = 2; index < 7; index++) await section.locator('.plan-day').nth(index).getByRole('button', {name: 'Rest', exact: true}).click();
+    for (const day of ['WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']) await section.locator(`[data-weekday="${day}"]`).getByRole('button', {name: 'Rest', exact: true}).click();
     state.setFail(true);
     await section.getByRole('button', {name: 'Save plan'}).click();
     await expect(section).toContainText('The workout plan changed.');
@@ -10643,7 +10644,7 @@ test('weekly plan copies sauna-only sessions and preserves stretching in a sauna
     await page.getByRole('dialog', {name: 'New weekly plan'}).getByRole('button', {name: 'Start blank'}).click();
     await plan.getByLabel('Start date', {exact: true}).fill('2026-09-14');
     await plan.getByLabel('Review date', {exact: true}).fill('2026-10-26');
-    await plan.locator('.plan-day').first().getByRole('button', {name: 'Add session'}).click();
+    await plan.locator('[data-weekday="MONDAY"]').getByRole('button', {name: 'Add session'}).click();
     const editor = page.getByRole('dialog', {name: 'Planned workout'});
     await editor.locator('label[for="workout-sauna-session"]').click();
     await editor.locator('#workout-sauna-round-0').fill('12');
@@ -10659,23 +10660,23 @@ test('weekly plan copies sauna-only sessions and preserves stretching in a sauna
         await editor.screenshot({path: testInfo.outputPath(`sauna-plan-editor-${width}.png`), animations: 'disabled'});
     }
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
-    const monday = plan.locator('.plan-day').first();
+    const monday = plan.locator('[data-weekday="MONDAY"]');
     await expect(monday.locator('.plan-day-summary')).toContainText('2 sauna rounds · 20 min sauna');
     await expect(monday).toContainText('2 sauna rounds · 20 min sauna');
     await expect(monday).toContainText('Round 1: 12 min · Round 2: 8 min');
-    await plan.locator('.plan-day').nth(1).getByRole('button', {name: 'Copy'}).click();
+    await plan.locator('[data-weekday="TUESDAY"]').getByRole('button', {name: 'Copy'}).click();
     const copy = page.getByRole('dialog', {name: 'Copy a day'});
     await copy.getByLabel('Copy from').click();
     await page.getByRole('option', {name: 'Monday', exact: true}).click();
     await copy.getByRole('button', {name: 'Copy', exact: true}).click();
-    for (let index = 2; index < 7; index++) await plan.locator('.plan-day').nth(index).getByRole('button', {name: 'Rest', exact: true}).click();
+    for (const day of ['WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']) await plan.locator(`[data-weekday="${day}"]`).getByRole('button', {name: 'Rest', exact: true}).click();
     await plan.getByRole('button', {name: 'Save plan'}).click();
     await expect(plan.getByRole('button', {name: 'Edit plan'})).toBeVisible();
     expect(state.current.days[0].sessions[0]).toMatchObject({saunaSession: true, saunaRoundsMinutes: [12, 8], lines: []});
     expect(state.current.days[1].sessions[0]).toMatchObject({saunaSession: true, saunaRoundsMinutes: [12, 8], lines: []});
 
     await plan.getByRole('button', {name: 'Edit plan', exact: true}).click();
-    await plan.locator('.plan-day').nth(2).getByRole('button', {name: 'Add session', exact: true}).click();
+    await plan.locator('[data-weekday="WEDNESDAY"]').getByRole('button', {name: 'Add session', exact: true}).click();
     await editor.locator('label[for="workout-sauna-session"]').click();
     await expect(editor.locator('.workout-exercise-group-toggle')).toHaveCount(1);
     await expect(editor.getByRole('button', {name: /^(Collapse|Expand) Stretching,/})).toBeVisible();
@@ -10706,7 +10707,7 @@ test('weekly plan copies sauna-only sessions and preserves stretching in a sauna
     expect(state.current.days[2].sessions[0]).toMatchObject({saunaSession: true, saunaRoundsMinutes: [10], lines: [{exerciseId: 3, stretchingUnit: 'BREATHS', segments: [{breaths: 5}]}]});
 
     await openSpaRoute(page, '/workouts?tab=plan');
-    const wednesday = plan.locator('.plan-day').nth(2);
+    const wednesday = plan.locator('[data-weekday="WEDNESDAY"]');
     await wednesday.locator('.plan-day-toggle').click();
     await expect(wednesday).toContainText('Wall calf stretch');
     await expect(wednesday).toContainText('5 breaths');
@@ -10901,8 +10902,8 @@ test('weekly workout plan edits timed, cardio and stretching targets without rec
     const section = page.getByRole('region', {name: 'Weekly workout plan'});
     await expect(section).toContainText('Review due');
     await section.getByRole('button', {name: 'Edit plan', exact: true}).click();
-    await section.locator('.plan-day').nth(0).locator('.plan-day-toggle').click();
-    await section.locator('.plan-day').nth(0).getByRole('button', {name: /^Edit /}).click();
+    await section.locator('[data-weekday="MONDAY"]').locator('.plan-day-toggle').click();
+    await section.locator('[data-weekday="MONDAY"]').getByRole('button', {name: /^Edit /}).click();
     const editor = page.getByRole('dialog', {name: 'Planned workout', exact: true});
     await expect(editor.getByRole('region', {name: 'Workout timing'})).toHaveCount(0);
     await expect(editor.getByText('Calories', {exact: true})).toHaveCount(0);
@@ -10937,7 +10938,7 @@ test('weekly plan moves a superset as a block and preserves planned order and ta
 
     async function openSessionEditor() {
         await section.getByRole('button', {name: 'Edit plan', exact: true}).click();
-        const day = section.locator('.plan-day').first();
+        const day = section.locator('[data-weekday="MONDAY"]');
         if (await day.locator('.plan-day-toggle').getAttribute('aria-expanded') === 'false') await day.locator('.plan-day-toggle').click();
         await day.getByRole('button', {name: /^Edit /}).click();
         return page.getByRole('dialog', {name: 'Planned workout', exact: true});
@@ -10990,11 +10991,14 @@ test('weekly workout plan keeps rest, incomplete and no-training summaries', asy
     ]};
     days[1] = {...days[1], rest: null};
     await mockWeeklyPlans(page, {id: 1, updateToken: 'first', startDate: '2026-08-01', reviewDate: '2026-08-30', days, notes: ''});
+    await page.clock.setFixedTime(new Date('2026-08-19T12:00:00Z'));
+    await page.route('**/api/profile', route => route.fulfill({json: {...profile, planningWeekChanges: [{effectiveDate: '2026-08-16', firstDay: 'SUNDAY'}]}}));
     await openSpaRoute(page, '/workouts?tab=plan');
-    const planDays = page.getByRole('region', {name: 'Weekly workout plan'}).locator('.plan-day');
-    await expect(planDays.nth(0).locator('.plan-day-summary')).toHaveText('Exercise bike');
-    await expect(planDays.nth(1).locator('.plan-day-summary')).toHaveText('Choose workout or rest');
-    await expect(planDays.nth(2).locator('.plan-day-summary')).toHaveText('Rest');
+    const plan = page.getByRole('region', {name: 'Weekly workout plan'});
+    await expect(plan.locator('.plan-day-toggle strong')).toHaveText(['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']);
+    await expect(plan.locator('[data-weekday="MONDAY"]').locator('.plan-day-summary')).toHaveText('Exercise bike');
+    await expect(plan.locator('[data-weekday="TUESDAY"]').locator('.plan-day-summary')).toHaveText('Choose workout or rest');
+    await expect(plan.locator('[data-weekday="WEDNESDAY"]').locator('.plan-day-summary')).toHaveText('Rest');
 });
 
 for (const width of [390, 1280]) {
@@ -11979,8 +11983,8 @@ test('weekly workout plan preserves breath targets through editing and archives'
     const section = page.getByRole('region', {name: 'Weekly workout plan'});
     await expect(section).toContainText('5 breaths');
     await section.getByRole('button', {name: 'Edit plan', exact: true}).click();
-    await section.locator('.plan-day').first().locator('.plan-day-toggle').click();
-    await section.locator('.plan-day').first().getByRole('button', {name: /^Edit /}).click();
+    await section.locator('[data-weekday="MONDAY"]').locator('.plan-day-toggle').click();
+    await section.locator('[data-weekday="MONDAY"]').getByRole('button', {name: /^Edit /}).click();
     const editor = page.getByRole('dialog', {name: 'Planned workout', exact: true});
     await editor.getByRole('button', {name: /^Expand Stretching,/}).click();
     await editor.locator('.workout-line-card').getByRole('button', {name: /^Expand Stretching/}).click();
@@ -12039,7 +12043,7 @@ test('weekly workout plan stores multiple named sessions and recording snapshots
     await openSpaRoute(page, '/workouts?tab=plan');
     const plan = page.getByRole('region', {name: 'Weekly workout plan'});
     await plan.getByRole('button', {name: 'Edit plan', exact: true}).click();
-    const sunday = plan.locator('.plan-day').nth(6);
+    const sunday = plan.locator('[data-weekday="SUNDAY"]');
     await sunday.locator('.plan-day-toggle').click();
     const evening = sunday.locator('.planned-session').filter({hasText: 'Evening strength'});
     await evening.getByRole('button', {name: 'Move up', exact: true}).click();
@@ -12053,7 +12057,7 @@ test('weekly workout plan stores multiple named sessions and recording snapshots
     const morning = sunday.locator('.planned-session').filter({hasText: 'Morning strength'});
     await morning.getByRole('button', {name: 'Remove', exact: true}).click();
     await expect(sunday.locator('.planned-session')).toHaveCount(1);
-    const saturday = plan.locator('.plan-day').nth(5);
+    const saturday = plan.locator('[data-weekday="SATURDAY"]');
     await saturday.getByRole('button', {name: 'Copy', exact: true}).click();
     let copy = page.getByRole('dialog', {name: 'Copy a day'});
     await copy.getByLabel('Copy from').click();
@@ -12088,7 +12092,7 @@ test('sauna-only and mixed plans keep guided rounds separate from planned target
     state.setCurrent({...state.current, days: state.current.days.map(day => day.day === 'SUNDAY' ? {...day, rest: false, sessions} : day)});
     await openSpaRoute(page, '/workouts?tab=plan');
     const plan = page.getByRole('region', {name: 'Weekly workout plan'});
-    const sunday = plan.locator('.plan-day').nth(6);
+    const sunday = plan.locator('[data-weekday="SUNDAY"]');
     await expect(sunday.locator('.plan-day-summary')).toContainText('2 sauna rounds · 20 min sauna');
     await sunday.locator('.plan-day-toggle').click();
     await expect(sunday).toContainText('1 sauna round · 10 min sauna');
@@ -12274,7 +12278,7 @@ test('guided exercise progress counts each exercise by phase and resumes at the 
     await page.route('**/api/workout-plans/current', route => route.fulfill({json: state.current}));
     await openSpaRoute(page, '/workouts?tab=plan');
     const plan = page.getByRole('region', {name: 'Weekly workout plan'});
-    await plan.locator('.plan-day').nth(6).locator('.plan-day-toggle').click();
+    await plan.locator('[data-weekday="SUNDAY"]').locator('.plan-day-toggle').click();
     await plan.getByRole('button', {name: 'Start guided', exact: true}).click();
     let guided = page.getByRole('region', {name: 'Guided workout', exact: true});
     const table = guided.getByRole('table', {name: 'Exercises by phase', includeHidden: true});
@@ -12365,7 +12369,7 @@ test('guided exercise progress excludes omitted and skipped exercises', async ({
     await page.route('**/api/workout-plans/current', route => route.fulfill({json: state.current}));
     await openSpaRoute(page, '/workouts?tab=plan');
     const plan = page.getByRole('region', {name: 'Weekly workout plan'});
-    await plan.locator('.plan-day').nth(6).locator('.plan-day-toggle').click();
+    await plan.locator('[data-weekday="SUNDAY"]').locator('.plan-day-toggle').click();
     await plan.getByRole('button', {name: 'Start guided', exact: true}).click();
     const guided = page.getByRole('region', {name: 'Guided workout', exact: true});
     const table = guided.getByRole('table', {name: 'Exercises by phase', includeHidden: true});
@@ -12428,7 +12432,7 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     page.on('request', request => { if (request.url().endsWith('/api/workouts') && request.method() === 'POST') writes.push(request.postDataJSON()); });
     await openSpaRoute(page, '/workouts?tab=plan');
     const plan = page.getByRole('region', {name: 'Weekly workout plan'});
-    await plan.locator('.plan-day').nth(6).locator('.plan-day-toggle').click();
+    await plan.locator('[data-weekday="SUNDAY"]').locator('.plan-day-toggle').click();
     await plan.getByRole('button', {name: 'Start guided', exact: true}).click();
     const guided = page.getByRole('region', {name: 'Guided workout', exact: true});
     const exerciseProgress = guided.getByRole('table', {name: 'Exercises by phase', includeHidden: true});
@@ -12651,7 +12655,7 @@ test('guided workout goes back, minimizes across navigation, and saves its actua
         ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')})
         : route.fallback());
     await openSpaRoute(page, '/workouts?tab=plan');
-    await page.getByRole('region', {name: 'Weekly workout plan'}).locator('.plan-day').nth(6).locator('.plan-day-toggle').click();
+    await page.getByRole('region', {name: 'Weekly workout plan'}).locator('[data-weekday="SUNDAY"]').locator('.plan-day-toggle').click();
     await page.getByRole('button', {name: 'Start guided', exact: true}).click();
     const guided = page.getByRole('region', {name: 'Guided workout', exact: true});
     await applyGuidedSetEdit(page, guided, {'Repetitions': '12'});
@@ -12765,7 +12769,7 @@ test('guided workout edits weight for timed strength sets while preserving plann
     state.setCurrent({...state.current, days: state.current.days.map(day => day.day === 'SUNDAY' ? {...day, rest: false, sessions: [{name: 'Timed strength', note: null, lines: [plannedTarget]}]} : day)});
     await openSpaRoute(page, '/workouts?tab=plan');
     const plan = page.getByRole('region', {name: 'Weekly workout plan'});
-    const sunday = plan.locator('.plan-day').nth(6);
+    const sunday = plan.locator('[data-weekday="SUNDAY"]');
     await sunday.locator('.plan-day-toggle').click();
     await sunday.locator('.planned-session').getByRole('button', {name: 'Start guided'}).click();
 
@@ -12817,7 +12821,7 @@ test('guided workout records exercise time, distinguishes skipped work from unlo
     state.setCurrent({...state.current, days: state.current.days.map(day => day.day === 'SUNDAY' ? {day: day.day, rest: false, note: null, sessions: [session]} : day)});
     await openSpaRoute(page, '/workouts?tab=plan');
     const plan = page.getByRole('region', {name: 'Weekly workout plan'});
-    await plan.locator('.plan-day').nth(6).locator('.plan-day-toggle').click();
+    await plan.locator('[data-weekday="SUNDAY"]').locator('.plan-day-toggle').click();
     await plan.getByRole('button', {name: 'Start guided', exact: true}).click();
     const guided = page.getByRole('region', {name: 'Guided workout', exact: true});
     const markSkipped = guided.getByRole('button', {name: 'Skip', exact: true});
@@ -12938,7 +12942,7 @@ test('guided rest persists, pauses with its phase, and stays out of exercise tim
     page.on('request', request => { if (request.url().endsWith('/api/workouts') && request.method() === 'POST') writes.push(request.postDataJSON()); });
     await openSpaRoute(page, '/workouts?tab=plan');
     const plan = page.getByRole('region', {name: 'Weekly workout plan'});
-    await plan.locator('.plan-day').nth(6).locator('.plan-day-toggle').click();
+    await plan.locator('[data-weekday="SUNDAY"]').locator('.plan-day-toggle').click();
     await plan.getByRole('button', {name: 'Start guided', exact: true}).click();
     const guided = page.getByRole('region', {name: 'Guided workout', exact: true});
     await page.clock.runFor(10000);
@@ -13063,7 +13067,7 @@ test('guided workout records warm-up, training, cardio and stretching phase time
     await page.route('**/api/workout-plans/current', route => route.fulfill({json: state.current}));
     await openSpaRoute(page, '/workouts?tab=plan');
     const plan = page.getByRole('region', {name: 'Weekly workout plan'});
-    await plan.locator('.plan-day').nth(6).locator('.plan-day-toggle').click();
+    await plan.locator('[data-weekday="SUNDAY"]').locator('.plan-day-toggle').click();
     await plan.getByRole('button', {name: 'Start guided', exact: true}).click();
     const guided = page.getByRole('region', {name: 'Guided workout', exact: true});
     for (const phase of ['Warm-up', 'Training', 'Cardio', 'Stretching']) {
@@ -13137,7 +13141,7 @@ for (const width of [376, 390, 575, 640, 960, 1280]) {
         const section = page.getByRole('region', {name: 'Weekly workout plan'});
         const editor = page.getByRole('dialog', {name: 'Planned workout', exact: true});
         await section.getByRole('button', {name: 'Edit plan', exact: true}).click();
-        await section.locator('.plan-day').first().getByRole('button', {name: 'Add session', exact: true}).click();
+        await section.locator('[data-weekday="MONDAY"]').getByRole('button', {name: 'Add session', exact: true}).click();
         const picker = editor.getByRole('combobox', {name: 'Use completed workout'});
         await expect(picker).toBeEnabled();
         await picker.focus();
@@ -13152,15 +13156,15 @@ for (const width of [376, 390, 575, 640, 960, 1280]) {
         await expect(editor.locator('.workout-line-card')).toHaveCount(4);
         await expect(editor.locator('#workout-editor-note')).toHaveValue('');
         await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
-        await expect(section.locator('.plan-day').first()).toContainText('Rest');
-        await section.locator('.plan-day').first().getByRole('button', {name: 'Add session', exact: true}).click();
+        await expect(section.locator('[data-weekday="MONDAY"]')).toContainText('Rest');
+        await section.locator('[data-weekday="MONDAY"]').getByRole('button', {name: 'Add session', exact: true}).click();
         await editor.locator('#planned-preload-workout').click();
         await page.getByRole('option').first().click();
         await editor.getByRole('button', {name: 'Expand Exercise 3: Plank', exact: true}).click();
         await editor.locator('.workout-line-card').nth(2).getByLabel('Minutes', {exact: true}).fill('2');
         await editor.getByRole('button', {name: 'Save', exact: true}).click();
-        await expect(section.locator('.plan-day').first().locator('.planned-session')).toHaveCount(1);
-        await section.locator('.plan-day').first().getByRole('button', {name: /^Edit /}).click();
+        await expect(section.locator('[data-weekday="MONDAY"]').locator('.planned-session')).toHaveCount(1);
+        await section.locator('[data-weekday="MONDAY"]').getByRole('button', {name: /^Edit /}).click();
         await editor.locator('#planned-preload-workout').click();
         await page.getByRole('option').first().click();
         await expect(picker).toContainText('Sat, 12/09/2026');
@@ -13179,7 +13183,7 @@ for (const width of [376, 390, 575, 640, 960, 1280]) {
         expect(saved.sessions[0].lines[3].segments[0]).toMatchObject(segments[3].segments[0]);
         expect(saved.sessions[0].lines[0]).not.toHaveProperty('calories');
         expect(saved.sessions[0].lines[0]).not.toHaveProperty('averageHeartRate');
-        const monday = section.locator('.plan-day').first();
+        const monday = section.locator('[data-weekday="MONDAY"]');
         await monday.getByRole('button').click();
         await expect(monday.locator('.plan-day-summary')).toHaveText('Squat with a deliberately long descriptive exercise name');
         await monday.getByRole('button').click();
@@ -13191,11 +13195,11 @@ for (const width of [376, 390, 575, 640, 960, 1280]) {
         await expect(monday).toContainText('45 kg × 8 reps');
         await expect(monday).toContainText('2:05');
         await openSpaRoute(page, '/workouts?tab=plan');
-        await expect(section.locator('.plan-day').first().locator('.plan-day-summary')).toHaveText('Squat with a deliberately long descriptive exercise name');
-        await section.locator('.plan-day').first().getByRole('button').click();
-        await expect(section.locator('.plan-day').first()).toContainText('Exercise bike');
-        await expect(section.locator('.plan-day').first()).toContainText('45 kg × 8 reps');
-        await expect(section.locator('.plan-day').first()).toContainText('2:05');
+        await expect(section.locator('[data-weekday="MONDAY"]').locator('.plan-day-summary')).toHaveText('Squat with a deliberately long descriptive exercise name');
+        await section.locator('[data-weekday="MONDAY"]').getByRole('button').click();
+        await expect(section.locator('[data-weekday="MONDAY"]')).toContainText('Exercise bike');
+        await expect(section.locator('[data-weekday="MONDAY"]')).toContainText('45 kg × 8 reps');
+        await expect(section.locator('[data-weekday="MONDAY"]')).toContainText('2:05');
         expect(JSON.stringify(sources)).toBe(original);
         expect(writes).toEqual([]);
     });
@@ -14883,7 +14887,7 @@ async function estimatedWorkoutPlan(page, makeLines) {
 async function startEstimatedPlan(page) {
     await openSpaRoute(page, '/workouts?tab=plan');
     const plan = page.getByRole('region', {name: 'Weekly workout plan'});
-    await plan.locator('.plan-day').nth(6).locator('.plan-day-toggle').click();
+    await plan.locator('[data-weekday="SUNDAY"]').locator('.plan-day-toggle').click();
     await plan.getByRole('button', {name: 'Start guided', exact: true}).click();
     const guided = page.getByRole('region', {name: 'Guided workout', exact: true});
     await expect(guided.locator('.guided-card')).toBeVisible();
@@ -16056,7 +16060,7 @@ test('exercise estimates wait for catalog loading and retry before weekly launch
     await page.route('**/api/workout-exercises', async route => { await pending; if (failed) return route.fulfill({status: 503, body: 'Exercise catalog is unavailable'}); return route.fallback(); });
     await openSpaRoute(page, '/workouts?tab=plan');
     const plan = page.getByRole('region', {name: 'Weekly workout plan'});
-    await plan.locator('.plan-day').nth(6).locator('.plan-day-toggle').click();
+    await plan.locator('[data-weekday="SUNDAY"]').locator('.plan-day-toggle').click();
     const start = plan.getByRole('button', {name: 'Start guided', exact: true});
     await expect(start).toBeDisabled(); await expect(start).toHaveAttribute('aria-busy', 'true');
     await expect(plan.getByText('Loading exercises…', {exact: true})).toBeVisible();
@@ -16226,7 +16230,7 @@ test('guided page restores direct drafts and preserves ownership across browser 
     await page.route(url => url.pathname.startsWith('/workouts'), route => route.request().resourceType() === 'document' ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')}) : route.fallback());
     await page.goto('/workouts?tab=plan');
     const plan = page.getByRole('region', {name: 'Weekly workout plan'});
-    await plan.locator('.plan-day').nth(6).locator('.plan-day-toggle').click();
+    await plan.locator('[data-weekday="SUNDAY"]').locator('.plan-day-toggle').click();
     await plan.getByRole('button', {name: 'Start guided', exact: true}).click();
     const guided = page.getByRole('region', {name: 'Guided workout', exact: true});
     await applyGuidedSetEdit(page, guided, {'Repetitions': '12'});
@@ -16308,7 +16312,7 @@ test('guided page keeps navigation and ownership when record context resolves af
     await page.route(url => url.pathname.startsWith('/workouts'), route => route.request().resourceType() === 'document' ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')}) : route.fallback());
     await page.goto('/workouts?tab=plan');
     const plan = page.getByRole('region', {name: 'Weekly workout plan'});
-    await plan.locator('.plan-day').nth(6).locator('.plan-day-toggle').click();
+    await plan.locator('[data-weekday="SUNDAY"]').locator('.plan-day-toggle').click();
     await plan.getByRole('button', {name: 'Start guided', exact: true}).click();
     const guided = page.getByRole('region', {name: 'Guided workout', exact: true});
     await guided.getByRole('button', {name: 'Close', exact: true}).click();
@@ -16343,7 +16347,7 @@ for (const destination of ['Home', 'Close']) {
         const state = await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[0], [{repetitions: 10, weight: 20}])]);
         await openSpaRoute(page, '/workouts?tab=plan');
         const plan = page.getByRole('region', {name: 'Weekly workout plan'});
-        await plan.locator('.plan-day').nth(6).locator('.plan-day-toggle').click();
+        await plan.locator('[data-weekday="SUNDAY"]').locator('.plan-day-toggle').click();
         await mockAuthenticatedDashboard(page, dashboard.anchorDate, {workoutExercises: state.exercises});
         let releaseRead;
         let signalRead;
@@ -16598,7 +16602,7 @@ test('workout starter offers every current-plan weekday with distinct source ide
     const planned = starter.getByRole('combobox', {name: 'Planned workout', exact: true});
     await expect(planned).toHaveAccessibleDescription('Optional. Clear with Delete or the clear button.');
     await planned.click();
-    await expect(page.getByRole('option')).toHaveText(['Monday · Strength · Session 1', 'Monday · Strength · Session 2', 'Tuesday · tuesday session', 'Wednesday · wednesday session', 'Thursday · thursday session', 'Friday · friday session', 'Saturday · saturday session', 'Sunday · sunday session']);
+    await expect(page.getByRole('option')).toHaveText(['Saturday · saturday session', 'Sunday · sunday session', 'Monday · Strength · Session 1', 'Monday · Strength · Session 2', 'Tuesday · tuesday session', 'Wednesday · wednesday session', 'Thursday · thursday session', 'Friday · friday session']);
     await page.getByRole('option', {name: 'Tuesday · tuesday session', exact: true}).click();
     const previous = starter.getByRole('combobox', {name: 'Previous workout', exact: true});
     await previous.click(); await page.getByRole('option').first().click();
@@ -16851,7 +16855,7 @@ test('workout source changes preserve the planned editor five-second choices and
     await openSpaRoute(page, '/workouts?tab=plan');
     const plan = page.getByRole('region', {name: 'Weekly workout plan'});
     await plan.getByRole('button', {name: 'Edit plan', exact: true}).click();
-    const tuesday = plan.locator('.plan-day').nth(1);
+    const tuesday = plan.locator('[data-weekday="TUESDAY"]');
     await tuesday.locator('.plan-day-toggle').click();
     await tuesday.getByRole('button', {name: 'Edit tuesday session', exact: true}).click();
     const editor = page.getByRole('dialog', {name: 'Planned workout', exact: true});
@@ -17627,7 +17631,7 @@ test('planned rest saves independent values for the same exercise in different s
     await openSpaRoute(page, '/workouts?tab=plan');
     const section = page.getByRole('region', {name: 'Weekly workout plan'});
     await section.getByRole('button', {name: 'Edit plan', exact: true}).click();
-    await section.locator('.plan-day').nth(6).locator('.plan-day-toggle').click();
+    await section.locator('[data-weekday="SUNDAY"]').locator('.plan-day-toggle').click();
     for (const [name, value] of [['Morning', '0'], ['Evening', '47']]) {
         await section.getByRole('region', {name, exact: true}).getByRole('button', {name: /^Edit /}).click();
         const editor = page.getByRole('dialog', {name: 'Planned workout', exact: true});
@@ -17649,7 +17653,7 @@ test('planned rest saves independent values for the same exercise in different s
     expect(state.current.days[6].sessions.map(session => session.lines[0].restSeconds)).toEqual([0, 47]);
     await page.reload();
     await section.getByRole('button', {name: 'Edit plan', exact: true}).click();
-    await section.locator('.plan-day').nth(6).locator('.plan-day-toggle').click();
+    await section.locator('[data-weekday="SUNDAY"]').locator('.plan-day-toggle').click();
     for (const [name, value] of [['Morning', '0'], ['Evening', '47']]) {
         await section.getByRole('region', {name, exact: true}).getByRole('button', {name: /^Edit /}).click();
         const editor = page.getByRole('dialog', {name: 'Planned workout', exact: true});

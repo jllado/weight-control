@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import {madridDate, planningWeek} from './PlanningWeek';
 
 import isYesterday from 'dayjs/plugin/isYesterday';
 dayjs.extend(isYesterday)
@@ -113,7 +114,7 @@ export default class Routine {
     }
 
     isDone(date) {
-        if (this.isWeekly()) return this.completedWeeks(date).has(weekStart(madridDay(date)).format('YYYY-MM-DD'));
+        if (this.isWeekly()) return this.completedWeeks(date).has(planningWeek(madridDay(date)).start);
         return this.times.filter(t => dayjs(date).isSame(t, 'day')).length === 1;
     }
 
@@ -124,18 +125,17 @@ export default class Routine {
     completedWeeks(through = new Date()) {
         const cutoff = madridDay(through).format('YYYY-MM-DD');
         return new Set(this.times.filter(time => madridDay(time).format('YYYY-MM-DD') <= cutoff)
-            .map(time => weekStart(madridDay(time)).format('YYYY-MM-DD')));
+            .map(time => planningWeek(madridDay(time)).start));
     }
 
     weeklyPeriods(from, to, through) {
-        const start = weekStart(madridDay(this.start_date));
-        let period = weekStart(from);
-        if (period.isBefore(start, 'day')) period = start;
-        const cutoff = madridDay(through);
+        const eligibleStart = madridDay(this.start_date);
+        let week = planningWeek(eligibleStart.isAfter(from, 'day') ? eligibleStart : from);
+        const cutoff = madridDay(through).format('YYYY-MM-DD');
         const periods = [];
-        while (!period.add(6, 'day').isAfter(to, 'day') && period.add(6, 'day').isBefore(cutoff, 'day')) {
-            if (!period.add(6, 'day').isBefore(from, 'day')) periods.push(period.format('YYYY-MM-DD'));
-            period = period.add(7, 'day');
+        while (week.end <= to.format('YYYY-MM-DD') && week.end < cutoff) {
+            periods.push(week.start);
+            week = planningWeek(dayjs(week.end).add(1, 'day'));
         }
         return periods;
     }
@@ -155,7 +155,7 @@ export default class Routine {
         let streak = 0;
         let previous;
         for (const week of [...this.completedWeeks(through)].sort()) {
-            streak = previous && dayjs(week).diff(dayjs(previous), 'day') === 7 ? streak + 1 : 1;
+            streak = previous === planningWeek(dayjs(week).subtract(1, 'day')).start ? streak + 1 : 1;
             best = Math.max(best, streak);
             previous = week;
         }
@@ -199,12 +199,12 @@ export default class Routine {
         let referenceDate = from || new Date();
         if (this.isWeekly()) {
             const completed = this.completedWeeks(referenceDate);
-            let week = weekStart(madridDay(referenceDate));
-            if (!completed.has(week.format('YYYY-MM-DD'))) week = week.subtract(7, 'day');
+            let week = planningWeek(madridDay(referenceDate)).start;
+            if (!completed.has(week)) week = planningWeek(dayjs(week).subtract(1, 'day')).start;
             let streak = 0;
-            while (completed.has(week.format('YYYY-MM-DD'))) {
+            while (completed.has(week)) {
                 streak++;
-                week = week.subtract(7, 'day');
+                week = planningWeek(dayjs(week).subtract(1, 'day')).start;
             }
             return streak;
         }
@@ -345,14 +345,8 @@ export const RoutineAutomaticTriggerDescriptions = {
     BLOOD_PRESSURE_MEASUREMENT: 'a blood pressure measurement'
 };
 
-const madridDateFormatter = new Intl.DateTimeFormat('en-CA', {timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit'});
-
 function madridDay(value) {
-    return dayjs(madridDateFormatter.format(new Date(value)));
-}
-
-function weekStart(date) {
-    return date.subtract((date.day() + 1) % 7, 'day').startOf('day');
+    return dayjs(madridDate(new Date(value)));
 }
 
 const ROUTINE_TYPES_BY_NAME = {

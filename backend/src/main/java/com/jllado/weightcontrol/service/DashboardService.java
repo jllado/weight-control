@@ -16,6 +16,7 @@ import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import static java.time.DayOfWeek.*;
 import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Service;
@@ -59,7 +60,7 @@ public class DashboardService {
             toDailyStatusResponse(dailyStatus, moods),
             toDailyStatusResponse(lastWeek, moods),
             toWeek(user, snapshotService.getWeek(user, selectedDate), moods),
-            toWeek(user, snapshotService.getFullWeek(user, selectedDate.minusDays(7)), moods),
+            toWeek(user, snapshotService.getFullWeek(user, WeeklyMetricsCalculator.comparisonPeriods(user, selectedDate).previous().end()), moods),
             toWinsAndMissesStatusResponse(decisionOutcomeService.summarize(user, selectedDate))
         );
     }
@@ -122,17 +123,17 @@ public class DashboardService {
     }
 
     private WeekStatusResponse toWeek(User user, List<DailyStatus> statuses, Map<LocalDate, List<Mood>> moods) {
-        DailyStatusResponse saturday = statuses.size() > 0 ? toDailyStatusResponse(statuses.get(0), moods) : null;
-        DailyStatusResponse sunday = statuses.size() > 1 ? toDailyStatusResponse(statuses.get(1), moods) : null;
-        DailyStatusResponse monday = statuses.size() > 2 ? toDailyStatusResponse(statuses.get(2), moods) : null;
-        DailyStatusResponse tuesday = statuses.size() > 3 ? toDailyStatusResponse(statuses.get(3), moods) : null;
-        DailyStatusResponse wednesday = statuses.size() > 4 ? toDailyStatusResponse(statuses.get(4), moods) : null;
-        DailyStatusResponse thursday = statuses.size() > 5 ? toDailyStatusResponse(statuses.get(5), moods) : null;
-        DailyStatusResponse friday = statuses.size() > 6 ? toDailyStatusResponse(statuses.get(6), moods) : null;
-        LocalDate weekStart = statuses.isEmpty() ? null : statuses.getFirst().getStatusDate();
-        BigDecimal moodAverage = weekStart == null ? null : moodService.getAverage(user, weekStart, weekStart.plusDays(6));
+        var days = new java.util.EnumMap<java.time.DayOfWeek, DailyStatusResponse>(java.time.DayOfWeek.class);
+        for (DailyStatus status : statuses) {
+            days.put(status.getStatusDate().getDayOfWeek(), toDailyStatusResponse(status, moods));
+        }
+        BigDecimal moodAverage = null;
+        if (!statuses.isEmpty()) {
+            var period = PlanningWeekService.period(user, statuses.getFirst().getStatusDate());
+            moodAverage = moodService.getAverage(user, period.start(), period.end());
+        }
         return new WeekStatusResponse(
-            saturday, sunday, monday, tuesday, wednesday, thursday, friday,
+            days.get(SATURDAY), days.get(SUNDAY), days.get(MONDAY), days.get(TUESDAY), days.get(WEDNESDAY), days.get(THURSDAY), days.get(FRIDAY),
             average(statuses, DailyStatus::getRoutinesPercentage),
             average(statuses, DailyStatus::getWeightPercentage),
             average(statuses, DailyStatus::getBloodPressurePercentage),

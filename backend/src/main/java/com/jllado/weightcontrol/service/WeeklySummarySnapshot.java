@@ -1,5 +1,7 @@
 package com.jllado.weightcontrol.service;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.jllado.weightcontrol.api.dto.WeeklySummaryDtos.ReportPeriod;
 import com.jllado.weightcontrol.domain.PersonalRecordUnit;
 import com.jllado.weightcontrol.domain.BackPainSeverity;
 import com.jllado.weightcontrol.domain.BackRegion;
@@ -25,7 +27,13 @@ public record WeeklySummarySnapshot(
     List<WeeklyRoutineProgress> weeklyRoutines,
     EmailGoals emailGoals,
     WeeklyWorkoutTargets workoutTargets
-) {
+) implements ReportPeriod {
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    public LocalDate followUpStart() { return fridayDate; }
+
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    public LocalDate followUpEnd() { return fridayDate.plusDays(2); }
+
 
     public record EmailGoals(Instant capturedAt, BigDecimal weeklyAverageCalorieMaximum, BigDecimal inShapeBodyFatLimit, FixedRules rules) { }
     public record FixedRules(int version, int sleepMinimumSeconds, String sleepBasis, BigDecimal moodGoodMinimum,

@@ -1,7 +1,8 @@
 package com.jllado.weightcontrol.api;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -11,9 +12,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.jllado.weightcontrol.api.dto.WeeklyCaloriePlanDtos.WeeklyCaloriePlanRequest;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.WeeklyCaloriePlan;
+import com.jllado.weightcontrol.repository.UserRepository;
+import com.jllado.weightcontrol.repository.WeeklyCaloriePlanRepository;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.WeeklyCaloriePlanService;
 import java.time.LocalDate;
@@ -31,7 +33,8 @@ import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 @ExtendWith(MockitoExtension.class)
 class WeeklyCaloriePlanControllerTest {
-    @Mock private WeeklyCaloriePlanService service;
+    @Mock private WeeklyCaloriePlanRepository repository;
+    @Mock private UserRepository users;
     @Mock private CurrentUserService currentUserService;
     private MockMvc mockMvc;
     private User user;
@@ -40,7 +43,7 @@ class WeeklyCaloriePlanControllerTest {
     void setUp() {
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
-        mockMvc = MockMvcBuilders.standaloneSetup(new WeeklyCaloriePlanController(service, currentUserService))
+        mockMvc = MockMvcBuilders.standaloneSetup(new WeeklyCaloriePlanController(new WeeklyCaloriePlanService(repository, users, mock(org.springframework.context.ApplicationEventPublisher.class)), currentUserService))
             .setValidator(validator)
             .setMessageConverters(new MappingJackson2HttpMessageConverter(
                 new ObjectMapper().findAndRegisterModules().disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS))).build();
@@ -52,27 +55,28 @@ class WeeklyCaloriePlanControllerTest {
     void getReturnsNoContentForAnUnplannedWeekAndScopesTheLookupToTheSessionUser() throws Exception {
         LocalDate start = LocalDate.of(2026, 8, 15);
         when(currentUserService.requireUser()).thenReturn(user);
-        when(service.find(user, start)).thenReturn(Optional.empty());
         mockMvc.perform(get("/api/weekly-calorie-plans/{weekStart}", start)).andExpect(status().isNoContent());
-        verify(service).find(user, start);
+        verify(repository).findByUserAndWeekStartBetweenOrderByWeekStartAsc(user, start, start);
     }
 
     @Test
     void putReturnsTheSavedDatedPlan() throws Exception {
         LocalDate start = LocalDate.of(2026, 8, 15);
-        WeeklyCaloriePlan saved = new WeeklyCaloriePlan();
-        saved.setWeekStart(start);
-        saved.setRevision(0L);
-        saved.setCalories(List.of(3000, 2000, 2000, 2000, 2000, 2000, 2000));
         when(currentUserService.requireUser()).thenReturn(user);
-        when(service.replace(eq(user), any(WeeklyCaloriePlanRequest.class))).thenReturn(saved);
+        when(users.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
+        doAnswer(call -> {
+            Iterable<WeeklyCaloriePlan> rows = call.getArgument(0);
+            var saved = rows.iterator().next();
+            saved.setRevision(0L);
+            return List.of(saved);
+        }).when(repository).saveAllAndFlush(any());
         mockMvc.perform(put("/api/weekly-calorie-plans/{weekStart}", start).contentType("application/json").content(requestJson(start)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.weekStart").value("2026-08-15"))
             .andExpect(jsonPath("$.revision").value(0))
             .andExpect(jsonPath("$.days[0].calories").value(3000))
             .andExpect(jsonPath("$.days[6].date").value("2026-08-21"));
-        verify(service).replace(eq(user), any(WeeklyCaloriePlanRequest.class));
+        verify(repository).saveAllAndFlush(any());
     }
 
     @Test
@@ -84,6 +88,8 @@ class WeeklyCaloriePlanControllerTest {
 
     @Test
     void putRejectsNegativeFractionalAndIncompleteDailyValues() throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(users.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
         String valid = requestJson(LocalDate.of(2026, 8, 15));
         mockMvc.perform(put("/api/weekly-calorie-plans/2026-08-15").contentType("application/json")
                 .content(valid.replace("\"calories\":3000", "\"calories\":-1")))

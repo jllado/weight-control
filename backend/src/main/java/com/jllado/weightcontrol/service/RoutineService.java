@@ -65,7 +65,7 @@ public class RoutineService {
         routine.setUser(user);
         routine.setCadence(request.cadence() == null ? RoutineCadence.DAILY : request.cadence());
         LocalDate today = LocalDate.now(DateTimes.USER_ZONE);
-        routine.setStartDate(DateTimes.startOfDay(routine.getCadence() == RoutineCadence.WEEKLY ? RoutinePeriods.start(routine.getCadence(), today)
+        routine.setStartDate(DateTimes.startOfDay(routine.getCadence() == RoutineCadence.WEEKLY ? RoutinePeriods.start(routine.getUser(), routine.getCadence(), today)
             : user.getDashboardAnchorDate() == null ? today : user.getDashboardAnchorDate()));
         routine.setCurrentStrike(0);
         routine.setBestStrike(0);
@@ -89,7 +89,7 @@ public class RoutineService {
         routine.setName(name);
         routine.setCadence(RoutineCadence.WEEKLY);
         routine.setTypes(Set.of(type));
-        routine.setStartDate(DateTimes.startOfDay(RoutinePeriods.start(RoutineCadence.WEEKLY, LocalDate.now(DateTimes.USER_ZONE))));
+        routine.setStartDate(DateTimes.startOfDay(RoutinePeriods.start(user, RoutineCadence.WEEKLY, LocalDate.now(DateTimes.USER_ZONE))));
         routine.setCurrentStrike(0);
         routine.setBestStrike(0);
         routine.setPersonalRecordsEnabled(false);
@@ -186,7 +186,7 @@ public class RoutineService {
         }
         LocalDate date = DateTimes.toLocalDate(checkedAt);
         List<RoutineCheckin> selected = checkinRepository.findByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThanOrderByCheckedAtAsc(
-            routine, DateTimes.startOfDay(RoutinePeriods.start(routine.getCadence(), date)), DateTimes.startOfDay(date.plusDays(1)));
+            routine, DateTimes.startOfDay(RoutinePeriods.start(routine.getUser(), routine.getCadence(), date)), DateTimes.startOfDay(date.plusDays(1)));
         for (RoutineCheckin checkin : selected) {
             if (!checkin.isManualCompletion()) continue;
             if (automationService.hasEvidence(routine, DateTimes.toLocalDate(checkin.getCheckedAt()))) {
@@ -296,7 +296,7 @@ public class RoutineService {
     private boolean isCompleted(Routine routine, LocalDate date) {
         return checkinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
             routine,
-            DateTimes.startOfDay(RoutinePeriods.start(routine.getCadence(), date)),
+            DateTimes.startOfDay(RoutinePeriods.start(routine.getUser(), routine.getCadence(), date)),
             DateTimes.startOfDay(date.plusDays(1))
         );
     }
@@ -315,12 +315,12 @@ public class RoutineService {
     }
 
     private static void applyCheckinSummary(Routine routine, OffsetDateTime checkedAt) {
-        LocalDate checkinDate = RoutinePeriods.start(routine.getCadence(), DateTimes.toLocalDate(checkedAt));
-        if (routine.getCadence() == RoutineCadence.WEEKLY && routine.getLastTimeDate() != null && RoutinePeriods.start(routine.getCadence(), DateTimes.toLocalDate(routine.getLastTimeDate())).equals(checkinDate)) {
+        LocalDate checkinDate = RoutinePeriods.start(routine.getUser(), routine.getCadence(), DateTimes.toLocalDate(checkedAt));
+        if (routine.getCadence() == RoutineCadence.WEEKLY && routine.getLastTimeDate() != null && RoutinePeriods.start(routine.getUser(), routine.getCadence(), DateTimes.toLocalDate(routine.getLastTimeDate())).equals(checkinDate)) {
             routine.setLastTimeDate(checkedAt);
             return;
         }
-        if (routine.getLastTimeDate() != null && ChronoUnit.DAYS.between(RoutinePeriods.start(routine.getCadence(), DateTimes.toLocalDate(routine.getLastTimeDate())), checkinDate) > (routine.getCadence() == RoutineCadence.WEEKLY ? 7 : 1)) {
+        if (routine.getLastTimeDate() != null && checkinDate.isAfter(RoutinePeriods.nextStart(routine.getUser(), routine.getCadence(), DateTimes.toLocalDate(routine.getLastTimeDate())))) {
             routine.setCurrentStrike(0);
         }
         routine.setCurrentStrike(routine.getCurrentStrike() + 1);

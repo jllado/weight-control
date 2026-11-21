@@ -81,7 +81,7 @@ public class AgendaService {
                     .map(type -> type.name().replace('_', ' '))
                     .collect(Collectors.joining(", ")),
                 routineCheckinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
-                    routine, DateTimes.startOfDay(RoutinePeriods.start(routine.getCadence(), date)), DateTimes.startOfDay(date.plusDays(1))
+                    routine, DateTimes.startOfDay(RoutinePeriods.start(routine.getUser(), routine.getCadence(), date)), DateTimes.startOfDay(date.plusDays(1))
                 ) ? AgendaEntryStatus.COMPLETED : AgendaEntryStatus.PENDING, routine.getId(), reminder.getId(), null
             )))
             .forEach(entries::add);

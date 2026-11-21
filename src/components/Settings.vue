@@ -36,6 +36,17 @@
         <InputNumber id="weeklyAverageCalorieMaximum" v-model="profile.weeklyAverageCalorieMaximum" suffix=" kcal" :min="0" />
         <span class="error">{{ errors.weeklyAverageCalorieMaximum }}</span>
       </div>
+      <div class="p-field p-col-12 p-md-6">
+        <label id="first-planning-day-label" for="first-planning-day">First day of planning week</label>
+        <Dropdown inputId="first-planning-day" aria-labelledby="first-planning-day-label" :modelValue="selectedFirstDay" @update:modelValue="draftFirstDay = $event" :options="weekdayOptions" optionLabel="label" optionValue="value" />
+        <div aria-live="polite" class="p-mt-1">
+          <div>{{ periodLabel(currentWeek.start, currentWeek.end) }}</div>
+          <template v-if="scheduledWeek">
+            <div v-if="scheduledWeek.transition && scheduledWeek.transition.start !== currentWeek.start">{{ periodLabel(scheduledWeek.transition.start, scheduledWeek.transition.end) }}</div>
+            <div>{{ scheduledWeek.range }} from {{ scheduledWeek.effectiveDate }} through {{ scheduledWeek.end }}.</div>
+          </template>
+        </div>
+      </div>
       <div class="p-field p-col-12">
         <h3>Calorie Shortcuts</h3>
       </div>
@@ -63,11 +74,14 @@
     </div>
   </Panel>
   <PushNotificationSettings />
-  <WeeklySummarySettings />
+  <WeeklySummarySettings :today="today" />
   <NutrientTargetSettings />
 </template>
 
 <script>
+import dayjs from 'dayjs';
+import {planningWeek, nextOccurrence, weekdays, weekdaysFrom, dayLabel, weekdayRange, periodLabel, madridDate} from '../model/PlanningWeek';
+import {madridInstant} from '../model/WorkoutTiming';
 import {userState} from '../state';
 import UserProfile, {calorieShortcutOptions, medicationOptions, typicalCaloriesDays, userFitnessLevelOptions, userSexOptions} from '../model/UserProfile';
 import userProfileService from '../services/UserProfileService';
@@ -81,21 +95,39 @@ export default {
   data() {
     return {
       profile: new UserProfile({takesMedication: false}),
+      draftFirstDay: null,
+      weekdayOptions: weekdays.map(value => ({value, label: dayLabel(value)})),
       errors: {},
       maxDate: new Date(),
+      midnightTimer: null,
       medicationOptions,
       fitnessOptions: userFitnessLevelOptions,
       sexOptions: userSexOptions,
       calorieShortcutOptions,
-      typicalCaloriesDays: typicalCaloriesDays.map(day => ({
-        key: day,
-        label: day.charAt(0).toUpperCase() + day.slice(1)
-      })),
       saving: false,
       state: userState()
     }
   },
   computed: {
+    today() { return madridDate(this.maxDate); },
+    savedFirstDay() { return this.profile.planningWeekChanges.at(-1)?.firstDay || 'SATURDAY'; },
+    selectedFirstDay() { return this.draftFirstDay || this.savedFirstDay; },
+    previewChanges() {
+      const saved = this.profile.planningWeekChanges;
+      if (this.selectedFirstDay === this.savedFirstDay) return saved;
+      const history = saved.filter(change => change.effectiveDate <= this.today);
+      if (this.selectedFirstDay === planningWeek(this.today, history).firstDay) return history;
+      return [...history, {effectiveDate: nextOccurrence(this.selectedFirstDay, this.today), firstDay: this.selectedFirstDay}];
+    },
+    currentWeek() { return planningWeek(this.today, this.previewChanges); },
+    scheduledWeek() {
+      const scheduled = this.previewChanges.find(change => change.effectiveDate > this.today);
+      if (!scheduled) return null;
+      const week = planningWeek(scheduled.effectiveDate, this.previewChanges);
+      const prior = planningWeek(dayjs(week.start).subtract(1, 'day'), this.previewChanges);
+      return {...scheduled, end: week.end, range: weekdayRange(week.start, week.end), transition: prior.transition ? prior : null};
+    },
+    typicalCaloriesDays() { return weekdaysFrom(this.currentWeek.firstDay).map(day => ({key: day.toLowerCase(), label: dayLabel(day)})); },
     typicalCaloriesAverage() {
       const values = typicalCaloriesDays.map(day => this.profile.typicalCaloriesPerDay[day]);
       return values.some(value => value === null) ? null : values.reduce((sum, value) => sum + value, 0) / 7;
@@ -108,8 +140,25 @@ export default {
     }
     await this.loadProfile();
   },
+  mounted() {
+    this.refreshDate();
+    document.addEventListener('visibilitychange', this.refreshWhenVisible);
+    window.addEventListener('pageshow', this.refreshDate);
+  },
+  beforeUnmount() {
+    clearTimeout(this.midnightTimer);
+    document.removeEventListener('visibilitychange', this.refreshWhenVisible);
+    window.removeEventListener('pageshow', this.refreshDate);
+  },
   methods: {
-    formatCalories,
+    refreshWhenVisible() { if (document.visibilityState === 'visible') this.refreshDate(); },
+    refreshDate() {
+      clearTimeout(this.midnightTimer);
+      this.maxDate = new Date();
+      const midnight = madridInstant(dayjs(this.today).add(1, 'day').startOf('day').toDate());
+      this.midnightTimer = setTimeout(this.refreshDate, Date.parse(midnight) - this.maxDate.getTime());
+    },
+    formatCalories, periodLabel,
     async loadProfile() {
       this.state.loading = true;
       try {
@@ -122,23 +171,50 @@ export default {
         this.state.loading = false;
       }
     },
+    showPlanningDateChange() {
+      this.$toast.add({severity: 'info', summary: 'Planning dates updated', detail: 'Review the new dates and select Save again.', life: 5000});
+    },
+    async refreshPlanningHistory() {
+      try {
+        const profile = await userProfileService.get();
+        this.state.user.profile = profile;
+        this.profile.planningWeekChanges = profile.planningWeekChanges;
+        this.refreshDate();
+        this.showPlanningDateChange();
+      } catch (error) {
+        this.handle_error(error);
+      }
+    },
     async save() {
+      const preview = this.scheduledWeek?.effectiveDate;
+      this.refreshDate();
+      if (this.selectedFirstDay !== this.savedFirstDay && preview !== this.scheduledWeek?.effectiveDate) {
+        this.showPlanningDateChange();
+        return;
+      }
       if (!this.validate()) {
         return;
       }
+      const planningChange = this.selectedFirstDay !== this.savedFirstDay ? {
+        firstDayOfPlanningWeek: this.selectedFirstDay,
+        expectedPlanningWeekEffectiveDate: this.scheduledWeek?.effectiveDate ?? null
+      } : undefined;
       this.saving = true;
       try {
-        const savedProfile = await userProfileService.save(this.profile);
+        const savedProfile = await userProfileService.save(this.profile, planningChange);
         this.profile = new UserProfile(savedProfile);
         this.state.user.profile = savedProfile;
+        this.draftFirstDay = null;
         this.$toast.add({severity:'success', summary: 'Saved', detail: 'Settings updated', life: 3000});
       } catch (e) {
-        this.handle_error(e);
+        if (e.status === 409 && planningChange) await this.refreshPlanningHistory();
+        else this.handle_error(e);
       } finally {
         this.saving = false;
       }
     },
     cancel() {
+      this.draftFirstDay = null;
       this.profile = new UserProfile(this.state.user.profile);
       this.errors = {};
     },

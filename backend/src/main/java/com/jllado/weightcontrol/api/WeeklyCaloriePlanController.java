@@ -27,7 +27,7 @@ public class WeeklyCaloriePlanController {
 
     @GetMapping("/{weekStart}")
     public ResponseEntity<WeeklyCaloriePlanResponse> get(@PathVariable LocalDate weekStart) {
-        return service.find(currentUserService.requireUser(), weekStart).map(WeeklyCaloriePlanResponse::from)
+        return service.find(currentUserService.requireUser(), weekStart)
             .map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.noContent().build());
     }
 
@@ -36,6 +36,6 @@ public class WeeklyCaloriePlanController {
         if (!weekStart.equals(request.weekStart())) {
             throw new com.jllado.weightcontrol.service.BadRequestException("Calorie plan URL and body week must match");
         }
-        return WeeklyCaloriePlanResponse.from(service.replace(currentUserService.requireUser(), request));
+        return service.replace(currentUserService.requireUser(), request);
     }
 }

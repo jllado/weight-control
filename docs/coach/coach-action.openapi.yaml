@@ -654,7 +654,7 @@ paths:
     get:
       operationId: getHealthEntries
       summary: List editable health entries by type
-      description: Owned IDs; DISH_RECIPE no dates, others inclusive ≤90d. WORKOUT full sessions/sauna/updateToken. ROUTINE lists daily/weekly routines and actual check-in dates through cutoff; weekly periods Sat–Fri Madrid. Read before writes.
+      description: Owned IDs; DISH_RECIPE no dates, others inclusive ≤90d. WORKOUT full sessions/sauna/updateToken. ROUTINE lists daily/weekly routines and actual check-in dates through cutoff; dated planning weeks in Madrid. Read before writes.
       parameters:
         - name: entryType
           in: path
@@ -812,7 +812,7 @@ paths:
     get:
       operationId: getReflectionContext
       summary: Get daily context or the immutable snapshot for a saved weekly reflection
-      description: Omit target or use DAILY for the existing dated context. Use WEEKLY with the summary Friday to retrieve only an owned saved summary and its current reflection.
+      description: Omit target or use DAILY for the existing dated context. Use WEEKLY with the saved period end to retrieve only an owned saved summary and its current reflection.
       parameters:
         - name: date
           in: path
@@ -824,7 +824,7 @@ paths:
         - name: target
           in: query
           required: false
-          description: WEEKLY treats date as the saved summary Friday; the default remains DAILY.
+          description: WEEKLY treats date as the saved period end; the default remains DAILY.
           schema: {type: string, enum: [DAILY, WEEKLY], default: DAILY}
       responses:
         "200":
@@ -1672,6 +1672,10 @@ components:
         - plannedCalorieTargets
         - weeklyAverageCalorieMaximum
       properties:
+        planningWeeks:
+          type: array
+          description: Dated reporting weeks overlapping the requested range, including shortened transition weeks.
+          items: {$ref: "#/components/schemas/PlanningPeriod"}
         dailyTotals:
           type: array
           description: Compact daily nutrition evidence for broad reviews. Use getMeals or getFastingPeriods only when individual entries are needed.
@@ -1687,7 +1691,14 @@ components:
         weeklyAverageCalorieMaximum:
           type: integer
           minimum: 0
-          description: Configured daily average maximum for each Saturday–Friday plan week.
+          description: Configured daily average maximum for each dated planning week.
+    PlanningPeriod:
+      type: object
+      required: [start, end, transition]
+      properties:
+        start: {type: string, format: date}
+        end: {type: string, format: date}
+        transition: {type: boolean}
     PlannedCalorieTarget:
       type: object
       additionalProperties: false
@@ -2744,7 +2755,7 @@ components:
         cadence: {type: string, enum: [DAILY, WEEKLY]}
         completedWeekStarts:
           type: array
-          description: Distinct Saturday dates for weekly evidence; daily routines return an empty list. Actual checkinDates retain the requested cutoff; weekly reads include evidence since the first requested week began.
+          description: Distinct planning-week start dates for weekly evidence; daily routines return an empty list. Actual checkinDates retain the requested cutoff; weekly reads include evidence since the first requested week began.
           items: {type: string, format: date}
         name:
           type: string
@@ -2779,7 +2790,7 @@ components:
         cadence: {type: string, enum: [DAILY, WEEKLY]}
         completedWeekStarts:
           type: array
-          description: Distinct Saturday dates for weekly evidence; daily routines return an empty list. Actual checkinDates retain the requested cutoff; weekly reads include evidence since the first requested week began.
+          description: Distinct planning-week start dates for weekly evidence; daily routines return an empty list. Actual checkinDates retain the requested cutoff; weekly reads include evidence since the first requested week began.
           items: {type: string, format: date}
         name:
           type: string
@@ -3532,6 +3543,10 @@ components:
     Profile:
       type: object
       properties:
+        planningWeeks:
+          type: array
+          description: Dated reporting weeks overlapping the requested range, including shortened transition weeks.
+          items: {$ref: "#/components/schemas/PlanningPeriod"}
         age:
           type:
             - integer
@@ -4765,6 +4780,7 @@ components:
       type: object
       required: [actionConfigured, summaries]
       properties:
+        latestEligiblePeriodEnd: {type: string, format: date}
         latestEligibleFriday:
           type: string
           format: date
@@ -4776,12 +4792,14 @@ components:
             type: object
             required: [fridayDate, reflectionSaved]
             properties:
+              periodEnd: {type: string, format: date}
               fridayDate: {type: string, format: date}
               reflectionSaved: {type: boolean}
     WeeklyReflectionContext:
       type: object
       required: [periodStart, fridayDate, summary]
       properties:
+        periodEnd: {type: string, format: date}
         periodStart: {type: string, format: date}
         fridayDate: {type: string, format: date}
         summary:
@@ -4843,6 +4861,10 @@ components:
       type: object
       required: [schemaVersion, periodStart, fridayDate, progress, outcomes, routines, goalEvidence, personalRecords, warnings]
       properties:
+        periodEnd: {type: string, format: date}
+        transition: {type: boolean}
+        followUpStart: {type: string, format: date}
+        followUpEnd: {type: string, format: date}
         workoutTargets:
           description: Dated plan evidence frozen in schema 10+. Unknown or ambiguous days leave aggregate targets null; never substitute today's plan.
           oneOf:

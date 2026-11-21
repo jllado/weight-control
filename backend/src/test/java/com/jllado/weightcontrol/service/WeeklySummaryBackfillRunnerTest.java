@@ -32,7 +32,7 @@ class WeeklySummaryBackfillRunnerTest {
         LocalDate friday = LocalDate.of(2026, 8, 14);
         when(users.findByEmail("owner@example.com")).thenReturn(Optional.of(owner));
         when(service.earliestUnderlyingDate(owner)).thenReturn(Optional.of(LocalDate.of(2026, 8, 8)));
-        when(service.latestClosedOutcomeWeekEnd(any())).thenReturn(friday);
+        when(service.latestClosedOutcomeWeekEnd(eq(owner), any())).thenReturn(friday);
         when(summaries.existsByUserAndFridayDate(owner, friday)).thenReturn(false);
         when(service.outcomeWarnings(owner, friday)).thenReturn(List.of("No blood pressure measurement was recorded Friday, Saturday, or Sunday."));
 
@@ -53,7 +53,7 @@ class WeeklySummaryBackfillRunnerTest {
         LocalDate secondFriday = firstFriday.plusWeeks(1);
         when(users.findByEmail("owner@example.com")).thenReturn(Optional.of(owner));
         when(service.earliestUnderlyingDate(owner)).thenReturn(Optional.of(LocalDate.of(2026, 8, 8)));
-        when(service.latestClosedOutcomeWeekEnd(any())).thenReturn(secondFriday);
+        when(service.latestClosedOutcomeWeekEnd(eq(owner), any())).thenReturn(secondFriday);
         when(summaries.existsByUserAndFridayDate(owner, firstFriday)).thenReturn(false);
         when(summaries.existsByUserAndFridayDate(owner, secondFriday)).thenReturn(true);
         SavedWeeklySummary first = saved(owner, firstFriday);
@@ -70,6 +70,25 @@ class WeeklySummaryBackfillRunnerTest {
         verify(service).readSnapshot(first);
         verify(service).readSnapshot(second);
         verify(service, never()).outcomeWarnings(any(), any());
+    }
+
+    @Test
+    void dryRunVisitsEachClosingDateWhenAChangeCreatesAShortPeriod() {
+        User owner = owner();
+        LocalDate monday = LocalDate.parse("2026-11-23");
+        owner.getPlanningWeekChanges().add(new com.jllado.weightcontrol.domain.PlanningWeekChange(owner, monday));
+        var service = mock(WeeklySummaryService.class);
+        var summaries = mock(SavedWeeklySummaryRepository.class);
+        var users = mock(UserRepository.class);
+        when(users.findByEmail("owner@example.com")).thenReturn(Optional.of(owner));
+        when(service.earliestUnderlyingDate(owner)).thenReturn(Optional.of(monday.minusDays(7)));
+        when(service.latestClosedOutcomeWeekEnd(eq(owner), any())).thenReturn(monday.plusDays(6));
+
+        runner(service, summaries, users, "dry-run").run(new DefaultApplicationArguments());
+
+        var dates = org.mockito.ArgumentCaptor.forClass(LocalDate.class);
+        verify(service, org.mockito.Mockito.times(3)).outcomeWarnings(eq(owner), dates.capture());
+        org.junit.jupiter.api.Assertions.assertEquals(List.of(monday.minusDays(3), monday.minusDays(1), monday.plusDays(6)), dates.getAllValues());
     }
 
     @Test

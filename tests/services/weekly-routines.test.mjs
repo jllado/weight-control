@@ -3,11 +3,12 @@ import {test} from 'node:test';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import dayjs from 'dayjs';
+import {madridDate, planningWeek} from '../../src/model/PlanningWeek.js';
 
 const source = readFileSync(new URL('../../src/model/Routine.js', import.meta.url), 'utf8')
     .replace(/^import .*;?\n/gm, '').replace(/^dayjs\.extend\(.*\)\n/gm, '')
     .replace('export default class Routine', 'class Routine').replaceAll('export const ', 'const ');
-const context = {dayjs, Intl};
+const context = {dayjs, Intl, madridDate, planningWeek};
 vm.runInNewContext(`${source}\nglobalThis.Routine = Routine;`, context);
 const date = value => new Date(`${value}T12:00:00+01:00`);
 const routine = (times, start = '2026-10-03', cadence = 'WEEKLY') => new context.Routine({
@@ -40,6 +41,17 @@ test('weekly pending opportunity preserves preceding streak and historical best 
     assert.equal(value.strike(date('2026-11-14')), 0);
     assert.equal(value.bestStreak(date('2026-10-23')), 1);
     assert.equal(value.bestStreak(date('2026-11-07')), 3);
+});
+
+test('a short transition counts once between two regular planning weeks', () => {
+    const changes = [{effectiveDate: '2026-11-01', firstDay: 'SUNDAY'}];
+    const scope = {dayjs, Intl, madridDate, planningWeek: date => planningWeek(date, changes)};
+    vm.runInNewContext(`${source}\nglobalThis.Routine = Routine;`, scope);
+    const value = new scope.Routine(routine(['2026-10-28', '2026-10-31', '2026-11-01']).toObject());
+    assert.equal(value.strike(date('2026-11-02')), 3);
+    assert.equal(value.bestStreak(date('2026-11-02')), 3);
+    assert.equal(value.isDone(date('2026-11-08')), false);
+    assert.equal(value.month_percentage(date('2026-10-01'), date('2026-11-08')), 40);
 });
 
 test('weekly monthly analytics assign completion to the week-ending Friday', () => {

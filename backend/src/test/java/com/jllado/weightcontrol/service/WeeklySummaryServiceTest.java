@@ -1,6 +1,7 @@
 package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -136,18 +137,51 @@ class WeeklySummaryServiceTest {
     void latestCompletedWeekAlwaysEndsOnThePreviousFriday() {
         WeeklySummaryService service = service(properties(true));
 
-        assertEquals(LocalDate.of(2026, 8, 14), service.latestCompletedWeekEnd(LocalDate.of(2026, 8, 15)));
-        assertEquals(LocalDate.of(2026, 8, 14), service.latestCompletedWeekEnd(LocalDate.of(2026, 8, 16)));
-        assertEquals(LocalDate.of(2026, 8, 14), service.latestCompletedWeekEnd(LocalDate.of(2026, 8, 21)));
+        assertEquals(LocalDate.of(2026, 8, 14), service.latestCompletedWeekEnd(user(), LocalDate.of(2026, 8, 15)));
+        assertEquals(LocalDate.of(2026, 8, 14), service.latestCompletedWeekEnd(user(), LocalDate.of(2026, 8, 16)));
+        assertEquals(LocalDate.of(2026, 8, 14), service.latestCompletedWeekEnd(user(), LocalDate.of(2026, 8, 21)));
     }
 
     @Test
     void outcomeWeekClosesOnlyAfterSundayInMadrid() {
         WeeklySummaryService service = service(properties(true));
 
-        assertEquals(LocalDate.of(2026, 8, 7), service.latestClosedOutcomeWeekEnd(LocalDate.of(2026, 8, 15)));
-        assertEquals(LocalDate.of(2026, 8, 7), service.latestClosedOutcomeWeekEnd(LocalDate.of(2026, 8, 16)));
-        assertEquals(LocalDate.of(2026, 8, 14), service.latestClosedOutcomeWeekEnd(LocalDate.of(2026, 8, 17)));
+        assertEquals(LocalDate.of(2026, 8, 7), service.latestClosedOutcomeWeekEnd(user(), LocalDate.of(2026, 8, 15)));
+        assertEquals(LocalDate.of(2026, 8, 7), service.latestClosedOutcomeWeekEnd(user(), LocalDate.of(2026, 8, 16)));
+        assertEquals(LocalDate.of(2026, 8, 14), service.latestClosedOutcomeWeekEnd(user(), LocalDate.of(2026, 8, 17)));
+    }
+
+    @Test
+    void transitionReportUsesItsTwoDatesAndTheNextReportComparesWithTheClosedTransition() {
+        User user = user();
+        LocalDate monday = LocalDate.parse("2026-11-23");
+        user.getPlanningWeekChanges().add(new com.jllado.weightcontrol.domain.PlanningWeekChange(user, monday));
+        when(snapshotService.getReadOnly(eq(user), any(LocalDate.class))).thenAnswer(invocation -> status(invocation.getArgument(1)));
+        var service = service(properties(true));
+        var snapshot = service.preview(user, monday).snapshot();
+
+        assertEquals(monday.minusDays(2), snapshot.periodStart());
+        assertEquals(monday.minusDays(1), snapshot.periodEnd());
+        assertTrue(snapshot.transition());
+        var email = new WeeklySummaryEmailViewFactory().create(user, snapshot, null, "https://test.example");
+        assertTrue(email.dateRange().startsWith("Transition period"));
+        var followUp = email.visualSummary().overview().stream().filter(card -> card.key().equals("weekendWeight")).findFirst().orElseThrow();
+        assertEquals("Follow-up weight", followUp.label());
+        assertTrue(followUp.detail().contains("22 November 2026 – 24 November 2026"));
+        assertEquals(monday.minusDays(1), snapshot.followUpStart());
+        assertEquals(monday.plusDays(1), snapshot.followUpEnd());
+        assertEquals(List.of("No weight measurement was recorded from 2026-11-22 through 2026-11-24.",
+            "No blood pressure measurement was recorded from 2026-11-22 through 2026-11-24."), snapshot.warnings());
+        assertEquals(2, snapshot.progress().currentPeriod().routineCompletion().days().size());
+        assertEquals(monday.minusDays(3), service.latestClosedOutcomeWeekEnd(user, monday));
+        assertEquals(monday.minusDays(1), service.latestClosedOutcomeWeekEnd(user, monday.plusDays(2)));
+
+        var next = service.preview(user, monday.plusWeeks(1)).snapshot();
+        assertFalse(next.transition());
+        assertEquals(monday, next.periodStart());
+        assertEquals(monday.plusDays(6), next.periodEnd());
+        assertEquals(snapshot.periodStart(), next.progress().previousComparablePeriod().startDate());
+        assertEquals(snapshot.periodEnd(), next.progress().previousComparablePeriod().endDate());
     }
 
     @Test
@@ -251,7 +285,7 @@ class WeeklySummaryServiceTest {
             .filter(card -> card.label().equals("Back pain"))
             .findFirst().orElseThrow();
 
-        assertEquals(10, snapshot.schemaVersion());
+        assertEquals(11, snapshot.schemaVersion());
         assertTrue(saved.getSnapshotJson().contains("\"subjectLabel\":\"Goblet squat\""));
         assertEquals(List.of("Heaviest load — Goblet squat", "Highest weight", "Longest routine streak — Evening stretch"),
             new WeeklySummaryEmailViewFactory().create(user, snapshot, null, "https://weight.example").records().stream()
@@ -334,6 +368,7 @@ class WeeklySummaryServiceTest {
         SavedWeeklySummary summary = new SavedWeeklySummary();
         summary.setUser(user);
         summary.setFridayDate(friday);
+        summary.setSnapshotJson("{\"periodStart\":\"2026-09-19\"}");
         summary.setCreatedAt(Instant.parse("2026-09-28T06:00:00Z"));
         Pageable expectedPage = PageRequest.of(1, 10, Sort.by(Sort.Order.desc("fridayDate"), Sort.Order.desc("id")));
         when(savedSummaryRepository.findByUserOrderByFridayDateDescIdDesc(eq(user), any(Pageable.class)))
@@ -631,8 +666,8 @@ class WeeklySummaryServiceTest {
 
         WeeklySummarySnapshot.OutcomeMeasurements outcomes = service.outcomeMeasurements(user, friday);
 
-        assertEquals(LocalDate.of(2026, 10, 16), service.latestClosedOutcomeWeekEnd(LocalDate.of(2026, 10, 25)));
-        assertEquals(friday, service.latestClosedOutcomeWeekEnd(LocalDate.of(2026, 10, 26)));
+        assertEquals(LocalDate.of(2026, 10, 16), service.latestClosedOutcomeWeekEnd(user(), LocalDate.of(2026, 10, 25)));
+        assertEquals(friday, service.latestClosedOutcomeWeekEnd(user(), LocalDate.of(2026, 10, 26)));
         assertEquals(sunday, outcomes.weight().measuredDate());
         assertEquals(sunday, outcomes.bloodPressure().measuredDate());
     }
@@ -750,7 +785,7 @@ class WeeklySummaryServiceTest {
         when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(org.mockito.ArgumentMatchers.eq(user), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
         when(decisionOutcomeRepository.findByUserAndOutcomeDateBetweenOrderByOutcomeDateAscIdAsc(org.mockito.ArgumentMatchers.eq(user), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
 
-        WeeklyMetrics.Progress progress = service(properties(true)).buildProgress(user, end);
+        WeeklyMetrics.Progress progress = service(properties(true)).previewForFriday(user, end, end.plusDays(1)).snapshot().progress();
 
         assertEquals(LocalDate.of(2026, 8, 8), progress.currentPeriod().startDate());
         assertEquals(LocalDate.of(2026, 8, 1), progress.previousComparablePeriod().startDate());
@@ -815,7 +850,7 @@ class WeeklySummaryServiceTest {
         owner.setWeeklySummaryDeliveryTime(java.time.LocalTime.of(8, 30));
         java.time.ZonedDateTime now = java.time.Instant.parse(instant).atZone(java.time.ZoneOffset.UTC);
         WeeklySummaryService service = service(properties(true));
-        LocalDate friday = service.latestCompletedWeekEnd(now.withZoneSameInstant(DateTimes.USER_ZONE).toLocalDate());
+        LocalDate friday = service.latestCompletedWeekEnd(owner, now.withZoneSameInstant(DateTimes.USER_ZONE).toLocalDate());
         SavedWeeklySummary saved = new SavedWeeklySummary();
         saved.setUser(owner);
         saved.setFridayDate(friday);
@@ -970,6 +1005,7 @@ class WeeklySummaryServiceTest {
             sicknessRepository,
             backPainEpisodeRepository,
             calorieService,
+            new WeeklyCaloriePlanService(mock(com.jllado.weightcontrol.repository.WeeklyCaloriePlanRepository.class), userRepository, mock(org.springframework.context.ApplicationEventPublisher.class)),
             workoutRepository,
             decisionOutcomeRepository,
             routineRepository,
@@ -1004,7 +1040,7 @@ class WeeklySummaryServiceTest {
     }
 
     private WeeklyMetricsCalculator.Input emptyInput() {
-        return new WeeklyMetricsCalculator.Input(List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
+        return new WeeklyMetricsCalculator.Input(List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), targetDate -> 2000);
     }
 
     private Weight weight(LocalDate date, String value) {

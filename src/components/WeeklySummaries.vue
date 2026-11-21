@@ -18,7 +18,7 @@
 
     <Dialog v-model:visible="showMissingOutcomeConfirm" appendTo="body" modal header="Save with missing outcome measurements?" :closable="!creating" :closeOnEscape="!creating" :style="{width: 'min(28rem, calc(100vw - 2rem))'}">
       <Message v-if="error" severity="error" :closable="false">{{ error }}</Message>
-      <p>The selected week is missing one or more Friday–Sunday outcome readings. Save the available evidence with the missing-data warnings?</p>
+      <p>The selected week is missing one or more outcome readings for {{ preview && outcome_window(preview) }}. Save the available evidence with the missing-data warnings?</p>
       <template #footer>
         <div class="action-group">
           <Button label="Cancel" class="p-button-text" :disabled="creating" @click="showMissingOutcomeConfirm = false" />
@@ -34,12 +34,13 @@
         <div>
           <div class="weekly-kicker">{{ selected_friday_date ? 'Reminder week' : 'Latest eligible period' }}</div>
           <h2>{{ format_period(preview.periodStart, preview.fridayDate) }}</h2>
+          <span v-if="preview.transition">Short transition</span>
         </div>
         <span class="period-state" :class="{'period-state--saved': preview.alreadySaved}">
           {{ preview.alreadySaved ? 'Saved' : 'Ready to save' }}
         </span>
       </div>
-      <p class="comparison-caption">Selected outcome readings · {{ outcome_window(preview.fridayDate) }}</p>
+      <p class="comparison-caption">Selected outcome readings · {{ outcome_window(preview) }}</p>
       <div class="outcome-grid">
         <div class="outcome-item">
           <span>Weight</span>
@@ -54,7 +55,7 @@
         <li v-for="warning in preview.snapshot.warnings" :key="warning">{{ warning }}</li>
       </ul>
       <p v-if="!preview.alreadySaved" class="preview-note">
-        Available from Saturday. Saving fixes the summary; later measurements won’t be included.
+        Available from {{ next_day(preview.fridayDate) }}. Saving captures the measurements available now.
       </p>
     </section>
 
@@ -73,7 +74,7 @@
                   type="button"
                   class="archive-item"
                   @click="select_summary(item.fridayDate)">
-            <span class="archive-period">{{ format_period(item.periodStart, item.fridayDate) }}</span>
+            <span class="archive-period">{{ format_period(item.periodStart, item.fridayDate) }}{{ item.transition ? ' · Short transition' : '' }}</span>
             <span class="archive-status">{{ item.reflectionSaved ? 'Weekly reflection saved' : 'No reflection yet' }}</span>
             <i class="pi pi-arrow-right" aria-hidden="true"></i>
           </button>
@@ -91,7 +92,7 @@
       <section v-if="is_detail_page && detail && detail.fridayDate === $route.params.fridayDate" :key="detail.fridayDate" ref="detail" class="detail-card" aria-label="Weekly summary details" tabindex="-1">
         <header class="detail-heading">
           <div>
-            <div class="weekly-kicker">Saturday–Friday summary</div>
+            <div class="weekly-kicker">{{ detail.transition ? 'Short transition' : weekdayRange(detail.periodStart, detail.fridayDate) }} summary</div>
             <h2>{{ format_period(detail.periodStart, detail.fridayDate) }}</h2>
             <p>Saved {{ format_timestamp(detail.createdAt) }}</p>
           </div>
@@ -122,7 +123,7 @@
               <div v-else-if="detail.presentation" class="weekly-highlights"><article v-for="highlight in detail.presentation.highlights.filter(row => !['records', 'routines'].includes(row.key))" :key="highlight.key" class="weekly-highlight"><span>{{ highlight.label }}</span><strong>{{ highlight.value }}</strong><small>{{ highlight.comparison }}</small><small>{{ highlight.coverage }}</small></article></div>
               <Button label="Explore measurements" icon="pi pi-arrow-right" class="p-button-outlined p-button-sm section-link" @click="open_measurements('body')" />
             </section>
-            <section v-if="visual" class="detail-section"><div class="section-heading"><h3>Weekend readings</h3><span>{{ outcome_window(detail.fridayDate) }} · selected measurements</span></div><div class="weekly-highlights weekend-readings"><article v-for="card in weekend_cards" :key="card.key" class="weekly-highlight"><span>{{ card.label }}</span><strong :style="{color: card.key === 'weekendWeight' ? undefined : card.status.color}">{{ card.value }}</strong><small>{{ card.detail }}</small><span class="review-status" :style="{color: card.status.color}">{{ card.key === 'weekendWeight' ? body_fat_status_label(card.status.label) : card.status.label }}</span><small v-for="(change, index) in [card.previous, card.yearAgo]" :key="index" :style="{color: change.color}">{{ change.text }} · vs {{ index ? '52 weeks ago' : 'last week' }}</small></article></div></section>
+            <section v-if="visual" class="detail-section"><div class="section-heading"><h3>Outcome readings</h3><span>{{ outcome_window(detail) }} · selected measurements</span></div><div class="weekly-highlights weekend-readings"><article v-for="card in weekend_cards" :key="card.key" class="weekly-highlight"><span>{{ card.label }}</span><strong :style="{color: card.key === 'weekendWeight' ? undefined : card.status.color}">{{ card.value }}</strong><small>{{ card.detail }}</small><span class="review-status" :style="{color: card.status.color}">{{ card.key === 'weekendWeight' ? body_fat_status_label(card.status.label) : card.status.label }}</span><small v-for="(change, index) in [card.previous, card.yearAgo]" :key="index" :style="{color: change.color}">{{ change.text }} · vs {{ index ? '52 weeks ago' : 'last week' }}</small></article></div></section>
             <section class="detail-section"><div class="section-heading"><h3>Workout activity</h3><Button label="Training details" class="p-button-text p-button-sm" @click="open_measurements('training')" /></div><p v-if="workout_targets_missing" class="comparison-caption">Workout targets weren’t saved with this review.</p><WeeklyMetricTable label="Workout activity overview" :periods="comparison_periods" :rows="workout_table_rows.filter(row => row.label !== 'Total sessions')" /></section>
             <section class="detail-section"><div class="section-heading"><h3>Nutrition</h3><Button label="Comparisons & details" class="p-button-text p-button-sm" @click="open_measurements('nutrition')" /></div><WeeklyMetricTable label="Nutrition daily averages" :periods="comparison_periods" :rows="nutrition_table_rows" compactCurrent><template #target="{row}"><Button v-if="row.key === 'omega3'" label="View references" class="p-button-text p-button-sm" @click="open_omega_references" /><span v-else>{{ row.cells[0].target || 'Not available' }}</span></template></WeeklyMetricTable></section>
             <section class="detail-section reflection-teaser"><h3>{{ detail.reflection?.title || 'Weekly reflection' }}</h3><p>{{ detail.reflection?.summary || 'Review your saved evidence and choose next-week priorities.' }}</p><Button label="Reflection & actions" class="p-button-outlined" @click="review_tab = 'reflection'" /></section>
@@ -130,12 +131,12 @@
           <TabPanel header="Measurements" :headerProps="{'data-index': 1}">
             <ScrollableTabView ref="measurementTabs" v-model:activeIndex="measurement_index" scrollable selectOnFocus :pt="{nav: {'aria-label': 'Measurement groups'}}">
             <TabPanel v-for="(tab, index) in measurement_tabs" :key="tab.key" :header="tab.label" :headerProps="{'data-index': index}">
-              <p class="comparison-caption">Saturday–Friday averages · changes show this week minus each comparison period.</p>
+              <p class="comparison-caption">{{ weekdayRange(detail.periodStart, detail.fridayDate) }} averages · changes show this week minus each comparison period.</p>
               <template v-if="tab.key === 'body'">
                 <WeeklyMetricTable label="Weekly recorded metrics" :periods="comparison_periods" :rows="measurement_groups.body" />
         <section class="detail-section">
           <h4 class="outcome-heading">Selected outcome readings</h4>
-          <p class="comparison-caption">{{ outcome_window(detail.fridayDate) }}</p>
+          <p class="comparison-caption">{{ outcome_window(detail) }}</p>
           <div class="outcome-grid">
             <article class="outcome-item">
               <span>Weight</span>
@@ -184,7 +185,7 @@
                 <h3>Daily routines</h3><div class="routine-search"><label for="weekly-routine-search">Find a routine</label><InputText id="weekly-routine-search" v-model="routine_search" placeholder="Find a routine" /></div>
                 <div v-if="filtered_routines.length" class="routine-list"><div v-for="routine in filtered_routines" :key="routine.name" class="routine-item" :class="{'routine-item--watch': Number(routine.percentage) < 60}"><strong>{{ routine.name }}</strong><div class="routine-track"><span :style="{width: routine.percentage + '%'}"></span></div><span>{{ routine.completedDays }}/{{ routine.eligibleDays }} days · {{ Number(routine.percentage).toFixed(0) }}%</span><span v-if="Number(routine.percentage) < 60" class="watch-label">Below 60%</span></div></div><p v-else class="empty-note">{{ routine_search ? 'No matching routines.' : 'No active routine opportunities this week.' }}</p>
         <section v-if="detail.snapshot.weeklyRoutines" class="detail-section">
-          <h3>Weekly routines</h3><p class="comparison-caption">Saturday–Friday opportunities · separate from daily completion</p>
+          <h3>Weekly routines</h3><p class="comparison-caption">Opportunities in the saved planning period</p>
           <div v-if="detail.snapshot.weeklyRoutines.length" class="routine-list">
             <div v-for="routine in detail.snapshot.weeklyRoutines" :key="routine.name" class="routine-item">
               <strong>{{ routine.name }}</strong>
@@ -257,7 +258,7 @@
       <section v-else-if="!is_detail_page && !preview?.snapshot" class="empty-state">
         <i class="pi pi-calendar-times" aria-hidden="true"></i>
         <h2>No weekly summary data yet</h2>
-        <p>Recorded health data will appear here after a Saturday–Friday period closes.</p>
+        <p>Recorded health data will appear here after a planning week closes.</p>
       </section>
     </section>
   </main>
@@ -266,6 +267,7 @@
 <script>
 import dayjs from 'dayjs';
 import weeklySummaryService from '@/services/WeeklySummaryService';
+import {weekdayRange} from '@/model/PlanningWeek';
 import {buildWeeklyReflectionPrompt} from '@/model/Reflection';
 import {openCoach} from '@/services/CoachService';
 import {nextTick} from 'vue';
@@ -521,7 +523,7 @@ export default {
       this.actions_revision++;
     },
     open_coach() {
-      const prompt = buildWeeklyReflectionPrompt(this.detail.fridayDate);
+      const prompt = buildWeeklyReflectionPrompt(this.detail);
       const copied = navigator.clipboard.writeText(prompt);
       openCoach();
       copied.then(() => this.$toast.add({severity: 'info', summary: 'Weekly reflection prompt copied', detail: 'Paste it into ChatGPT to continue.', life: 5000}))
@@ -533,8 +535,10 @@ export default {
     format_date(value) {
       return dayjs(`${value}T00:00:00`).format('D MMM YYYY');
     },
-    outcome_window(fridayDate) {
-      return this.format_period(fridayDate, dayjs(`${fridayDate}T00:00:00`).add(2, 'day').format('YYYY-MM-DD'));
+    weekdayRange,
+    next_day(date) { return dayjs(date).add(1, 'day').format('dddd D MMM YYYY'); },
+    outcome_window({snapshot, fridayDate}) {
+      return this.format_period(snapshot.followUpStart || fridayDate, snapshot.followUpEnd || dayjs(fridayDate).add(2, 'day').format('YYYY-MM-DD'));
     },
     format_timestamp(value) {
       return dayjs(value).format('D MMM YYYY, HH:mm');

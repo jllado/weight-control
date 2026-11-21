@@ -201,10 +201,11 @@ class HealthDataContextServiceTest {
         User user = user();
         LocalDate cutoff = LocalDate.parse(value);
         var routine = new com.jllado.weightcontrol.domain.Routine();
+        routine.setUser(user);
         routine.setId(91L);
         routine.setName("Check weight");
         routine.setCadence(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY);
-        var weekStart = com.jllado.weightcontrol.util.RoutinePeriods.start(routine.getCadence(), cutoff);
+        var weekStart = com.jllado.weightcontrol.util.RoutinePeriods.start(routine.getUser(), routine.getCadence(), cutoff);
         routine.setStartDate(com.jllado.weightcontrol.util.DateTimes.startOfDay(weekStart));
         routine.setTypes(Set.of(com.jllado.weightcontrol.domain.RoutineType.WEIGHT));
         when(routineRepository.findByUserOrderByStartDateAsc(user)).thenReturn(List.of(routine));
@@ -219,6 +220,7 @@ class HealthDataContextServiceTest {
         var from = LocalDate.of(2026, 8, 8);
         var to = LocalDate.of(2026, 8, 12);
         var routine = new com.jllado.weightcontrol.domain.Routine();
+        routine.setUser(user);
         routine.setId(91L);
         routine.setName("Check weight");
         routine.setCadence(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY);

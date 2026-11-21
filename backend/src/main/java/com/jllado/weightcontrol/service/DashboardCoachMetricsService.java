@@ -49,8 +49,9 @@ public class DashboardCoachMetricsService {
     }
 
     public DashboardCoachMetricsResponse get(User user, LocalDate selectedDate, ChartPeriod period) {
-        LocalDate selectedWeekStart = DateTimes.startOfDashboardWeek(selectedDate);
-        LocalDate selectedWeekEnd = selectedWeekStart.plusDays(6);
+        var comparisons = WeeklyMetricsCalculator.comparisonPeriods(user, selectedDate);
+        var current = PlanningWeekService.period(user, selectedDate);
+        var previous = PlanningWeekService.period(user, current.start().minusDays(1));
         LocalDate periodStart = switch (period) {
             case MONTHLY -> LocalDate.now(DateTimes.USER_ZONE).minusMonths(3);
             case LAST_YEAR -> LocalDate.now(DateTimes.USER_ZONE).minusYears(1);
@@ -62,17 +63,17 @@ public class DashboardCoachMetricsService {
         List<Workout> periodWorkouts = periodStart == null
             ? workoutRepository.findByUserOrderByWorkoutDateDesc(user)
             : workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, periodStart, LocalDate.now(DateTimes.USER_ZONE));
-        CoachWeekResponse selectedWeek = week(user, selectedWeekStart);
-        CoachWeekResponse previousWeek = week(user, selectedWeekStart.minusWeeks(1));
+        CoachWeekResponse selectedWeek = week(user, current.start(), current.end());
+        CoachWeekResponse previousWeek = week(user, previous.start(), previous.end());
         return new DashboardCoachMetricsResponse(
             selectedWeek,
             previousWeek,
-            week(user, selectedWeekStart, selectedDate),
-            week(user, selectedWeekStart.minusWeeks(1), selectedDate.minusWeeks(1)),
+            week(user, current.start(), selectedDate),
+            week(user, comparisons.previous().start(), comparisons.previous().end()),
             planProgressTrend(user, selectedDate),
             periodReflections.stream().filter(reflection -> reflection.getPlanProgressScore() != null).map(this::toReflection).toList(),
             dailyWorkouts(user, periodWorkouts),
-            weeklyTotals(periodWorkouts)
+            weeklyTotals(user, periodWorkouts)
         );
     }
 
@@ -99,10 +100,6 @@ public class DashboardCoachMetricsService {
         return BigDecimal.valueOf(scoreTotal).divide(BigDecimal.valueOf(inPeriod.size()), 1, RoundingMode.HALF_UP);
     }
 
-    private CoachWeekResponse week(User user, LocalDate startDate) {
-        return week(user, startDate, startDate.plusDays(6));
-    }
-
     private CoachWeekResponse week(User user, LocalDate startDate, LocalDate endDate) {
         List<DashboardReflection> reflections = reflectionRepository.findByUserAndReflectionDateBetweenOrderByReflectionDateAsc(user, startDate, endDate);
         List<Workout> workouts = workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, startDate, endDate);
@@ -115,11 +112,11 @@ public class DashboardCoachMetricsService {
         );
     }
 
-    private List<WeeklyWorkoutMetricResponse> weeklyTotals(List<Workout> workouts) {
+    private List<WeeklyWorkoutMetricResponse> weeklyTotals(User user, List<Workout> workouts) {
         Map<LocalDate, List<Workout>> byWeek = workouts.stream()
-            .collect(Collectors.groupingBy(workout -> DateTimes.startOfDashboardWeek(workout.getWorkoutDate())));
+            .collect(Collectors.groupingBy(workout -> PlanningWeekService.period(user, workout.getWorkoutDate()).start()));
         return byWeek.entrySet().stream().sorted(Map.Entry.comparingByKey())
-            .map(entry -> new WeeklyWorkoutMetricResponse(entry.getKey(), entry.getKey().plusDays(6), toTotals(entry.getValue())))
+            .map(entry -> new WeeklyWorkoutMetricResponse(entry.getKey(), PlanningWeekService.period(user, entry.getKey()).end(), toTotals(entry.getValue())))
             .toList();
     }
 

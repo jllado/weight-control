@@ -61,6 +61,7 @@ class DashboardServiceTest {
         user.setId(1L);
         user.setDashboardAnchorDate(LocalDate.of(2026, 6, 20));
         user.setLastCompletedDashboardDate(LocalDate.of(2026, 6, 19));
+        user.getPlanningWeekChanges().add(new com.jllado.weightcontrol.domain.PlanningWeekChange(user, LocalDate.of(2026, 6, 7)));
 
         DailyStatus current = status(user, LocalDate.of(2026, 6, 20));
         DailyStatus lastWeek = status(user, LocalDate.of(2026, 6, 13));
@@ -165,8 +166,8 @@ class DashboardServiceTest {
         when(snapshotService.getWeek(user, LocalDate.of(2026, 6, 19))).thenReturn(week);
         when(snapshotService.getFullWeek(user, LocalDate.of(2026, 6, 12))).thenReturn(weekAgo);
         when(moodService.findByDateRange(user, LocalDate.of(2026, 5, 13), LocalDate.of(2026, 6, 19))).thenReturn(Map.of());
-        when(moodService.getAverage(user, LocalDate.of(2026, 6, 19), LocalDate.of(2026, 6, 25))).thenReturn(null);
-        when(moodService.getAverage(user, LocalDate.of(2026, 6, 12), LocalDate.of(2026, 6, 18))).thenReturn(null);
+        when(moodService.getAverage(user, LocalDate.of(2026, 6, 13), LocalDate.of(2026, 6, 19))).thenReturn(null);
+        when(moodService.getAverage(user, LocalDate.of(2026, 6, 6), LocalDate.of(2026, 6, 12))).thenReturn(null);
         when(moodService.average(anyList())).thenReturn(null);
 
         DashboardDtos.DashboardResponse dashboard = service.retreat(user);

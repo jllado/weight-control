@@ -179,7 +179,7 @@ public class RoutineAutomationService {
 
     private void backdateMeasurementStart(Routine routine, List<LocalDate> dates) {
         if (routine.getCadence() != RoutineCadence.WEEKLY) return;
-        dates.stream().min(LocalDate::compareTo).map(DateTimes::startOfDashboardWeek)
+        dates.stream().min(LocalDate::compareTo).map(date -> PlanningWeekService.period(routine.getUser(), date).start())
             .filter(start -> start.isBefore(DateTimes.toLocalDate(routine.getStartDate())))
             .ifPresent(start -> routine.setStartDate(DateTimes.startOfDay(start)));
     }

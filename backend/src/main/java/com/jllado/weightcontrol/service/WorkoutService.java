@@ -117,12 +117,13 @@ public class WorkoutService {
     }
 
     public DashboardWorkouts findDashboardWorkouts(User user, LocalDate date) {
-        List<Workout> displayed = repository.findByUserAndWorkoutDateIn(user, List.of(date, date.minusWeeks(1)));
+        LocalDate comparableDate = WeeklyMetricsCalculator.comparisonPeriods(user, date).previous().end();
+        List<Workout> displayed = repository.findByUserAndWorkoutDateIn(user, List.of(date, comparableDate));
         List<Workout> preloads = findPreloadWorkouts(user, date);
         initializeLines(displayed);
         return new DashboardWorkouts(
             displayed.stream().filter(workout -> workout.getWorkoutDate().equals(date)).toList(),
-            displayed.stream().filter(workout -> workout.getWorkoutDate().equals(date.minusWeeks(1))).toList(),
+            displayed.stream().filter(workout -> workout.getWorkoutDate().equals(comparableDate)).toList(),
             preloads
         );
     }

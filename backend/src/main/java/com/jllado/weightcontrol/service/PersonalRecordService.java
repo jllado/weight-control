@@ -18,7 +18,10 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.LocalDate;
 import java.util.*;
+import java.util.stream.Collectors;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -36,6 +39,7 @@ public class PersonalRecordService {
     private final MoodService moodService;
     private final SleepService sleepService;
     private final MealService mealService;
+    private final WeeklyCaloriePlanService caloriePlans;
     private final FastingPeriodService fastingPeriodService;
     private final RoutineService routineService;
     private final DailyStatusRepository dailyStatusRepository;
@@ -53,6 +57,7 @@ public class PersonalRecordService {
         MoodService moodService,
         SleepService sleepService,
         MealService mealService,
+        WeeklyCaloriePlanService caloriePlans,
         FastingPeriodService fastingPeriodService,
         RoutineService routineService,
         DailyStatusRepository dailyStatusRepository,
@@ -69,6 +74,7 @@ public class PersonalRecordService {
         this.moodService = moodService;
         this.sleepService = sleepService;
         this.mealService = mealService;
+        this.caloriePlans = caloriePlans;
         this.fastingPeriodService = fastingPeriodService;
         this.routineService = routineService;
         this.dailyStatusRepository = dailyStatusRepository;
@@ -271,6 +277,15 @@ public class PersonalRecordService {
             .toList();
     }
 
+    @EventListener
+    public void refreshCalorieTargetRecords(WeeklyCaloriePlanService.CaloriePlanSaved event) {
+        User owner = event.user();
+        if (owner.getLastCompletedDashboardDate() != null && !event.weekStart().isAfter(owner.getLastCompletedDashboardDate())
+            && tracksCalorieTargets(overrides(owner))) {
+            rebuildRecords(owner);
+        }
+    }
+
     public void rebuild(User user) {
         rebuildRecords(user);
     }
@@ -379,6 +394,8 @@ public class PersonalRecordService {
             ? routineService.findAll(user).stream().filter(Routine::getPersonalRecordsEnabled)
                 .map(routine -> new PersonalRecordCalculator.RoutineSource(routine, routineService.getCheckinEntities(routine))).toList()
             : List.of();
+        List<Meal> meals = mealService.findAll(user);
+        var calorieTargets = tracksCalorieTargets(modes) ? recordedCalorieTargets(user, meals) : Map.<LocalDate, Integer>of();
         return calculator.calculate(new PersonalRecordCalculator.Sources(
             user,
             weightService.findAll(user),
@@ -387,13 +404,27 @@ public class PersonalRecordService {
             lipidPanelService.findAll(user),
             moodService.findAll(user),
             sleepService.findAll(user),
-            mealService.findAll(user),
+            meals,
             routines,
             user.getLastCompletedDashboardDate() == null
                 ? List.of()
                 : dailyStatusRepository.findByUserAndStatusDateBetweenOrderByStatusDateAsc(user, java.time.LocalDate.of(1970, 1, 1), user.getLastCompletedDashboardDate()),
-            fastingPeriodService.findAll(user)
+            fastingPeriodService.findAll(user),
+            calorieTargets
         ), modes);
+    }
+
+    private boolean tracksCalorieTargets(Map<PersonalRecordCatalogMetric, PersonalRecordMode> modes) {
+        var metric = PersonalRecordCatalogMetric.TARGET_DIFFERENCE_KCAL;
+        return modes.getOrDefault(metric, metric.getDefaultMode()) != PersonalRecordMode.DISABLED;
+    }
+
+    private Map<LocalDate, Integer> recordedCalorieTargets(User user, List<Meal> meals) {
+        LocalDate completed = user.getLastCompletedDashboardDate();
+        if (completed == null) return Map.of();
+        var recorded = meals.stream().map(Meal::getMealDate).filter(date -> !date.isAfter(completed)).collect(Collectors.toSet());
+        if (recorded.isEmpty()) return Map.of();
+        return WeeklyCaloriePlanService.caloriesByDate(caloriePlans.effectiveTargets(user, Collections.min(recorded), Collections.max(recorded)));
     }
 
     private PersonalRecordCalculator.Calculation calculateRoutines(User user) {

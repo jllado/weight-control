@@ -1,5 +1,6 @@
 package com.jllado.weightcontrol.service;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.HistoryEventResponse;
@@ -20,7 +21,6 @@ import com.jllado.weightcontrol.domain.CoachingPlan;
 import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.Routine;
 import com.jllado.weightcontrol.domain.RoutineCadence;
-import com.jllado.weightcontrol.util.RoutinePeriods;
 import com.jllado.weightcontrol.domain.RoutineCheckin;
 import com.jllado.weightcontrol.domain.SavedWeeklySummary;
 import com.jllado.weightcontrol.domain.InAppNotification;
@@ -54,7 +54,6 @@ import com.jllado.weightcontrol.util.DateTimes;
 import com.jllado.weightcontrol.util.Numbers;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
-import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -78,8 +77,7 @@ import org.springframework.data.domain.Sort;
 @Service
 public class WeeklySummaryService {
 
-    private static final int YEAR_COMPARISON_WEEKS = 52;
-    static final int SNAPSHOT_SCHEMA_VERSION = 10;
+    static final int SNAPSHOT_SCHEMA_VERSION = 11;
     private static final Logger LOG = LoggerFactory.getLogger(WeeklySummaryService.class);
 
     private final WeightRepository weightRepository;
@@ -89,6 +87,7 @@ public class WeeklySummaryService {
     private final SicknessRepository sicknessRepository;
     private final BackPainEpisodeRepository backPainEpisodeRepository;
     private final CalorieService calorieService;
+    private final WeeklyCaloriePlanService caloriePlans;
     private final WorkoutRepository workoutRepository;
     private final DecisionOutcomeRepository decisionOutcomeRepository;
     private final RoutineRepository routineRepository;
@@ -115,6 +114,7 @@ public class WeeklySummaryService {
         SicknessRepository sicknessRepository,
         BackPainEpisodeRepository backPainEpisodeRepository,
         CalorieService calorieService,
+        WeeklyCaloriePlanService caloriePlans,
         WorkoutRepository workoutRepository,
         DecisionOutcomeRepository decisionOutcomeRepository,
         RoutineRepository routineRepository,
@@ -140,6 +140,7 @@ public class WeeklySummaryService {
         this.sicknessRepository = sicknessRepository;
         this.backPainEpisodeRepository = backPainEpisodeRepository;
         this.calorieService = calorieService;
+        this.caloriePlans = caloriePlans;
         this.workoutRepository = workoutRepository;
         this.decisionOutcomeRepository = decisionOutcomeRepository;
         this.routineRepository = routineRepository;
@@ -163,7 +164,7 @@ public class WeeklySummaryService {
     public void send(User user) {
         requireOwner(user);
         requireEnabled();
-        LocalDate fridayDate = latestCompletedWeekEnd(LocalDate.now(DateTimes.USER_ZONE));
+        LocalDate fridayDate = latestCompletedWeekEnd(user, LocalDate.now(DateTimes.USER_ZONE));
         SavedWeeklySummary saved = createForFriday(user, fridayDate);
         sendSavedSummary(user, saved);
         LOG.info("Sent weekly summary for {}", fridayDate);
@@ -200,7 +201,7 @@ public class WeeklySummaryService {
         ZonedDateTime localNow = now.withZoneSameInstant(DateTimes.USER_ZONE);
         if (owner.getWeeklySummaryDeliveryDay() != localNow.getDayOfWeek()
             || !owner.getWeeklySummaryDeliveryTime().equals(localNow.toLocalTime().truncatedTo(ChronoUnit.MINUTES))) return;
-        LocalDate friday = latestCompletedWeekEnd(localNow.toLocalDate());
+        LocalDate friday = latestCompletedWeekEnd(owner, localNow.toLocalDate());
         SavedWeeklySummary saved = createForLockedUserIfMissing(owner, friday).summary();
         if (saved.getScheduledEmailedAt() != null) return;
         sendSavedSummary(owner, saved);
@@ -219,7 +220,7 @@ public class WeeklySummaryService {
             || !owner.getWeeklySummaryReminderTime().equals(localNow.toLocalTime().truncatedTo(ChronoUnit.MINUTES))) {
             return Optional.empty();
         }
-        LocalDate friday = latestCompletedWeekEnd(localNow.toLocalDate());
+        LocalDate friday = latestCompletedWeekEnd(owner, localNow.toLocalDate());
         OffsetDateTime evaluatedAt = now.toOffsetDateTime();
         notificationService.dismissWeeklySummaryRemindersForOtherWeeks(owner, friday, evaluatedAt);
         if (savedSummaryRepository.findByUserAndFridayDateForUpdate(owner, friday).isPresent()) {
@@ -248,10 +249,10 @@ public class WeeklySummaryService {
             .map(reflection -> reflection.getWeeklySummary().getId())
             .collect(java.util.stream.Collectors.toSet());
         return new WeeklySummaryArchiveResponse(
-            latestCompletedWeekEnd(LocalDate.now(DateTimes.USER_ZONE)),
+            latestCompletedWeekEnd(user, LocalDate.now(DateTimes.USER_ZONE)),
             !properties.chatGptActions().token().isBlank(),
             summaries.stream().map(summary -> new WeeklySummaryListItem(
-                DateTimes.startOfDashboardWeek(summary.getFridayDate()),
+                readSnapshot(summary, ArchivePeriod.class).periodStart(),
                 summary.getFridayDate(),
                 summary.getCreatedAt(),
                 summaryIdsWithReflections.contains(summary.getId())
@@ -265,12 +266,12 @@ public class WeeklySummaryService {
 
     @Transactional
     public WeeklySummaryPreviewResponse preview(User user, LocalDate today) {
-        return previewForFriday(user, latestCompletedWeekEnd(today), today);
+        return previewForFriday(user, latestCompletedWeekEnd(user, today), today);
     }
 
     @Transactional
     public WeeklySummaryPreviewResponse previewForFriday(User user, LocalDate fridayDate, LocalDate today) {
-        requireCompletedFriday(fridayDate, today);
+        requireCompletedPeriod(user, fridayDate, today);
         Optional<SavedWeeklySummary> saved = savedSummaryRepository.findByUserAndFridayDate(user, fridayDate);
         WeeklySummarySnapshot snapshot = saved.map(this::readSnapshot).orElseGet(() -> buildSnapshot(user, fridayDate));
         boolean canCreate = saved.isEmpty();
@@ -285,7 +286,7 @@ public class WeeklySummaryService {
 
     @Transactional
     public WeeklySummaryDetailResponse createLatest(User user, LocalDate today) {
-        LocalDate fridayDate = latestCompletedWeekEnd(today);
+        LocalDate fridayDate = latestCompletedWeekEnd(user, today);
         return createForFridayDetail(user, fridayDate, today);
     }
 
@@ -311,7 +312,7 @@ public class WeeklySummaryService {
 
     @Transactional
     public CreationResult createForFridayIfMissing(User user, LocalDate fridayDate, LocalDate today) {
-        requireCompletedFriday(fridayDate, today);
+        requireCompletedPeriod(user, fridayDate, today);
         User lockedUser = userRepository.findByIdForUpdate(user.getId())
             .orElseThrow(() -> new IllegalArgumentException("User not found"));
         return createForLockedUserIfMissing(lockedUser, fridayDate);
@@ -336,23 +337,27 @@ public class WeeklySummaryService {
     public record CreationResult(SavedWeeklySummary summary, boolean created) {
     }
 
-    private void requireCompletedFriday(LocalDate fridayDate, LocalDate today) {
-        if (fridayDate.getDayOfWeek() != DayOfWeek.FRIDAY) throw new BadRequestException("Weekly summaries must end on a Friday");
-        if (!today.isAfter(fridayDate)) throw new BadRequestException("Weekly summaries can only be saved after Friday has ended");
+    private void requireCompletedPeriod(User user, LocalDate end, LocalDate today) {
+        if (!today.isAfter(end)) throw new BadRequestException("Weekly summaries can only be saved after the period has ended");
+        if (!PlanningWeekService.period(user, end).end().equals(end))
+            throw new BadRequestException("The date must be the end of a planning week");
     }
 
-    public List<String> outcomeWarnings(User user, LocalDate fridayDate) {
-        OutcomeMeasurements outcomes = outcomeMeasurements(user, fridayDate);
-        List<String> warnings = new java.util.ArrayList<>();
-        if (outcomes.weight() == null) warnings.add("No weight measurement was recorded Friday, Saturday, or Sunday.");
-        if (outcomes.bloodPressure() == null) warnings.add("No blood pressure measurement was recorded Friday, Saturday, or Sunday.");
-        return List.copyOf(warnings);
+    public List<String> outcomeWarnings(User user, LocalDate periodEnd) {
+        return outcomeWarnings(outcomeMeasurements(user, periodEnd), periodEnd);
     }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record ArchivePeriod(LocalDate periodStart) { }
 
     @Transactional
     public WeeklySummarySnapshot readSnapshot(SavedWeeklySummary saved) {
+        return readSnapshot(saved, WeeklySummarySnapshot.class);
+    }
+
+    private <T> T readSnapshot(SavedWeeklySummary saved, Class<T> type) {
         try {
-            return objectMapper.readValue(saved.getSnapshotJson(), WeeklySummarySnapshot.class);
+            return objectMapper.readValue(saved.getSnapshotJson(), type);
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("Saved weekly summary snapshot is invalid", exception);
         }
@@ -398,21 +403,14 @@ public class WeeklySummaryService {
         );
     }
 
-    WeeklyMetrics.Progress buildProgress(User user, LocalDate periodEnd) {
-        LocalDate currentStart = DateTimes.startOfDashboardWeek(periodEnd);
-        LocalDate dataStart = currentStart.minusWeeks(YEAR_COMPARISON_WEEKS);
+    private WeeklyMetrics.Progress buildProgress(User user, WeeklyMetricsCalculator.ComparisonPeriods periods, Map<LocalDate, Integer> calorieTargets) {
+        LocalDate periodEnd = periods.current().end();
+        LocalDate dataStart = periods.yearAgo().start();
         OffsetDateTime dataStartTime = DateTimes.startOfDay(dataStart);
         OffsetDateTime dataEndExclusive = DateTimes.startOfDay(periodEnd.plusDays(1));
-        List<DailyStatus> currentStatuses = currentStart.datesUntil(periodEnd.plusDays(1))
+        List<DailyStatus> statuses = Stream.of(periods.yearAgo(), periods.previous(), periods.current())
+            .flatMap(window -> window.start().datesUntil(window.end().plusDays(1)))
             .map(date -> snapshotService.getReadOnly(user, date))
-            .toList();
-        List<DailyStatus> statuses = List.of(
-                readOnlyWeek(user, periodEnd.minusWeeks(YEAR_COMPARISON_WEEKS)),
-                readOnlyWeek(user, periodEnd.minusWeeks(1)),
-                currentStatuses
-            ).stream()
-            .flatMap(List::stream)
-            .sorted(Comparator.comparing(DailyStatus::getStatusDate))
             .toList();
         List<Routine> routines = routineRepository.findByUserOrderByStartDateAsc(user).stream()
             .filter(routine -> !DateTimes.toLocalDate(routine.getStartDate()).isAfter(periodEnd))
@@ -431,19 +429,17 @@ public class WeeklySummaryService {
             workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, dataStart, periodEnd),
             sicknessRepository.findByUserAndSicknessDateBetweenOrderBySicknessDateAsc(user, dataStart, periodEnd),
             decisionOutcomeRepository.findByUserAndOutcomeDateBetweenOrderByOutcomeDateAscIdAsc(user, dataStart, periodEnd),
-            routineCheckins
+            routineCheckins,
+            calorieTargets::get
         );
         return metricsCalculator.progress(user, periodEnd, input);
     }
 
-    private List<DailyStatus> readOnlyWeek(User user, LocalDate periodEnd) {
-        return DateTimes.startOfDashboardWeek(periodEnd).datesUntil(periodEnd.plusDays(1))
-            .map(date -> snapshotService.getReadOnly(user, date)).toList();
-    }
-
     private WeeklySummarySnapshot buildSnapshot(User user, LocalDate fridayDate) {
-        LocalDate periodStart = DateTimes.startOfDashboardWeek(fridayDate);
-        WeeklyMetrics.Progress progress = buildProgress(user, fridayDate);
+        var periods = WeeklyMetricsCalculator.comparisonPeriods(user, fridayDate);
+        var calorieTargets = WeeklyCaloriePlanService.caloriesByDate(caloriePlans.effectiveTargets(user, periods.yearAgo().start(), fridayDate));
+        WeeklyMetrics.Progress progress = buildProgress(user, periods, calorieTargets);
+        LocalDate periodStart = progress.currentPeriod().startDate();
         OutcomeMeasurements outcomes = outcomeMeasurements(user, fridayDate);
         return new WeeklySummarySnapshot(
             SNAPSHOT_SCHEMA_VERSION,
@@ -451,14 +447,14 @@ public class WeeklySummaryService {
             fridayDate,
             progress,
             outcomes,
-            backPainSummaryForSnapshot(user, periodStart, fridayDate),
+            backPainSummaryForSnapshot(user, progress),
             routineProgress(user, periodStart, fridayDate),
             goalEvidence(user, fridayDate),
             personalRecordService.improvedHistoryBetween(user, periodStart, fridayDate).stream()
                 .map(WeeklySummaryService::personalRecordSnapshot)
                 .toList(),
-            outcomeWarnings(outcomes),
-            nutritionSnapshots.capture(user, fridayDate),
+            outcomeWarnings(outcomes, fridayDate),
+            nutritionSnapshots.capture(user, periods, calorieTargets),
             weeklyRoutineProgress(user, periodStart, fridayDate),
             captureEmailGoals(user),
             workoutTargets.capture(user, fridayDate)
@@ -499,10 +495,13 @@ public class WeeklySummaryService {
         return new BackPainSummary(checkIns.size(), episodes.size(), painDayCount, severityCounts, regionCounts, sideCounts);
     }
 
-    private BackPainSummary backPainSummaryForSnapshot(User user, LocalDate periodStart, LocalDate periodEnd) {
-        BackPainSummary current = backPainSummary(user, periodStart, periodEnd);
-        BackPainPeriodSummary lastWeek = backPainComparison(user, periodStart.minusDays(7), periodEnd.minusDays(7));
-        BackPainPeriodSummary yearAgo = backPainComparison(user, periodStart.minusDays(364), periodEnd.minusDays(364));
+    private BackPainSummary backPainSummaryForSnapshot(User user, WeeklyMetrics.Progress progress) {
+        var currentPeriod = progress.currentPeriod();
+        var previous = progress.previousComparablePeriod();
+        var year = progress.yearAgoComparablePeriod();
+        BackPainSummary current = backPainSummary(user, currentPeriod.startDate(), currentPeriod.endDate());
+        BackPainPeriodSummary lastWeek = backPainComparison(user, previous.startDate(), previous.endDate());
+        BackPainPeriodSummary yearAgo = backPainComparison(user, year.startDate(), year.endDate());
         return new BackPainSummary(
             current.checkInCount(), current.episodeCount(), current.painDayCount(),
             current.episodesBySeverity(), current.episodesByRegion(), current.episodesBySide(),
@@ -521,10 +520,11 @@ public class WeeklySummaryService {
         return Map.copyOf(counts);
     }
 
-    private List<String> outcomeWarnings(OutcomeMeasurements outcomes) {
+    private List<String> outcomeWarnings(OutcomeMeasurements outcomes, LocalDate end) {
+        String range = " from " + end + " through " + end.plusDays(2) + ".";
         List<String> warnings = new java.util.ArrayList<>();
-        if (outcomes.weight() == null) warnings.add("No weight measurement was recorded Friday, Saturday, or Sunday.");
-        if (outcomes.bloodPressure() == null) warnings.add("No blood pressure measurement was recorded Friday, Saturday, or Sunday.");
+        if (outcomes.weight() == null) warnings.add("No weight measurement was recorded" + range);
+        if (outcomes.bloodPressure() == null) warnings.add("No blood pressure measurement was recorded" + range);
         return List.copyOf(warnings);
     }
 
@@ -568,7 +568,7 @@ public class WeeklySummaryService {
                 var checkinDates = routineCheckinRepository.findByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThanOrderByCheckedAtAsc(
                     routine, DateTimes.startOfDay(periodStart), DateTimes.startOfDay(periodEnd.plusDays(1))).stream()
                     .map(checkin -> DateTimes.toLocalDate(checkin.getCheckedAt())).distinct().sorted().toList();
-                int completed = (int) checkinDates.stream().map(date -> RoutinePeriods.start(RoutineCadence.WEEKLY, date)).distinct().count();
+                int completed = checkinDates.isEmpty() ? 0 : 1;
                 return new WeeklySummarySnapshot.WeeklyRoutineProgress(routine.getName(), completed, 1, Numbers.percentage(completed, 1), checkinDates);
             }).toList();
     }
@@ -624,7 +624,7 @@ public class WeeklySummaryService {
         WeeklySummarySnapshot snapshot = readSnapshot(saved);
         WeeklyReflectionResponse response = reflection == null ? null : WeeklyReflectionResponse.from(reflection);
         return new WeeklySummaryDetailResponse(
-            DateTimes.startOfDashboardWeek(saved.getFridayDate()),
+            snapshot.periodStart(),
             saved.getFridayDate(),
             saved.getCreatedAt(),
             snapshot,
@@ -641,13 +641,12 @@ public class WeeklySummaryService {
         }
     }
 
-    public LocalDate latestCompletedWeekEnd(LocalDate date) {
-        return DateTimes.startOfDashboardWeek(date).minusDays(1);
+    public LocalDate latestCompletedWeekEnd(User user, LocalDate date) {
+        return PlanningWeekService.period(user, date).start().minusDays(1);
     }
 
-    public LocalDate latestClosedOutcomeWeekEnd(LocalDate date) {
-        LocalDate friday = latestCompletedWeekEnd(date);
-        return date.isBefore(friday.plusDays(3)) ? friday.minusWeeks(1) : friday;
+    public LocalDate latestClosedOutcomeWeekEnd(User user, LocalDate date) {
+        return latestCompletedWeekEnd(user, date.minusDays(2));
     }
 
     public void requireOwner(User user) {

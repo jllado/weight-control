@@ -13,11 +13,12 @@ import org.springframework.stereotype.Service;
 public class WeeklyWorkoutTargetService {
     private final WorkoutPlanRepository plans;
     public WeeklyWorkoutTargetService(WorkoutPlanRepository plans) { this.plans = plans; }
-    public WeeklyWorkoutTargets capture(User user, LocalDate friday) {
-        return new WeeklyWorkoutTargets(period(user, friday), period(user, friday.minusWeeks(1)), period(user, friday.minusWeeks(52)));
+    public WeeklyWorkoutTargets capture(User user, LocalDate periodEnd) {
+        var periods = WeeklyMetricsCalculator.comparisonPeriods(user, periodEnd);
+        return new WeeklyWorkoutTargets(period(user, periods.current()), period(user, periods.previous()), period(user, periods.yearAgo()));
     }
-    private WeeklyWorkoutTargets.Period period(User user, LocalDate end) {
-        var days = end.minusDays(6).datesUntil(end.plusDays(1)).map(date -> new WeeklyWorkoutTargets.Day(date,
+    private WeeklyWorkoutTargets.Period period(User user, PlanningWeekService.Period window) {
+        var days = window.start().datesUntil(window.end().plusDays(1)).map(date -> new WeeklyWorkoutTargets.Day(date,
             WorkoutPlanEvidenceResolver.resolve(date, plans.findAssessmentCandidates(user, date,
                 date.atStartOfDay(DateTimes.USER_ZONE).toInstant(), date.plusDays(1).atStartOfDay(DateTimes.USER_ZONE).toInstant())))).toList();
         return summarize(days);

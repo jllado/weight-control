@@ -1,6 +1,6 @@
 <template>
   <Panel header="Weekly email summary" class="p-mt-3">
-    <p>Progress summary: Saturday–Friday.</p>
+    <p>Progress summary: {{ progressRange }}.</p>
     <p v-if="config">Emailed every {{ deliverySchedule }}<span v-if="config.recipientEmail"> to {{ config.recipientEmail }}</span>.</p>
     <div v-if="config && config.canSend" class="weekly-summary-schedule">
       <SaveFields :saving="saving">
@@ -27,11 +27,13 @@
 </template>
 
 <script>
+import {planningWeek, weekdayRange} from '../model/PlanningWeek';
 import weeklySummaryService from '../services/WeeklySummaryService';
 import WeeklyReminderFields from './WeeklyReminderFields.vue';
 
 export default {
   components: {WeeklyReminderFields},
+  props: {today: {type: String, required: true}},
   data() {
     return {
       config: null,
@@ -46,6 +48,10 @@ export default {
     }
   },
   computed: {
+    progressRange() {
+      const week = planningWeek(this.today);
+      return weekdayRange(week.start, week.end) + (week.transition ? ' (short transition)' : '');
+    },
     deliverySchedule() {
       const day = this.config.deliveryDay.charAt(0) + this.config.deliveryDay.slice(1).toLowerCase();
       return `${day} at ${this.config.deliveryTime.slice(0, 5)} ${this.config.timeZone}`;

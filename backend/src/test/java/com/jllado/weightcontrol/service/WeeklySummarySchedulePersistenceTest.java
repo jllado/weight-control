@@ -5,6 +5,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.jllado.weightcontrol.api.dto.WeeklySummaryDtos.WeeklySummaryScheduleRequest;
+import com.jllado.weightcontrol.api.dto.WeeklyCaloriePlanDtos.DayPlanRequest;
+import com.jllado.weightcontrol.api.dto.WeeklyCaloriePlanDtos.WeeklyCaloriePlanRequest;
+import com.jllado.weightcontrol.domain.PlanningWeekChange;
+import com.jllado.weightcontrol.repository.PlanningWeekChangeRepository;
+import com.jllado.weightcontrol.repository.WeeklyCaloriePlanRepository;
+import java.math.BigDecimal;
+import java.util.List;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.InAppNotificationType;
 import com.jllado.weightcontrol.repository.InAppNotificationRepository;
@@ -46,6 +53,10 @@ class WeeklySummarySchedulePersistenceTest {
     @Autowired private InAppNotificationRepository notifications;
     @Autowired private InAppNotificationService notificationService;
     @Autowired private WeeklySummaryService service;
+    @Autowired private WeeklyCaloriePlanService caloriePlans;
+    @Autowired private WeeklyCaloriePlanRepository caloriePlanRepository;
+    @Autowired private PlanningWeekChangeRepository weekChanges;
+    @Autowired private HealthDataContextService coach;
     @MockitoBean private WeeklySummaryMailSender mail;
     private User owner;
     private final ZonedDateTime due = ZonedDateTime.parse("2026-08-18T08:30:00+02:00[Europe/Madrid]");
@@ -61,7 +72,34 @@ class WeeklySummarySchedulePersistenceTest {
     void removeTestRecords() {
         summaries.deleteAll();
         notifications.deleteAll();
+        caloriePlanRepository.deleteAll();
+        weekChanges.deleteAll();
         users.deleteAll();
+    }
+
+    @Test
+    void savedTransitionCalorieTargetsReachTheReportAndDailyCoachIncludingItsBaseline() {
+        LocalDate saturday = LocalDate.parse("2026-08-15");
+        LocalDate sunday = saturday.plusDays(1);
+        owner.setTypicalCaloriesSaturday(1750);
+        owner.setTypicalCaloriesSunday(2150);
+        owner = users.saveAndFlush(owner);
+        weekChanges.saveAndFlush(new PlanningWeekChange(owner, saturday.plusDays(2)));
+        owner = users.findById(owner.getId()).orElseThrow();
+        caloriePlans.replace(owner, new WeeklyCaloriePlanRequest(saturday, null,
+            List.of(new DayPlanRequest(saturday, 2450), new DayPlanRequest(sunday, 2150))));
+
+        var report = service.createForFridayDetail(owner, sunday, sunday.plusDays(1)).snapshot();
+        var daily = coach.getReflectionContext(owner, sunday);
+        var baseline = coach.getReflectionContext(owner, sunday.plusDays(40)).baselineWeeks().stream()
+            .filter(period -> period.startDate().equals(saturday)).findFirst().orElseThrow();
+
+        assertEquals(new BigDecimal("2300.00"), report.progress().currentPeriod().calories().averageTargetCalories());
+        assertEquals(List.of(2450, 2150), report.nutrition().current().datedTargets().stream()
+            .map(target -> target.macroTargets().calorieBudget()).toList());
+        assertEquals(new BigDecimal("2300.00"), daily.weekProgress().currentPeriod().calories().averageTargetCalories());
+        assertEquals(sunday, baseline.endDate());
+        assertEquals(new BigDecimal("2300.00"), baseline.calories().averageTargetCalories());
     }
 
     @Test
@@ -94,7 +132,7 @@ class WeeklySummarySchedulePersistenceTest {
             first.get(60, TimeUnit.SECONDS);
             second.get(60, TimeUnit.SECONDS);
         }
-        var friday = service.latestCompletedWeekEnd(due.toLocalDate());
+        var friday = service.latestCompletedWeekEnd(owner, due.toLocalDate());
         var saved = summaries.findByUserAndFridayDate(owner, friday).orElseThrow();
         String json = saved.getSnapshotJson();
         assertEquals(due.toInstant(), saved.getScheduledEmailedAt());
@@ -154,7 +192,7 @@ class WeeklySummarySchedulePersistenceTest {
     @Test
     void failedSenderLeavesMarkerUnsetAndRetryReusesSavedEvidence() {
         service.updateDeliverySchedule(owner, new WeeklySummaryScheduleRequest(DayOfWeek.TUESDAY, LocalTime.of(8, 30), true, DayOfWeek.MONDAY, LocalTime.of(8, 0)));
-        var friday = service.latestCompletedWeekEnd(due.toLocalDate());
+        var friday = service.latestCompletedWeekEnd(owner, due.toLocalDate());
         var saved = service.createForFriday(owner, friday, due.toLocalDate());
         String json = saved.getSnapshotJson();
         doThrow(new IllegalStateException("Simulated SMTP failure")).when(mail).send(any(User.class), any(WeeklySummarySnapshot.class), any());

@@ -35,6 +35,7 @@ public final class WeeklyMetrics {
         Map<String, Long> sicknessesBySeverity,
         DecisionMetrics decisions
     ) {
+        public long dayCount() { return endDate.toEpochDay() - startDate.toEpochDay() + 1; }
     }
 
     public record RoutineCompletion(

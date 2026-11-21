@@ -1,6 +1,15 @@
 package com.jllado.weightcontrol;
 
 import static org.junit.jupiter.api.Assertions.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.jllado.weightcontrol.api.dto.UserProfileDtos.CalorieShortcutsRequest;
+import com.jllado.weightcontrol.api.dto.UserProfileDtos.PlanningWeekChangeResponse;
+import com.jllado.weightcontrol.api.dto.UserProfileDtos.TypicalCaloriesPerDayRequest;
+import com.jllado.weightcontrol.api.dto.UserProfileDtos.UserProfileRequest;
+import com.jllado.weightcontrol.api.dto.UserProfileDtos.UserProfileResponse;
+import com.jllado.weightcontrol.api.dto.WeeklyCaloriePlanDtos.DayPlanRequest;
+import com.jllado.weightcontrol.api.dto.WeeklyCaloriePlanDtos.WeeklyCaloriePlanRequest;
 import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
 import com.jllado.weightcontrol.domain.ExerciseType;
 import com.jllado.weightcontrol.domain.SavedWeeklySummary;
@@ -10,13 +19,20 @@ import com.jllado.weightcontrol.repository.ExerciseRepository;
 import com.jllado.weightcontrol.repository.SavedWeeklySummaryRepository;
 import com.jllado.weightcontrol.repository.UserRepository;
 import com.jllado.weightcontrol.repository.WeeklyReflectionRepository;
+import com.jllado.weightcontrol.service.PlanningWeekService;
+import com.jllado.weightcontrol.service.WeeklyCaloriePlanService;
 import com.jllado.weightcontrol.service.WeeklySummaryService;
+import com.jllado.weightcontrol.util.DateTimes;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.time.DayOfWeek;
 import java.time.Instant;
+import java.time.temporal.TemporalAdjusters;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -45,6 +61,7 @@ class MariaDbSchemaValidationTest {
     @Autowired private SavedWeeklySummaryRepository weeklySummaryRepository;
     @Autowired private WeeklyReflectionRepository weeklyReflectionRepository;
     @Autowired private UserRepository userRepository;
+    @Autowired private WeeklyCaloriePlanService caloriePlans;
     @Autowired private WeeklySummaryService weeklySummaryService;
     @Autowired private com.jllado.weightcontrol.service.UserProfileService userProfileService;
     @Autowired private com.jllado.weightcontrol.service.NutrientTargetService nutrientTargetService;
@@ -86,10 +103,97 @@ class MariaDbSchemaValidationTest {
             LocalDate.of(1990,1,1),180,com.jllado.weightcontrol.domain.UserSex.MALE,
             com.jllado.weightcontrol.domain.UserFitnessLevel.ACTIVE,false,2400,
             new com.jllado.weightcontrol.api.dto.UserProfileDtos.TypicalCaloriesPerDayRequest(2400,2400,2400,2400,2400,2400,2400),
-            new com.jllado.weightcontrol.api.dto.UserProfileDtos.CalorieShortcutsRequest(1800,2400,3000,4000),new java.math.BigDecimal("18.25")
+            new com.jllado.weightcontrol.api.dto.UserProfileDtos.CalorieShortcutsRequest(1800,2400,3000,4000),new java.math.BigDecimal("18.25"), null, null
         ));
         assertEquals(new java.math.BigDecimal("18.25"), userRepository.findById(owner.getId()).orElseThrow().getInShapeBodyFatLimit());
         assertEquals(new java.math.BigDecimal("17.00"), userRepository.findById(other.getId()).orElseThrow().getInShapeBodyFatLimit());
+    }
+
+    @Test
+    void profileWeekChangesPersistPerOwnerAndSurviveOldClientUpdates() {
+        User owner = persistUser("planning-week-owner@example.com");
+        User other = persistUser("planning-week-other@example.com");
+        LocalDate today = LocalDate.now(DateTimes.USER_ZONE);
+        var effectiveDate = today.with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+        var request = planningWeekRequest(DayOfWeek.MONDAY);
+
+        userProfileService.update(owner, request);
+        var mapper = new ObjectMapper().findAndRegisterModules();
+        ObjectNode legacyBody = mapper.valueToTree(request);
+        legacyBody.remove(List.of("firstDayOfPlanningWeek", "expectedPlanningWeekEffectiveDate"));
+        userProfileService.update(owner, mapper.convertValue(legacyBody, UserProfileRequest.class));
+
+        var reloaded = userRepository.findById(owner.getId()).orElseThrow();
+        var profile = UserProfileResponse.from(reloaded);
+        assertEquals(List.of(new PlanningWeekChangeResponse(effectiveDate, DayOfWeek.MONDAY)), profile.planningWeekChanges());
+        assertEquals(effectiveDate, PlanningWeekService.period(reloaded, effectiveDate).start());
+        assertTrue(userRepository.findById(other.getId()).orElseThrow().getPlanningWeekChanges().isEmpty());
+
+        userProfileService.update(owner, planningWeekRequest(DayOfWeek.SATURDAY));
+        assertTrue(userRepository.findById(owner.getId()).orElseThrow().getPlanningWeekChanges().isEmpty());
+    }
+
+    @Test
+    void concurrentProfileEditsLeaveOneScheduledChange() throws Exception {
+        User owner = persistUser("planning-week-concurrent@example.com");
+        var monday = CompletableFuture.runAsync(() -> userProfileService.update(owner, planningWeekRequest(DayOfWeek.MONDAY)));
+        var thursday = CompletableFuture.runAsync(() -> userProfileService.update(owner, planningWeekRequest(DayOfWeek.THURSDAY)));
+        CompletableFuture.allOf(monday, thursday).get(30, TimeUnit.SECONDS);
+
+        var changes = userRepository.findById(owner.getId()).orElseThrow().getPlanningWeekChanges();
+        assertEquals(1, changes.size());
+        assertTrue(List.of(DayOfWeek.MONDAY, DayOfWeek.THURSDAY).contains(changes.getFirst().getEffectiveDate().getDayOfWeek()));
+    }
+
+    @Test
+    void caloriePlansKeepDatedValuesAcrossAChangeAndRejectStaleWritesAcrossStorageRows() {
+        User owner = persistUser("planning-week-calories@example.com");
+        User other = persistUser("planning-week-calories-other@example.com");
+        var monday = LocalDate.now(DateTimes.USER_ZONE).with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+        var saturday = monday.minusDays(2);
+        var original = caloriePlans.replace(owner, calorieRequest(saturday, 7, null, 3000));
+        assertEquals(0L, original.revision());
+
+        owner = userProfileService.update(owner, planningWeekRequest(DayOfWeek.MONDAY));
+        var transition = caloriePlans.find(owner, saturday).orElseThrow();
+        assertEquals(2, transition.days().size());
+        assertEquals(3001, transition.days().getLast().calories());
+        var changed = caloriePlans.find(owner, monday).orElseThrow();
+        assertEquals(3002, changed.days().getFirst().calories()); // Monday still owns the saved target.
+        assertEquals(1, changed.days().get(5).calories()); // Saturday uses the profile until explicitly saved.
+        assertEquals(2, changed.days().get(6).calories());
+        assertEquals(1, caloriePlans.effectiveTargets(owner, monday.plusDays(5), monday.plusDays(5)).getFirst().calories());
+
+        var saved = caloriePlans.replace(owner, calorieRequest(monday, 7, changed.revision(), 2000));
+        assertEquals(2L, saved.revision()); // One existing row changed and one was created.
+        assertTrue(caloriePlans.find(owner, monday.plusWeeks(1)).isEmpty());
+        assertEquals(3000, caloriePlans.find(owner, saturday).orElseThrow().days().getFirst().calories());
+        assertEquals(2006, caloriePlans.find(owner, monday).orElseThrow().days().getLast().calories());
+        assertTrue(caloriePlans.find(other, saturday).isEmpty());
+
+        caloriePlans.replace(owner, calorieRequest(monday.plusWeeks(1), 7, null, 2100));
+        User currentOwner = owner;
+        var stale = assertThrows(ResponseStatusException.class,
+            () -> caloriePlans.replace(currentOwner, calorieRequest(monday, 7, saved.revision(), 999)));
+        assertEquals(HttpStatus.CONFLICT, stale.getStatusCode());
+
+        var updatedTransition = caloriePlans.find(owner, saturday).orElseThrow();
+        caloriePlans.replace(owner, calorieRequest(saturday, 2, updatedTransition.revision(), 1700));
+        assertEquals(1701, caloriePlans.find(owner, saturday).orElseThrow().days().getLast().calories());
+        assertEquals(2000, caloriePlans.find(owner, monday).orElseThrow().days().getFirst().calories());
+    }
+
+    private WeeklyCaloriePlanRequest calorieRequest(LocalDate start, int length, Long revision, int calories) {
+        var days = java.util.stream.IntStream.range(0, length)
+            .mapToObj(index -> new DayPlanRequest(start.plusDays(index), calories + index)).toList();
+        return new WeeklyCaloriePlanRequest(start, revision, days);
+    }
+
+    private UserProfileRequest planningWeekRequest(DayOfWeek firstDay) {
+        return new UserProfileRequest(null, null, null, null, false, 2400,
+            new TypicalCaloriesPerDayRequest(1, 2, 3, 4, 5, 6, 7),
+            new CalorieShortcutsRequest(1, 2, 3, 4), null, firstDay,
+            firstDay == DayOfWeek.SATURDAY ? null : LocalDate.now(DateTimes.USER_ZONE).with(TemporalAdjusters.next(firstDay)));
     }
 
     @Test

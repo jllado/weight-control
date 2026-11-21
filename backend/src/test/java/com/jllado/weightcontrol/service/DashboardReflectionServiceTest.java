@@ -164,7 +164,8 @@ class DashboardReflectionServiceTest {
             org.mockito.Mockito.mock(WorkoutPlanService.class),
             org.mockito.Mockito.mock(com.jllado.weightcontrol.repository.WorkoutAssessmentRepository.class),
             org.mockito.Mockito.mock(com.jllado.weightcontrol.repository.CoachNoteRepository.class),
-            org.mockito.Mockito.mock(WeeklyCaloriePlanService.class)
+            new WeeklyCaloriePlanService(org.mockito.Mockito.mock(com.jllado.weightcontrol.repository.WeeklyCaloriePlanRepository.class),
+                org.mockito.Mockito.mock(com.jllado.weightcontrol.repository.UserRepository.class), org.mockito.Mockito.mock(org.springframework.context.ApplicationEventPublisher.class))
         );
         service = new DashboardReflectionService(
             reflectionRepository,
@@ -274,6 +275,7 @@ class DashboardReflectionServiceTest {
         Weight weight = weight(selectedDate);
         stubInput(user, selectedDate, List.of(detailedMood, baselineMood), List.of(weight));
         Routine weeklyRoutine = routine(detailedStart);
+        weeklyRoutine.setUser(user);
         weeklyRoutine.setId(91L);
         weeklyRoutine.setCadence(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY);
         when(routineRepository.findByUserOrderByStartDateAsc(user)).thenReturn(List.of(weeklyRoutine));
@@ -544,6 +546,9 @@ class DashboardReflectionServiceTest {
         );
         assertFalse(json.contains("\"segments\""));
         assertFalse(json.contains("goalAlignmentScore"));
+        JsonNode targets = context.path("profile").path("plannedCalorieTargets");
+        assertEquals(1, targets.size());
+        assertEquals(selectedDate.toString(), targets.get(0).path("date").asText());
         assertTrue(json.getBytes(StandardCharsets.UTF_8).length < 8_000);
     }
 

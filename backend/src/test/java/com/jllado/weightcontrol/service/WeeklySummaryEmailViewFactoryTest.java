@@ -47,7 +47,7 @@ class WeeklySummaryEmailViewFactoryTest {
         statuses.addAll(statuses(end.minusWeeks(1).minusDays(6), 2, 4));
         statuses.addAll(statuses(end.minusWeeks(52).minusDays(6), 1, 4));
         WeeklyMetricsCalculator.Input input = new WeeklyMetricsCalculator.Input(
-            statuses, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of()
+            statuses, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), targetDate -> 2000
         );
 
         WeeklySummaryEmailView view = factory.create(user, calculator.progress(user, end, input), emptyMeasurements(), "https://weight.example");
@@ -163,7 +163,7 @@ class WeeklySummaryEmailViewFactoryTest {
             status(start.plusDays(6), 4, 4)
         );
         WeeklyMetrics.Progress progress = calculator.progress(user(), start.plusDays(6), new WeeklyMetricsCalculator.Input(
-            statuses, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of()
+            statuses, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), targetDate -> 2000
         ));
 
         WeeklySummaryEmailView view = factory.create(user(), progress, emptyMeasurements(), "https://weight.example");
@@ -176,7 +176,7 @@ class WeeklySummaryEmailViewFactoryTest {
     void viewIncludesFormattedImprovedRecordRows() {
         LocalDate end = LocalDate.of(2026, 8, 14);
         WeeklyMetrics.Progress progress = calculator.progress(user(), end, new WeeklyMetricsCalculator.Input(
-            List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of()
+            List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), targetDate -> 2000
         ));
         HistoryEventResponse record = new HistoryEventResponse(
             "event", PersonalRecordMetric.BODY_WEIGHT_MAXIMUM, "Highest weight", PersonalRecordDomain.BODY, PersonalRecordDirection.MAXIMUM,
@@ -198,7 +198,7 @@ class WeeklySummaryEmailViewFactoryTest {
         WeeklySummarySnapshot snapshot = new WeeklySummarySnapshot(
             3, friday.minusDays(6), friday,
             calculator.progress(user(), friday, new WeeklyMetricsCalculator.Input(
-                List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of()
+                List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), targetDate -> 2000
             )),
             new WeeklySummarySnapshot.OutcomeMeasurements(null, null),
             new WeeklySummarySnapshot.BackPainSummary(0, 0, 0, Map.of(), Map.of(), Map.of()),
@@ -235,7 +235,7 @@ class WeeklySummaryEmailViewFactoryTest {
         fridayPressure.setUpper(120);
         fridayPressure.setLower(80);
         WeeklyMetrics.Progress progress = calculator.progress(user, friday, new WeeklyMetricsCalculator.Input(
-            List.of(), List.of(fridayWeight), List.of(fridayPressure), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of()
+            List.of(), List.of(fridayWeight), List.of(fridayPressure), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), targetDate -> 2000
         ));
         WeeklySummarySnapshot snapshot = new WeeklySummarySnapshot(
             1, LocalDate.of(2026, 8, 8), friday, progress,
@@ -283,7 +283,7 @@ class WeeklySummaryEmailViewFactoryTest {
         cold.setType(SicknessType.COLD);
         cold.setSeverity(SicknessSeverity.LOW);
         WeeklyMetrics.Progress progress = calculator.progress(user, friday, new WeeklyMetricsCalculator.Input(
-            List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(cold), List.of(), List.of()
+            List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(cold), List.of(), List.of(), targetDate -> 2000
         ));
 
         WeeklySummaryEmailView view = factory.create(user, progress, emptyMeasurements(), "https://weight.example");
@@ -331,7 +331,7 @@ class WeeklySummaryEmailViewFactoryTest {
         status.setTotalMindRoutines(4);
         status.setMindPercentage(new BigDecimal("50"));
         WeeklyMetrics.Progress progress = calculator.progress(user, friday, new WeeklyMetricsCalculator.Input(
-            List.of(status), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of()
+            List.of(status), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), targetDate -> 2000
         ));
 
         WeeklySummaryEmailView view = factory.create(user, progress, emptyMeasurements(), "https://weight.example");

@@ -153,16 +153,11 @@ public class WeightService {
 
     public WeightPerformanceWeek getPerformanceWeek(Weight weight) {
         LocalDate measurementDate = DateTimes.toLocalDate(weight.getMeasuredAt());
-        LocalDate endDate = switch (measurementDate.getDayOfWeek()) {
-            case FRIDAY -> measurementDate;
-            case SATURDAY -> measurementDate.minusDays(1);
-            case SUNDAY -> measurementDate.minusDays(2);
-            default -> null;
-        };
-        if (endDate == null) {
-            return null;
-        }
-        LocalDate startDate = endDate.minusDays(6);
+        var period = PlanningWeekService.period(weight.getUser(), measurementDate);
+        if (!period.end().equals(measurementDate)) period = PlanningWeekService.period(weight.getUser(), period.start().minusDays(1));
+        LocalDate endDate = period.end();
+        if (measurementDate.isAfter(endDate.plusDays(2))) return null;
+        LocalDate startDate = period.start();
         List<com.jllado.weightcontrol.domain.DailyStatus> statuses = dailyStatusRepository
             .findByUserAndStatusDateBetweenOrderByStatusDateAsc(weight.getUser(), startDate, endDate);
         long completed = statuses.stream().mapToLong(com.jllado.weightcontrol.domain.DailyStatus::getRoutinesDone).sum();

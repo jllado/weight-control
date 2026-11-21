@@ -10,7 +10,9 @@ import java.util.List;
 public record WeeklyNutritionSnapshot(Instant capturedAt, String targetLabel, NutrientTargetsResponse targets,
     Period current, Period previous, Period yearAgo) {
     public record Period(LocalDate startDate, LocalDate endDate, int completedDays, int recordedDays,
-        List<NutritionService.DailyNutritionSummary> days, List<DatedTarget> datedTargets, List<Measure> measures) { }
+        List<NutritionService.DailyNutritionSummary> days, List<DatedTarget> datedTargets, List<Measure> measures) {
+        public long dayCount() { return endDate.toEpochDay() - startDate.toEpochDay() + 1; }
+    }
     public record DatedTarget(LocalDate date, MacroTargetsResponse macroTargets, BigDecimal fatPercentage) { }
     public record Measure(String key, String label, String unit, BigDecimal average, int eligibleDays,
         int recordedDays, int coveredFoods, int totalFoods, int estimatedFoods, BigDecimal target,

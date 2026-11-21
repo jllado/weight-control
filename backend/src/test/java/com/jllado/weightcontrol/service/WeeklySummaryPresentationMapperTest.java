@@ -12,7 +12,7 @@ class WeeklySummaryPresentationMapperTest {
     @Test void presentationKeepsSnapshotEvidenceAndCentralizesAllRecommendations() {
         var user = new User();
         var date = LocalDate.of(2026,10,23);
-        var input = new WeeklyMetricsCalculator.Input(List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
+        var input = new WeeklyMetricsCalculator.Input(List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), targetDate -> 2000);
         var snapshot = new WeeklySummarySnapshot(1, date.minusDays(6), date,
             new WeeklyMetricsCalculator().progress(user, date, input), new WeeklySummarySnapshot.OutcomeMeasurements(null,null),
             List.of(), new WeeklySummarySnapshot.GoalEvidence(false,null,null,null,"Unknown"),

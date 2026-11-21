@@ -13,6 +13,7 @@
     <p v-if="loadError" role="alert" class="error">{{ loadError }} <Button label="Retry" class="p-button-text" @click="load" /></p>
     <p v-if="!loading && !displayed && !loadError">No weekly plan yet. Create a plan for your next commitment.</p>
     <template v-if="displayed">
+      <p>{{ periodLabel(displayWeek.start, displayWeek.end) }}</p>
       <SaveFields :saving="saving">
       <div v-if="draft" class="p-fluid p-formgrid p-grid">
         <div class="p-field p-col-12 p-md-6"><label for="workout-plan-start">Start date</label><input id="workout-plan-start" v-model="draft.startDate" type="date" class="p-inputtext p-component" /></div>
@@ -26,7 +27,7 @@
       </template>
       <p v-if="!draft && !viewed && !exercisesReady" class="plan-help" role="status">{{ exercisesLoading ? 'Loading exercises…' : 'Load exercises before starting a guided workout. Use Retry exercises above.' }}</p>
       <div class="plan-days">
-        <article v-for="(day, index) in displayed.days" :key="day.day" class="plan-day">
+        <article v-for="{day, index} in orderedDays" :key="day.day" :data-weekday="day.day" class="plan-day">
           <div class="plan-day-header">
             <button type="button" class="plan-day-toggle" :aria-expanded="expanded.includes(day.day)" :aria-controls="`planned-${day.day}`" @click="toggle(day.day)">
               <i :class="expanded.includes(day.day) ? 'pi pi-chevron-down' : 'pi pi-chevron-right'" aria-hidden="true" />
@@ -99,7 +100,8 @@
 <script>
 import dayjs from 'dayjs';
 import Tag from 'primevue/tag';
-import WorkoutPlan, {dayLabel, copyPlan} from '../model/WorkoutPlan';
+import {planningWeek, weekdaysFrom, madridDate, dayLabel, periodLabel} from '../model/PlanningWeek';
+import WorkoutPlan, {copyPlan} from '../model/WorkoutPlan';
 import {saunaSummary} from '../model/Workout';
 import service from '../services/WorkoutPlanService';
 import {exerciseTypeLabel} from '../model/WorkoutExercise';
@@ -113,14 +115,24 @@ export default {
   data() { return {current: null, viewed: null, draft: null, guidedWorkoutState, creating: false, loading: false, saving: false, loadError: '', saveError: '', expanded: [], newDialog: false, dayIndex: null, sessionIndex: null, copyIndex: null, copySource: null, archiveDialog: false, archiveLoading: false, archiveError: '', archive: {items: [], page: 0, totalElements: 0}}; },
   computed: {
     displayed() { return this.draft || this.viewed || this.current; },
-    todayDay() { return dayjs().format('dddd').toUpperCase(); },
+    displayWeek() {
+      const date = this.viewed ? madridDate(new Date(this.viewed.archivedAt)) : madridDate();
+      return planningWeek(!this.viewed && this.displayed.startDate > date ? this.displayed.startDate : date);
+    },
+    orderedDays() {
+      return weekdaysFrom(this.displayWeek.firstDay).map(weekday => {
+        const index = this.displayed.days.findIndex(day => day.day === weekday);
+        return {day: this.displayed.days[index], index};
+      });
+    },
+    todayDay() { return dayjs(madridDate()).format('dddd').toUpperCase(); },
     reviewDue() { return this.current && dayjs().startOf('day').isAfter(dayjs(this.current.reviewDate)); },
     dayWorkout() { const day = this.draft.days[this.dayIndex], session = this.sessionIndex === null ? {name: null, note: '', lines: [], saunaSession: false, saunaRoundsMinutes: []} : day.sessions[this.sessionIndex]; return {workoutDate: this.draft.startDate, note: session.note || '', plannedSessionName: session.name, saunaSession: session.saunaSession, saunaRoundsMinutes: session.saunaRoundsMinutes, lines: session.lines.map(line => ({...line, sets: line.segments, intervals: line.segments}))}; },
-    copyOptions() { return this.draft ? this.draft.days.map((day, index) => ({label: dayLabel(day.day), value: index, ready: day.rest === true || day.sessions.length > 0})).filter(day => day.value !== this.copyIndex && day.ready) : []; }
+    copyOptions() { return this.draft ? this.orderedDays.map(({day, index}) => ({label: dayLabel(day.day), value: index, ready: day.rest === true || day.sessions.length > 0})).filter(day => day.value !== this.copyIndex && day.ready) : []; }
   },
   async created() { await this.load(); },
   methods: {
-    dayLabel, exerciseTypeLabel, saunaSummary,
+    dayLabel, exerciseTypeLabel, saunaSummary, periodLabel,
     date(value) { return dayjs(value).format('DD/MM/YYYY'); },
     picture(id) { return this.exercises.find(exercise => exercise.id === id)?.imageUrl; },
     startGuidedSession(session) {

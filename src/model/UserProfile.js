@@ -71,6 +71,7 @@ export default class UserProfile {
         if (source === undefined) {
             return;
         }
+        this.planningWeekChanges = source.planningWeekChanges || [];
         this.birthDate = source.birthDate ? new Date(source.birthDate) : null;
         this.heightCm = source.heightCm ?? null;
         this.inShapeBodyFatLimit = source.inShapeBodyFatLimit ?? 17;
@@ -84,6 +85,7 @@ export default class UserProfile {
 
     toObject() {
         return {
+            planningWeekChanges: this.planningWeekChanges,
             birthDate: this.birthDate,
             heightCm: this.heightCm,
             inShapeBodyFatLimit: this.inShapeBodyFatLimit,

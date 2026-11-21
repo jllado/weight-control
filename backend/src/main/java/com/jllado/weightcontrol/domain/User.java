@@ -6,6 +6,8 @@ import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
@@ -75,6 +77,12 @@ public class User {
 
     @Column(name = "weekly_summary_reminder_time", nullable = false)
     private LocalTime weeklySummaryReminderTime = LocalTime.of(8, 0);
+
+    @OneToMany(mappedBy = "user", fetch = FetchType.EAGER)
+    @OrderBy("effectiveDate asc")
+    @org.hibernate.annotations.Fetch(org.hibernate.annotations.FetchMode.SELECT)
+    @org.hibernate.annotations.BatchSize(size = 50)
+    private List<PlanningWeekChange> planningWeekChanges = new ArrayList<>();
 
     @Column(name = "birth_date")
     private LocalDate birthDate;

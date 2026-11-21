@@ -123,7 +123,7 @@ public class WeeklySummaryEmailViewFactory {
         return new WeeklySummaryEmailView(
             "Your Weight Control weekly summary — " + current.startDate().format(SUBJECT_DATE) + "–" + current.endDate().format(SUBJECT_DATE),
             user.getDisplayName() == null ? user.getEmail() : user.getDisplayName(),
-            current.startDate().format(SUBJECT_DATE) + " – " + current.endDate().format(RANGE_END_DATE),
+            (snapshot.transition() ? "Transition period · " : "") + periodLabel(current),
             routines.percentage() == null ? "Not applicable" : percentage(routines.percentage()),
             routines.opportunities() == 0 ? "No active routine opportunities" : routines.completed() + " of " + routines.opportunities() + " routine opportunities completed",
             routineComparison(routines, previous.routineCompletion(), "last week"),
@@ -194,13 +194,15 @@ public class WeeklySummaryEmailViewFactory {
         BigDecimal fat = current.weight() == null ? null : current.weight().fatPercentage();
         var outcome = snapshot.outcomes().weight();
         var bp = snapshot.outcomes().bloodPressure();
-        String sleepDetail = current.sleep() == null ? "No nights recorded" : current.sleep().nightCount() + "/7 nights · "
+        long dayCount = current.dayCount();
+        String followUp = snapshot.followUpStart().format(RANGE_END_DATE) + " – " + snapshot.followUpEnd().format(RANGE_END_DATE);
+        String sleepDetail = current.sleep() == null ? "No nights recorded" : current.sleep().nightCount() + "/" + dayCount + " nights · "
             + (rules == null ? "Target unavailable" : "Goal ≥ " + duration(BigDecimal.valueOf(rules.sleepMinimumSeconds())) + " · " + rules.sleepBasis());
         var cards = List.of(
             new OverviewCard("sleep", "Average sleep", sleep == null ? UNAVAILABLE : duration(sleep), sleepDetail,
                 sleepStatus(current.sleep(), rules),
                 visualDelta(minutes(sleep), minutes(sleepSeconds(previous)), "min", 0, false), visualDelta(minutes(sleep), minutes(sleepSeconds(year)), "min", 0, false)),
-            new OverviewCard("calories", "Calories/day", amount(calorie, "kcal", 0), current.calories().entryCount() + "/7 days · "
+            new OverviewCard("calories", "Calories/day", amount(calorie, "kcal", 0), current.calories().entryCount() + "/" + dayCount + " days · "
                 + (goals == null ? "Target unavailable" : "Goal ≤ " + amount(goals.weeklyAverageCalorieMaximum(), "kcal/day", 0)),
                 calorie == null ? neutral(UNAVAILABLE) : goals == null ? neutral("Target unavailable") : goalStatus(calorie, goals.weeklyAverageCalorieMaximum(), true, "Within calorie ceiling", "Above calorie ceiling"),
                 visualDelta(calorie, previous.calories().averageCalories(), "kcal/day", 0, false), visualDelta(calorie, year.calories().averageCalories(), "kcal/day", 0, false)),
@@ -208,13 +210,13 @@ public class WeeklySummaryEmailViewFactory {
                 + (current.weight() == null ? "" : " · " + current.weight().measurementCount() + " readings"), bodyFatStatus(fat, goals),
                 visualDelta(weight, previous.weight() == null ? null : previous.weight().weightKg(), "kg", 1, false),
                 visualDelta(weight, year.weight() == null ? null : year.weight().weightKg(), "kg", 1, false)),
-            new OverviewCard("mood", "Average mood", amount(current.moodAverage(), "/5", 1), current.moodDayCount() + "/7 days recorded", moodStatus(current.moodAverage(), rules),
+            new OverviewCard("mood", "Average mood", amount(current.moodAverage(), "/5", 1), current.moodDayCount() + "/" + dayCount + " days recorded", moodStatus(current.moodAverage(), rules),
                 visualDelta(current.moodAverage(), previous.moodAverage(), "points", 1, false), visualDelta(current.moodAverage(), year.moodAverage(), "points", 1, false)),
-            new OverviewCard("weekendWeight", "Weekend weight", outcome == null ? UNAVAILABLE : amount(outcome.weightKg(), "kg", 1),
-                outcome == null ? "Friday–Sunday · No measurement" : outcome.measuredDate().format(RANGE_END_DATE) + " · " + bodyFatDetail(outcome.fatPercentage(), goals),
+            new OverviewCard("weekendWeight", "Follow-up weight", outcome == null ? UNAVAILABLE : amount(outcome.weightKg(), "kg", 1),
+                followUp + (outcome == null ? " · No measurement" : " · Measured " + outcome.measuredDate().format(RANGE_END_DATE) + " · " + bodyFatDetail(outcome.fatPercentage(), goals)),
                 bodyFatStatus(outcome == null ? null : outcome.fatPercentage(), goals), unavailableDelta(), unavailableDelta()),
-            new OverviewCard("bloodPressure", "Weekend blood pressure", bp == null ? UNAVAILABLE : bp.systolic() + "/" + bp.diastolic() + " mm Hg",
-                bp == null ? "Friday–Sunday · No measurement" : "Measured " + bp.measuredDate().format(RANGE_END_DATE), pressureStatus(bp, rules), unavailableDelta(), unavailableDelta())
+            new OverviewCard("bloodPressure", "Follow-up blood pressure", bp == null ? UNAVAILABLE : bp.systolic() + "/" + bp.diastolic() + " mm Hg",
+                followUp + (bp == null ? " · No measurement" : " · Measured " + bp.measuredDate().format(RANGE_END_DATE)), pressureStatus(bp, rules), unavailableDelta(), unavailableDelta())
         );
         var workouts = List.of(
             workoutRow("Total sessions", BigDecimal.valueOf(current.workouts().workoutCount()), BigDecimal.valueOf(previous.workouts().workoutCount()), BigDecimal.valueOf(year.workouts().workoutCount()), "", false, false, false, snapshot.workoutTargets(), WeeklyWorkoutTargets.Period::totalSessions),
@@ -338,9 +340,9 @@ public class WeeklySummaryEmailViewFactory {
         var year = nutrition == null ? null : nutrientMeasure(nutrition.yearAgo(), measureKey);
         return new NutrientRow(key, label, nutrientAmount(current), nutrientTarget(nutrition, current, key),
             nutrientStatus(nutrition, nutrition == null ? null : nutrition.current(), current, key),
-            baselineNutrientAmount(previous), nutrientTarget(nutrition, previous, key), nutrientDelta(current, previous, unit),
-            baselineNutrientAmount(year), nutrientTarget(nutrition, year, key), nutrientDelta(current, year, unit),
-            current == null ? "No captured nutrient evidence" : (current.eligibleDays() < 7 ? "Partial coverage · " : "") + current.eligibleDays() + "/7 complete days"
+            baselineNutrientAmount(previous, nutrition == null ? null : nutrition.previous()), nutrientTarget(nutrition, previous, key), nutrientDelta(current, previous, unit),
+            baselineNutrientAmount(year, nutrition == null ? null : nutrition.yearAgo()), nutrientTarget(nutrition, year, key), nutrientDelta(current, year, unit),
+            current == null ? "No captured nutrient evidence" : (current.eligibleDays() < nutrition.current().dayCount() ? "Partial coverage · " : "") + current.eligibleDays() + "/" + nutrition.current().dayCount() + " complete days"
                 + (current.totalFoods() == 0 ? "" : " · " + current.coveredFoods() + "/" + current.totalFoods() + " foods")
                 + (current.estimatedFoods() == 0 ? "" : " · estimates"),
             nutrientStatus(nutrition, nutrition == null ? null : nutrition.previous(), previous, key),
@@ -352,8 +354,8 @@ public class WeeklySummaryEmailViewFactory {
     private String nutrientAmount(WeeklyNutritionSnapshot.Measure measure) {
         return measure == null || measure.average() == null ? UNAVAILABLE : (measure.estimatedFoods() > 0 ? "≈ " : "") + amount(measure.average(), measure.unit(), 2);
     }
-    private String baselineNutrientAmount(WeeklyNutritionSnapshot.Measure measure) {
-        return nutrientAmount(measure) + (measure == null ? "" : " · " + measure.eligibleDays() + "/7 days" + (measure.eligibleDays() < 7 ? " · Partial coverage" : ""));
+    private String baselineNutrientAmount(WeeklyNutritionSnapshot.Measure measure, WeeklyNutritionSnapshot.Period period) {
+        return nutrientAmount(measure) + (measure == null ? "" : " · " + measure.eligibleDays() + "/" + period.dayCount() + " days" + (measure.eligibleDays() < period.dayCount() ? " · Partial coverage" : ""));
     }
     private String nutrientTarget(WeeklyNutritionSnapshot.Measure measure) {
         return measure == null || measure.target() == null || measure.comparison() == null || measure.unavailableReason() != null ? "Target unavailable"
@@ -390,7 +392,7 @@ public class WeeklySummaryEmailViewFactory {
         var result = new ArrayList<>(rows);
         snapshot.weeklyRoutines().forEach(routine -> result.add(new CardRow(
             new MetricCard(routine.name(), routine.completedWeeks() + "/" + routine.eligibleWeeks() + " weeks · " + percentage(routine.percentage()),
-                "Saturday–Friday · Recorded dates: " + (routine.checkinDates().isEmpty() ? "None" : routine.checkinDates().toString()),
+                periodLabel(snapshot.progress().currentPeriod()) + " · Recorded dates: " + (routine.checkinDates().isEmpty() ? "None" : routine.checkinDates().toString()),
                 unknownComparison("last week"), unknownComparison("52 weeks ago")), null, "Weekly routines")));
         return result;
     }
@@ -497,12 +499,12 @@ public class WeeklySummaryEmailViewFactory {
         return new MetricCard(
             "Average nutrition",
             value.averageCalories() == null ? "Not recorded" : whole(value.averageCalories()) + " kcal/day",
-            String.join(" · ", dayCoverage(value.entryCount()),
+            String.join(" · ", dayCoverage(value.entryCount(), current),
                 averageMacro("Protein", value.averageProteinGrams(), value.proteinDayCount()),
                 averageMacro("Carbohydrate", value.averageCarbohydrateGrams(), value.carbohydrateDayCount()),
                 averageMacro("Fat", value.averageFatGrams(), value.fatDayCount())),
-            calorieComparison(value, previous.calories(), "last week"),
-            calorieComparison(value, yearAgo.calories(), "52 weeks ago")
+            calorieComparison(value, previous, "last week"),
+            calorieComparison(value, yearAgo, "52 weeks ago")
         );
     }
 
@@ -515,15 +517,15 @@ public class WeeklySummaryEmailViewFactory {
         return new MetricCard(
             "Average sleep",
             value == null ? "Not recorded" : sleepDuration(value.totalSleepSeconds()),
-            value == null ? "0 of 7 nights recorded" : sleepDetails(value),
-            sleepComparison(value, previous.sleep(), "last week"),
-            sleepComparison(value, yearAgo.sleep(), "52 weeks ago")
+            value == null ? "0 of " + current.dayCount() + " nights recorded" : sleepDetails(value, current.dayCount()),
+            sleepComparison(value, previous, "last week"),
+            sleepComparison(value, yearAgo, "52 weeks ago")
         );
     }
 
-    private String sleepDetails(AverageSleep sleep) {
+    private String sleepDetails(AverageSleep sleep, long dayCount) {
         List<String> details = new ArrayList<>();
-        details.add(sleep.nightCount() + " of 7 nights recorded");
+        details.add(sleep.nightCount() + " of " + dayCount + " nights recorded");
         if (sleep.deepSleepSeconds() != null) details.add("Deep " + sleepDuration(sleep.deepSleepSeconds()));
         if (sleep.remSleepSeconds() != null) details.add("REM " + sleepDuration(sleep.remSleepSeconds()));
         if (sleep.lightSleepSeconds() != null) details.add("Light " + sleepDuration(sleep.lightSleepSeconds()));
@@ -537,9 +539,9 @@ public class WeeklySummaryEmailViewFactory {
         return new MetricCard(
             "Average mood",
             current.moodAverage() == null ? "Not recorded" : decimal(current.moodAverage(), 1) + " / 5",
-            dayCoverage(current.moodDayCount()),
-            decimalComparison(current.moodAverage(), previous.moodAverage(), "points", "last week", previous.moodDayCount() + "/7 days"),
-            decimalComparison(current.moodAverage(), yearAgo.moodAverage(), "points", "52 weeks ago", yearAgo.moodDayCount() + "/7 days")
+            dayCoverage(current.moodDayCount(), current),
+            decimalComparison(current.moodAverage(), previous.moodAverage(), "points", "last week", previous.moodDayCount() + "/" + previous.dayCount() + " days"),
+            decimalComparison(current.moodAverage(), yearAgo.moodAverage(), "points", "52 weeks ago", yearAgo.moodDayCount() + "/" + yearAgo.dayCount() + " days")
         );
     }
 
@@ -774,21 +776,23 @@ public class WeeklySummaryEmailViewFactory {
         return comparison(signed(change, 1) + " pp vs " + label, change, 1, ImprovementDirection.HIGHER);
     }
 
-    private Comparison calorieComparison(CalorieSummary current, CalorieSummary baseline, String label) {
+    private Comparison calorieComparison(CalorieSummary current, Summary period, String label) {
+        var baseline = period.calories();
         if (current.averageCalories() == null || baseline.averageCalories() == null) {
             return unknownComparison(label);
         }
         BigDecimal change = current.averageCalories().subtract(baseline.averageCalories());
-        String text = signed(change, 0) + " kcal/day vs " + label + " · " + baseline.entryCount() + "/7 days";
+        String text = signed(change, 0) + " kcal/day vs " + label + " · " + baseline.entryCount() + "/" + period.dayCount() + " days";
         return comparison(text, change, 0, ImprovementDirection.LOWER);
     }
 
-    private Comparison sleepComparison(AverageSleep current, AverageSleep baseline, String label) {
+    private Comparison sleepComparison(AverageSleep current, Summary period, String label) {
+        var baseline = period.sleep();
         if (current == null || baseline == null) {
             return unknownComparison(label);
         }
         BigDecimal change = current.totalSleepSeconds().subtract(baseline.totalSleepSeconds());
-        String text = signedSleepDuration(change) + " vs " + label + " · " + baseline.nightCount() + "/7 nights";
+        String text = signedSleepDuration(change) + " vs " + label + " · " + baseline.nightCount() + "/" + period.dayCount() + " nights";
         return comparison(text, roundedMinutes(change), ImprovementDirection.HIGHER);
     }
 
@@ -975,8 +979,8 @@ public class WeeklySummaryEmailViewFactory {
         return seconds.divide(BigDecimal.valueOf(60), 0, RoundingMode.HALF_UP);
     }
 
-    private String dayCoverage(int count) {
-        return count + " of 7 days recorded";
+    private String dayCoverage(int count, Summary period) {
+        return count + " of " + period.dayCount() + " days recorded";
     }
 
     private String measurementDate(java.time.OffsetDateTime measuredAt) {

@@ -206,7 +206,7 @@ class PersonalRecordCalculatorTest {
 
         var result = calculator.calculate(new PersonalRecordCalculator.Sources(
             null, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(closingMeal), List.of(), List.of(),
-            List.of(first, overlapping, touching, active)
+            List.of(first, overlapping, touching, active), Map.of()
         ));
 
         var record = result.current().stream()
@@ -284,7 +284,7 @@ class PersonalRecordCalculatorTest {
 
         var result = calculator.calculate(new PersonalRecordCalculator.Sources(
             user, List.of(incompleteWeek, second, first), List.of(workout), List.of(), List.of(), List.of(), List.of(), List.of(),
-            List.of(), List.of(), List.of()
+            List.of(), List.of(), List.of(), Map.of()
         ), allMetrics());
 
         assertCurrent(result, PersonalRecordMetric.BODY_BMI_MINIMUM, null, null, "18");

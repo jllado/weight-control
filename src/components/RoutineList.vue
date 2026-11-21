@@ -101,7 +101,7 @@
       <div class="p-pb-5 routine-reminder-field">
         <label id="routine-cadence-label" for="routine-cadence">Cadence</label>
         <Dropdown inputId="routine-cadence" aria-labelledby="routine-cadence-label" v-model="fform.cadence" :options="[{label: 'Daily', value: 'DAILY'}, {label: 'Weekly', value: 'WEEKLY'}]" optionLabel="label" optionValue="value" :disabled="!!routine?.id" />
-        <small v-if="fform.cadence === 'WEEKLY'">Once each Saturday–Friday, starting this week.</small>
+        <small v-if="fform.cadence === 'WEEKLY'">Once per planning week, starting this week.</small>
         <small v-if="routine?.id">Cadence is fixed when the routine is created.</small>
       </div>
       <div class="p-flex-row p-pb-5">

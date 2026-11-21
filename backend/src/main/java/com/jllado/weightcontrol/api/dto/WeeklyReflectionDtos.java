@@ -5,6 +5,7 @@ import com.jllado.weightcontrol.domain.WeeklyReflection;
 import com.jllado.weightcontrol.domain.WarningReviewSnapshot;
 import com.jllado.weightcontrol.api.dto.ReflectionDtos.WarningReviewEnvelope;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -24,12 +25,14 @@ public final class WeeklyReflectionDtos {
         boolean actionConfigured,
         List<WeeklySummaryReflectionItem> summaries
     ) {
+        @JsonProperty public LocalDate latestEligiblePeriodEnd() { return latestEligibleFriday; }
     }
 
     public record WeeklySummaryReflectionItem(
         LocalDate fridayDate,
         boolean reflectionSaved
     ) {
+        @JsonProperty public LocalDate periodEnd() { return fridayDate; }
     }
 
     public record WeeklyReflectionContextResponse(
@@ -38,6 +41,8 @@ public final class WeeklyReflectionDtos {
         WeeklySummarySnapshot summary,
         WeeklyReflectionResponse existingReflection
     ) {
+        @JsonProperty public LocalDate periodEnd() { return fridayDate; }
+
         public static WeeklyReflectionContextResponse from(SavedWeeklySummary saved, WeeklySummarySnapshot snapshot, WeeklyReflection reflection) {
             return new WeeklyReflectionContextResponse(
                 snapshot.periodStart(),
