@@ -30,14 +30,33 @@ class MealRatingMigrationTest {
                 (1, '2026-08-12', 'SNACK', 4, 100, 5)
                 """);
         }
+        flyway("128").migrate();
+        try (var connection = DATABASE.createConnection(""); var statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                update users set weekly_average_calorie_maximum = 2100, typical_calories_wednesday = 0,
+                macro_protein_target_grams = 110.50, nutrient_fiber_target_grams = null,
+                updated_at = from_unixtime(1767222000) where id = 1
+                """);
+        }
         flyway(null).migrate();
         try (var connection = DATABASE.createConnection(""); var statement = connection.createStatement()) {
-            try (var result = statement.executeQuery("select rating from meals order by meal_sequence")) {
+            try (var history = statement.executeQuery("select * from meal_rating_profile_history where user_id = 1")) {
+                org.junit.jupiter.api.Assertions.assertTrue(history.next());
+                assertEquals(1767222000L, history.getLong("effective_epoch"));
+                assertEquals(2100, history.getInt("weekly_maximum"));
+                assertEquals(0, history.getInt("wednesday"));
+                assertEquals(new java.math.BigDecimal("110.50"), history.getBigDecimal("protein_grams"));
+                assertNull(history.getObject("fiber_grams"));
+                org.junit.jupiter.api.Assertions.assertFalse(history.next());
+            }
+            try (var result = statement.executeQuery("select rating, rating_explanation from meals order by meal_sequence")) {
                 result.next();
                 assertNull(result.getObject("rating"));
+                assertNull(result.getObject("rating_explanation"));
                 for (int expected : new int[] {2, 8, 10}) {
                     result.next();
                     assertEquals(expected, result.getInt("rating"));
+                    assertNull(result.getObject("rating_explanation"));
                 }
             }
             assertEquals(1, statement.executeUpdate("update meals set rating = 1 where meal_sequence = 1"));

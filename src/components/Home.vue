@@ -489,7 +489,7 @@
                   <dl v-if="get_meals_for(daily_status.date).length" class="status-meal-ratings-list">
                     <div v-for="meal in get_meals_for(daily_status.date)" :key="meal.id" class="status-meal-rating">
                       <dt>{{ meal.label() }}</dt>
-                      <dd>{{ meal.rating === null ? 'Not rated' : `${meal.rating}/10` }}</dd>
+                      <dd><MealRating :meal="meal" /></dd>
                     </div>
                   </dl>
                   <p v-else>No meals recorded.</p>
@@ -832,12 +832,9 @@
             <div v-if="is_dashboard_tab_loading('calories')" class="dashboard-tab-loading"><i class="pi pi-spin pi-spinner dashboard-tab-loading-icon"></i> Loading calorie data…</div>
             <Panel v-else>
               <template #header>
-                <div class="table-header meal-panel-header">
-                    <strong>Meals</strong>
-                    <div class="tab-panel-actions">
-                      <Button v-if="get_meals_for(daily_status.date).length" label="Rate all meals" icon="chatgpt-icon" :pt="{icon: {'aria-hidden': true}}" class="p-button-outlined" @click="rate_all_meals" />
-                      <CreateMeal :initial_date="daily_status.date" :meals="meals" :fasting_periods="fasting_periods" fixed_date @onSave="load_all" />
-                    </div>
+                <div class="table-header">
+                  <strong>Meals</strong>
+                  <CreateMeal :initial_date="daily_status.date" :meals="meals" :fasting_periods="fasting_periods" fixed_date @onSave="load_all" />
                 </div>
               </template>
               <div class="meal-list">
@@ -846,10 +843,9 @@
                   <div class="meal-entry-main">
                     <div class="meal-entry-summary">
                       <strong>{{ meal.label() }}</strong>
-                      <span>{{ format_nutrition_value(meal.calories) }} kcal<template v-if="meal.rating"> · {{ meal.rating }}/10</template></span>
+                      <span>{{ format_nutrition_value(meal.calories) }} kcal<template v-if="meal.rating"> · <MealRating :meal="meal" /></template></span>
                     </div>
                     <div class="meal-entry-actions action-group action-group--compact">
-                      <CompactAction icon="chatgpt-icon" :pt="{icon: {'aria-hidden': true}}" aria-label="Rate meal" @click="rate_meal(meal)" />
                       <CreateMeal :initial_date="daily_status.date" :meal="meal" :meals="meals" :fasting_periods="fasting_periods" fixed_date @onSave="load_all" />
                       <CompactAction icon="pi pi-trash" aria-label="Delete" :action="() => remove_meal(meal)" busyLabel="Deleting…" destructive />
                     </div>
@@ -947,10 +943,9 @@
                     <p>{{ session_day_details(group.sessions) }}</p>
                   </details>
                   <p v-else>No sessions recorded.</p>
-                  <div v-if="group.sessions.length" class="daily-workout-assessment">
-                    <p v-if="group.assessment">Goal alignment: <strong>{{ group.assessment.goalAlignmentScore }}/10</strong> · Training demand: <strong>{{ group.assessment.estimatedTrainingDemandScore }}/10</strong></p>
-                    <CompactAction aria-label="Rate day" icon="chatgpt-icon" :pt="{icon: {'aria-hidden': true}}" @click="rate_workout(group)" />
-                  </div>
+                  <p v-if="group.day?.assessment" class="daily-workout-assessment">
+                    <WorkoutAssessment :assessment="group.day.assessment" :date="group.day.workoutDateFormat" />
+                  </p>
                   <article v-for="(session, sessionIndex) in group.sessions" :key="session.id" class="workout-session">
                     <h4>Session {{ sessionIndex + 1 }} · {{ session.summary() }} <Tag v-if="session.saunaSession" value="Sauna" class="sauna-tag" /></h4>
                     <div class="workout-session-summary">
@@ -1211,6 +1206,8 @@ import CreateWeight from "@/components/CreateWeight.vue";
 import CreateBloodPressure from "@/components/CreateBloodPressure.vue";
 import CreateSleep from "@/components/CreateSleep.vue";
 import SleepGoalValue from "@/components/SleepGoalValue.vue";
+import MealRating from './MealRating.vue';
+import WorkoutAssessment from './WorkoutAssessment.vue';
 import SleepRatingDetails from "@/components/SleepRatingDetails.vue";
 import CreateMeal from "@/components/CreateMeal.vue";
 import CreateWorkout from "@/components/CreateWorkout.vue";
@@ -1256,7 +1253,7 @@ import DashboardActions from './DashboardActions.vue';
 import {planningWeek, planningDates, weekdays, weekdaysFrom, dayLabel, periodLabel, madridDate as madrid_date} from '@/model/PlanningWeek';
 import weeklyCaloriePlanService, {resolveEffectiveCalorieTarget} from '@/services/WeeklyCaloriePlanService';
 import {buildReflectionPrompt} from "@/model/Reflection";
-import {buildAllMealRatingPrompt, buildCoachAdvicePrompt, buildMealRatingPrompt, buildWorkoutAssessmentPrompt, openCoach} from "@/services/CoachService";
+import {buildCoachAdvicePrompt, openCoach} from "@/services/CoachService";
 import {formatBackPainLocation, formatBackPainPeriod, formatBackPainSeverity, getBackPainSeverityOption, getBackPainSeverityRank} from "@/model/BackPainEpisode";
 import {buildPlanProgressChart, buildWeeklyWorkoutCharts, buildWorkoutAssessmentChart, buildWorkoutDetailCharts} from '@/model/CoachMetrics';
 import {fastingDurationMinutes, fastingSummary} from '@/model/FastingSummary';
@@ -1270,7 +1267,7 @@ import isToday from 'dayjs/plugin/isToday';
 dayjs.extend(isToday)
 
 export default {
-  components: {DashboardRoutineTable, BackPainTrendSummary, BackPainChart, DashboardActions, WeeklyCaloriePlanEditor, NutrientSummary, NutrientTrendCharts, NutrientTrendSummary, WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, SleepGoalValue, SleepRatingDetails, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
+  components: {MealRating, WorkoutAssessment, DashboardRoutineTable, BackPainTrendSummary, BackPainChart, DashboardActions, WeeklyCaloriePlanEditor, NutrientSummary, NutrientTrendCharts, NutrientTrendSummary, WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, SleepGoalValue, SleepRatingDetails, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       pauseUi,
@@ -1523,7 +1520,7 @@ export default {
       return [
         {title: 'Selected day workouts', sessions: this.current_workouts, workoutDate: date},
         {title: 'Previous week workouts', sessions: this.previous_week_workouts, workoutDate: previousDate}
-      ].map(group => ({...group, assessment: this.workout_days.find(day => day.workoutDate === group.workoutDate)?.assessment}));
+      ].map(group => ({...group, day: this.workout_days.find(day => day.workoutDate === group.workoutDate)}));
     },
     workout_status_summary() {
       const selectedWeek = this.coach_metrics.selectedWeek;
@@ -2890,44 +2887,6 @@ export default {
           severity: 'info',
           summary: 'Advice prompt copied',
           detail: 'Paste it into ChatGPT to continue.',
-          life: 5000
-        }))
-        .catch(error => this.handle_error(error));
-    },
-    rate_workout(workout) {
-      const prompt = buildWorkoutAssessmentPrompt(dayjs(workout.workoutDate).format('YYYY-MM-DD'));
-      const copyPrompt = navigator.clipboard.writeText(prompt);
-      openCoach();
-      copyPrompt
-        .then(() => this.$toast.add({
-          severity: 'info',
-          summary: 'Workout prompt copied',
-          detail: 'Paste it into ChatGPT to continue.',
-          life: 5000
-        }))
-        .catch(error => this.handle_error(error));
-    },
-    rate_meal(meal) {
-      const copyPrompt = navigator.clipboard.writeText(buildMealRatingPrompt(meal));
-      openCoach();
-      copyPrompt
-        .then(() => this.$toast.add({
-          severity: 'info',
-          summary: 'Meal prompt copied',
-          detail: 'Paste it into ChatGPT to continue.',
-          life: 5000
-        }))
-        .catch(error => this.handle_error(error));
-    },
-    rate_all_meals() {
-      const date = dayjs(this.daily_status.date).format('YYYY-MM-DD');
-      const copyPrompt = navigator.clipboard.writeText(buildAllMealRatingPrompt(date));
-      openCoach();
-      copyPrompt
-        .then(() => this.$toast.add({
-          severity: 'info',
-          summary: 'Meal rating prompt copied',
-          detail: 'Paste it into ChatGPT to rate every meal for this date.',
           life: 5000
         }))
         .catch(error => this.handle_error(error));
@@ -4807,10 +4766,6 @@ class MeasureGraphData {
 @media (max-width: 575px) {
   .workout-panel-header { flex-direction: column; align-items: stretch; gap: .5rem; }
   .workout-panel-header .tab-panel-actions { display: grid; grid-template-columns: minmax(0, 1fr); }
-  .meal-panel-header { flex-direction: column; align-items: stretch; gap: .5rem; }
-  .meal-panel-header .tab-panel-actions { display: grid; grid-template-columns: minmax(0, 1fr); }
-  .meal-panel-header .tab-panel-actions .p-button { justify-content: center; }
-  .meal-panel-header .tab-panel-actions .p-button .p-button-label { flex: 0 1 auto; }
 }
 @media (max-width: 376px) {
   .meal-entry-main { flex-direction: column; align-items: stretch; white-space: normal; }

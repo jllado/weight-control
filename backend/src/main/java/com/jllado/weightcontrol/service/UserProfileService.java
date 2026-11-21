@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.service;
 import com.jllado.weightcontrol.api.dto.UserProfileDtos.UserProfileRequest;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.UserRepository;
+import com.jllado.weightcontrol.repository.MealRatingProfileHistory;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.transaction.Transactional;
 import java.time.LocalDate;
@@ -15,7 +16,10 @@ public class UserProfileService {
     private final UserRepository userRepository;
     private final PlanningWeekService planningWeeks;
 
-    public UserProfileService(UserRepository userRepository, PlanningWeekService planningWeeks) {
+    private final MealRatingProfileHistory ratingProfiles;
+
+    public UserProfileService(UserRepository userRepository, PlanningWeekService planningWeeks, MealRatingProfileHistory ratingProfiles) {
+        this.ratingProfiles = ratingProfiles;
         this.userRepository = userRepository;
         this.planningWeeks = planningWeeks;
     }
@@ -23,6 +27,7 @@ public class UserProfileService {
     public User update(User authenticatedUser, UserProfileRequest request) {
         validate(request);
         User user = userRepository.findByIdForUpdate(authenticatedUser.getId()).orElseThrow();
+        ratingProfiles.captureInitial(user);
         if (request.firstDayOfPlanningWeek() != null) {
             planningWeeks.schedule(user, request.firstDayOfPlanningWeek(), LocalDate.now(DateTimes.USER_ZONE), request.expectedPlanningWeekEffectiveDate());
         }
@@ -44,6 +49,7 @@ public class UserProfileService {
         user.setCalorieShortcutFlexible(request.calorieShortcuts().flexible());
         user.setCalorieShortcutOffPlan(request.calorieShortcuts().offPlan());
         user.setCalorieShortcutBinge(request.calorieShortcuts().binge());
+        ratingProfiles.captureChange(user, java.time.Instant.now());
         return user;
     }
 

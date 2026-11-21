@@ -3,11 +3,7 @@ package com.jllado.weightcontrol.service;
 import com.jllado.weightcontrol.api.dto.CoachDtos;
 import com.jllado.weightcontrol.api.dto.CoachingPlanDtos.CoachingPlanResponse;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.AssessmentWorkoutData;
-import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.AssessmentWeeklyPlanData;
-import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.AssessmentPlannedDayData;
-import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.AssessmentPlannedSessionData;
 import com.jllado.weightcontrol.domain.WorkoutPlan;
-import com.jllado.weightcontrol.domain.WorkoutPlanSessionEvidence;
 import com.jllado.weightcontrol.repository.WorkoutPlanRepository;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.SaveWorkoutAssessmentRequest;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentContextResponse;
@@ -65,7 +61,7 @@ public class WorkoutAssessmentService {
 
     public WorkoutAssessmentContextResponse getContext(User user, LocalDate workoutDate, String sessionReference) {
         List<Workout> sessions = requireDay(user, workoutDate, sessionReference);
-        CoachingPlan plan = requirePlan(user);
+        var plan = datedGoal(user, workoutDate);
         Set<Long> exerciseIds = sessions.stream().flatMap(workout -> workout.getLines().stream())
             .filter(line -> line.getExercise().getExerciseType() == ExerciseType.TRAINING)
             .map(line -> line.getExercise().getId())
@@ -81,18 +77,17 @@ public class WorkoutAssessmentService {
                 .filter(candidate -> candidate.getLines().stream().anyMatch(line -> exerciseIds.contains(line.getExercise().getId())))
                 .peek(this::initializeSegments).map(candidate -> AssessmentWorkoutData.comparable(candidate, exerciseIds)).toList()))
             .toList();
-        LocalDate today = LocalDate.now(DateTimes.USER_ZONE);
         var weeklyPlans = weeklyPlans(user, workoutDate);
         return new WorkoutAssessmentContextResponse(
             new AssessmentDayData(workoutDate, sessions.stream().map(AssessmentWorkoutData::from).toList()),
             WorkoutPlanEvidenceResolver.resolve(workoutDate, weeklyPlans),
-            CoachingPlanResponse.from(plan),
-            healthConstraintRepository.findActiveOverlapping(user, today, today).stream()
+            plan.map(CoachingPlanResponse::from).orElse(null),
+            healthConstraintRepository.findActiveOverlapping(user, workoutDate, workoutDate).stream()
                 .map(this::toHealthConstraintData)
                 .toList(),
             comparableTraining,
             assessmentRepository.findByUserAndWorkoutDate(user, workoutDate).map(WorkoutAssessmentResponse::from).orElse(null),
-            plan.getUpdatedAt(),
+            plan.map(CoachingPlan::getUpdatedAt).orElse(null),
             contextToken(sessions, weeklyPlans)
         );
     }
@@ -108,25 +103,50 @@ public class WorkoutAssessmentService {
         validateWordCount(request.improvement(), 15, "Improvement");
         validateWordCount(request.nextWorkoutAction(), 15, "Next-workout action");
         List<Workout> sessions = requireDay(user, workoutDate, sessionReference);
-        CoachingPlan plan = requirePlan(user);
-        if (!request.workoutContextToken().equals(contextToken(sessions, weeklyPlans(user, workoutDate))) || !request.planUpdatedAt().equals(plan.getUpdatedAt())) {
-            throw new BadRequestException("Workout assessment context is stale; reload it before reassessing");
+        var planUpdatedAt = datedGoal(user, workoutDate).map(CoachingPlan::getUpdatedAt).orElse(null);
+        if (!request.workoutContextToken().equals(contextToken(sessions, weeklyPlans(user, workoutDate)))
+            || !java.util.Objects.equals(request.planUpdatedAt(), planUpdatedAt)) {
+            throw new BadRequestException("Workout assessment context is stale; reload it before reading the assessment");
         }
-        WorkoutAssessment assessment = assessmentRepository.findByUserAndWorkoutDate(user, workoutDate).orElse(null);
-        if (assessment == null) {
-            assessment = new WorkoutAssessment();
-            assessment.setUser(user);
-            assessment.setWorkoutDate(workoutDate);
+        return assessmentRepository.findByUserAndWorkoutDate(user, workoutDate).map(WorkoutAssessmentResponse::from)
+            .orElseThrow(() -> new NotFoundException("No saved assessment for this workout day"));
+    }
+
+    /** Workout mutations already hold the owner's write lock. */
+    void refresh(User user, LocalDate date) {
+        var sessions = workoutRepository.findSessionsOnDate(user, date);
+        if (sessions.isEmpty()) {
+            assessmentRepository.deleteByUserAndWorkoutDate(user, date);
+            return;
         }
-        assessment.setGoalAlignmentScore(request.goalAlignmentScore());
-        assessment.setEstimatedTrainingDemandScore(request.estimatedTrainingDemandScore());
-        assessment.setRationale(request.rationale());
-        assessment.setStrength(request.strength());
-        assessment.setImprovement(request.improvement());
-        assessment.setNextWorkoutAction(request.nextWorkoutAction());
-        assessment.setGoalSnapshot(plan.getGoal());
-        assessment.setPlanUpdatedAt(plan.getUpdatedAt());
-        return WorkoutAssessmentResponse.from(assessmentRepository.saveAndFlush(assessment));
+        var weekly = WorkoutPlanEvidenceResolver.resolve(date, weeklyPlans(user, date));
+        var load = WorkoutRatingRules.load(sessions);
+        var rating = WorkoutRatingRules.calculate(sessions, weekly, load, priorDays(user, date, load));
+        var assessment = assessmentRepository.findByUserAndWorkoutDate(user, date).orElseGet(WorkoutAssessment::new);
+        assessment.setAutomatic(true);
+        assessment.setUser(user);
+        assessment.setWorkoutDate(date);
+        assessment.setGoalAlignmentScore(rating.alignment());
+        assessment.setEstimatedTrainingDemandScore(rating.demand());
+        assessment.setRationale(rating.rationale());
+        assessment.setStrength(rating.strength());
+        assessment.setImprovement(rating.improvement());
+        assessment.setNextWorkoutAction(rating.action());
+        assessment.setGoalSnapshot(datedGoal(user, date).map(CoachingPlan::getGoal).orElse(rating.goal()));
+        assessment.setPlanUpdatedAt(weekly.day() == null ? null : weekly.updatedAt());
+        assessmentRepository.save(assessment);
+    }
+
+    private List<List<Workout>> priorDays(User user, LocalDate date, WorkoutRatingRules.Load load) {
+        var weighted = load.exerciseIds(true);
+        var unweighted = load.exerciseIds(false);
+        if (weighted.isEmpty() && unweighted.isEmpty()) return List.of();
+        var dates = workoutRepository.findComparableDates(user, date.minusDays(COMPARISON_DAYS), date.minusDays(1),
+            weighted, unweighted, org.springframework.data.domain.PageRequest.of(0, COMPARISON_LIMIT));
+        if (dates.isEmpty()) return List.of();
+        var workouts = workoutRepository.findByUserAndWorkoutDateIn(user, dates).stream()
+            .collect(Collectors.groupingBy(Workout::getWorkoutDate));
+        return dates.stream().map(workouts::get).toList();
     }
 
     private List<Workout> requireDay(User user, LocalDate workoutDate, String sessionReference) {
@@ -157,9 +177,9 @@ public class WorkoutAssessmentService {
         return org.springframework.util.DigestUtils.md5DigestAsHex(snapshot.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
-    private CoachingPlan requirePlan(User user) {
-        return coachingPlanRepository.findByUser(user)
-            .orElseThrow(() -> new BadRequestException("An active coaching plan is required before assessing a workout"));
+    private java.util.Optional<CoachingPlan> datedGoal(User user, LocalDate date) {
+        var dayEnd = date.plusDays(1).atStartOfDay(DateTimes.USER_ZONE).toInstant();
+        return coachingPlanRepository.findByUser(user).filter(plan -> !plan.getStartDate().isAfter(date) && plan.getUpdatedAt().isBefore(dayEnd));
     }
 
     private void initializeSegments(Workout workout) {

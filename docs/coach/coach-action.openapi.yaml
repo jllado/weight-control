@@ -209,13 +209,10 @@ paths:
   /coach/meals/{id}:
     put:
       operationId: updateMeal
-      summary: Update a confirmed meal or its rating
-      description: Get meals first. MEAL replaces the full owned meal with nutrientSchemaVersion 3 and preserves unchanged foods and metadata. Estimate changed foods under MealWrite; mark comparable/model estimates. RATING changes only the score. Confirm the readable meal summary or scores, then reread.
+      summary: Update a confirmed meal
+      description: Read the owned meal, preserve unchanged foods and metadata, and estimate changed foods under MealWrite. Confirm the complete replacement with nutrientSchemaVersion 3. Read back the saved meal, automatic rating and explanation.
       x-openai-isConsequential: true
       parameters:
-        - name: target
-          in: query
-          schema: {type: string, enum: [MEAL, RATING], default: MEAL}
         - name: id
           in: path
           required: true
@@ -230,12 +227,12 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [confirmed]
+              required: [date, mealType, mealTime, calories, dishes, source, confirmed, nutrientSchemaVersion]
               properties:
                 nutrientSchemaVersion:
                   type: integer
                   const: 3
-                  description: Required for every full MEAL replacement so existing EPA+DHA, ALA and Fiber snapshots are retained; omit only for RATING updates.
+                  description: Required for every full meal replacement to preserve saved nutrient snapshots.
                 date:
                   type: string
                   format: date
@@ -272,6 +269,7 @@ paths:
                     - "null"
                 dishes:
                   type: array
+                  minItems: 1
                   items:
                     $ref: "#/components/schemas/CoachMealDishWrite"
                 source:
@@ -280,13 +278,6 @@ paths:
                   type: boolean
                   const: true
                   description: Must be true only after the user explicitly confirms these exact values.
-                rating:
-                  type: integer
-                  minimum: 1
-                  maximum: 10
-              anyOf:
-                - {$ref: "#/components/schemas/MealReplaceWrite"}
-                - {$ref: "#/components/schemas/MealRatingWrite"}
       responses:
         "200":
           description: Updated meal
@@ -616,40 +607,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/WorkoutAssessmentContext"
         "400":
-          description: No active coaching plan exists
+          description: Invalid date or unsupported session-specific context
         "404":
           description: Workout not found for the authenticated user
-  /coach/workouts/{workoutDate}/assessment:
-    put:
-      operationId: saveWorkoutAssessment
-      summary: Save a confirmed Coach workout assessment
-      description: Creates or replaces one assessment covering all owned sessions on the date after the exact proposal is confirmed. Reload context when workoutContextToken or planUpdatedAt is stale.
-      x-openai-isConsequential: true
-      parameters:
-        - name: workoutDate
-          in: path
-          required: true
-          description: Stored workout date in YYYY-MM-DD format.
-          schema:
-            type: string
-            format: date
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/WorkoutAssessmentWrite"
+  /coach/rating-rules:
+    get:
+      operationId: getRatingRules
+      summary: Read automatic meal and workout scoring rules
+      description: Returns the current backend scoring rules. Explain actual saved scores using getMeals or getWorkoutAssessmentContext and the stored evidence. Older entries may have a legacy score or no rating.
       responses:
         "200":
-          description: Saved assessment
+          description: Scoring rules used by meal and workout saves
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/WorkoutAssessment"
-        "400":
-          description: Invalid scores or text, missing confirmation or active plan, or stale context timestamps
-        "404":
-          description: Workout not found for the authenticated user
+                type: object
+                required: [meal, workout]
+                properties:
+                  meal: {type: string}
+                  workout: {type: string}
   /coach/health-entries/{entryType}:
     get:
       operationId: getHealthEntries
@@ -710,7 +686,7 @@ paths:
     put:
       operationId: updateHealthEntry
       summary: Replace a confirmed health entry
-      description: ROUTINE not supported (completion via create only). DISH_RECIPE preserves ordered recipe. WORKOUT read full owned record/updateToken; confirm full replacement, preserve unchanged detail; successful edit removes date assessment. Re-fetch.
+      description: ROUTINE not supported (completion via create only). DISH_RECIPE preserves ordered recipe. WORKOUT read full owned record/updateToken; confirm full replacement, preserve unchanged detail; saving recalculates the whole date’s assessment. Re-fetch.
       x-openai-isConsequential: true
       parameters:
         - name: entryType
@@ -1954,6 +1930,9 @@ components:
           type: [integer, "null"]
           minimum: 1
           maximum: 10
+        ratingExplanation:
+          type: [string, "null"]
+          description: Saved evidence from the automatic calculation. Older meals may lack an explanation.
         notes:
           type:
             - string
@@ -2015,7 +1994,7 @@ components:
         then sum the rounded food values. Assert every scaled value, meal total, supplied label and retained-reference value matches.
         Assert complete nonnull nutrient/reference values, nonblank source strings within 500 characters, boolean estimate/catalog flags,
         valid units/quantities and only the schema's allowed properties. Meal root keys are nutrientSchemaVersion,date,mealType,mealTime,
-        durationMinutes,calories,proteinGrams,carbohydrateGrams,fatGrams,notes,dishes,source,confirmed and optional rating; omit an absent rating.
+        durationMinutes,calories,proteinGrams,carbohydrateGrams,fatGrams,notes,dishes,source,confirmed only. The backend assigns the rating.
         Vitamin D, total omega-3, EPA+DHA, ALA, magnesium, fiber and salt belong in dishes and references, NEVER as extra meal-root properties.
         Serialize the validated full body with confirmed:false; read that file to generate the readable summary and requested technical JSON.
         Keep the file and reference ledger internal unless requested; ordinary confirmation must remain readable, with no required file/JSON review.
@@ -2025,13 +2004,13 @@ components:
         If a calculation fails, correct and rerun it in the same turn; computation is preparation, not another user permission gate.
         Prepare and validate the complete Action payload internally, including every food, reference, nutrient, source and flag;
         omit absent optional fields when their type does not permit null. Repair and recheck invalid fields automatically.
-        Show a concise readable summary of the meal date/time, foods and portions, estimated calories/macros, any rating,
+        Show a concise readable summary of the meal date/time, foods and portions, estimated calories/macros,
         and material assumptions or catalog additions. Then ask "Save this meal?" Do not display JSON, schema fields,
         source/flag dumps or reference-portion records unless the user explicitly requests them.
         The user trusts nutrient estimates: never ask whether estimates are correct, acceptable or approved.
         Confirmation authorizes saving the summarized meal; it is not a nutrient-validation or estimate opt-in step.
         Keep all prepared nutrients and provenance in the Action even though the summary omits implementation detail.
-        The internally complete payload must match the summarized foods, quantities, date/time, rating and disclosed effects;
+        The internally complete payload must match the summarized foods, quantities, date/time and disclosed effects;
         material changes require a revised readable summary and renewed save confirmation.
         Before answering, check every food and repair arithmetic or implausible values, including protein exceeding the edible food mass.
         A missing exact label alone is not an unsupported prerequisite. Use a known similar-food reference and label the estimate.
@@ -2045,19 +2024,19 @@ components:
         An uncertain match, provisional product identification or similar existing catalog food cannot establish absence: keep addToCatalog:false.
         Before setting true, complete targeted brand and canonical-synonym lookup and establish that the reusable food is genuinely absent.
         A request not to save yet prohibits writes, not nutrient preparation. A technical-inspection request must show the complete
-        prepared body with confirmed:false, not a partial placeholder body. Omit an absent rating; never send rating:null.
+        prepared body with confirmed:false, not a partial placeholder body. Omit rating from all write payloads.
         Catalog nulls are research/estimation gaps when preparing a new meal, not instructions to copy unknowns into the new snapshot.
         Keep recorded evidence unchanged: this estimation rule applies only to the proposed new or changed food.
         After the user confirms the proposal, continue to the Action and readback in that turn. If preparation was incomplete,
         finish supported comparable/model estimates without asking for permission to estimate or pausing for exact-brand verification.
         Existing consent covers completing the disclosed estimates, not changing the proposal: revised foods, quantities, timing,
-        rating, material totals, assumptions or catalog effects require a revised readable summary and renewed confirmation.
+        material totals, assumptions or catalog effects require a revised readable summary and renewed confirmation.
         Unavailable exact nutrient measurements alone do not invalidate a supported, explicitly labeled estimate.
         If a comparison truly remains unsupported, identify the particular food, nutrient and missing basis; do not give a blanket
         "nutrients could not be verified" refusal or request general permission to proceed. Never invent source evidence.
         Distinguish preparation from execution: say "not yet submitted" when no write Action ran. Report a save failure only from
         an actual Action error, including its concrete reason. Do not claim that the API requires exact measurements.
-        This preparation never authorizes a write: obtain explicit confirmation of the final complete meal and any rating, then save once
+        This preparation never authorizes a write: obtain explicit confirmation of the final complete meal, then save once
         and read back with getMeals. Structured values only; image-derived writes use GPT_IMAGE_ESTIMATE and never include image data or references.
       required:
         - date
@@ -2116,32 +2095,10 @@ components:
             $ref: "#/components/schemas/CoachMealDishComplete"
         source:
           $ref: "#/components/schemas/MealSource"
-        rating:
-          type: integer
-          minimum: 1
-          maximum: 10
-          description: Optional Coach rating saved with this meal after the user confirms the exact meal and rating.
         confirmed:
           type: boolean
           const: true
           description: Must be true only after the user explicitly confirms these exact values.
-    MealReplaceWrite:
-      type: object
-      description: Full MEAL replacement. The operation root defines the other fields; the server requires complete nutrients for a new or changed food list and permits nulls only on an exact ordered legacy snapshot.
-      required: [date, mealType, mealTime, calories, dishes, source, confirmed, nutrientSchemaVersion]
-      properties:
-        nutrientSchemaVersion: {type: integer, const: 3}
-        dishes:
-          type: array
-          minItems: 1
-          items: {$ref: "#/components/schemas/CoachMealDishWrite"}
-    MealRatingWrite:
-      type: object
-      additionalProperties: false
-      required: [rating, confirmed]
-      properties:
-        rating: {type: integer, minimum: 1, maximum: 10}
-        confirmed: {type: boolean, const: true}
     DishReference:
       type: object
       additionalProperties: false
@@ -3857,7 +3814,9 @@ components:
         workout:
           $ref: "#/components/schemas/AssessmentDay"
         activePlan:
-          $ref: "#/components/schemas/CoachingPlan"
+          oneOf:
+            - $ref: "#/components/schemas/CoachingPlan"
+            - type: "null"
         weeklyPlan:
           $ref: "#/components/schemas/AssessmentWeeklyPlan"
         activeConstraints:
@@ -3875,7 +3834,7 @@ components:
             - $ref: "#/components/schemas/WorkoutAssessment"
             - type: "null"
         planUpdatedAt:
-          type: string
+          type: [string, "null"]
           format: date-time
         workoutContextToken:
           type: string
@@ -4068,55 +4027,6 @@ components:
           type:
             - integer
             - "null"
-    WorkoutAssessmentWrite:
-      type: object
-      additionalProperties: false
-      required:
-        - goalAlignmentScore
-        - estimatedTrainingDemandScore
-        - rationale
-        - strength
-        - improvement
-        - nextWorkoutAction
-        - planUpdatedAt
-        - workoutContextToken
-        - confirmed
-      properties:
-        goalAlignmentScore:
-          type: integer
-          minimum: 1
-          maximum: 10
-        estimatedTrainingDemandScore:
-          type: integer
-          minimum: 1
-          maximum: 10
-          description: Estimated from recorded workload and comparable training, not subjective perceived effort.
-        rationale:
-          type: string
-          minLength: 1
-          description: At most 25 words.
-        strength:
-          type: string
-          minLength: 1
-          description: At most 15 words.
-        improvement:
-          type: string
-          minLength: 1
-          description: At most 15 words.
-        nextWorkoutAction:
-          type: string
-          minLength: 1
-          description: At most 15 words.
-        planUpdatedAt:
-          type: string
-          format: date-time
-          description: Copy exactly from getWorkoutAssessmentContext.
-        workoutContextToken:
-          type: string
-          description: Copy exactly from getWorkoutAssessmentContext.
-        confirmed:
-          type: boolean
-          const: true
     WorkoutAssessment:
       type: object
       additionalProperties: false
@@ -4131,6 +4041,9 @@ components:
         - createdAt
         - updatedAt
       properties:
+        automatic:
+          type: boolean
+          description: True for backend-calculated assessments. In these records rationale is plan alignment, strength is recorded training and improvement is the prior workload comparison.
         goalAlignmentScore:
           type: integer
           minimum: 1
@@ -5366,7 +5279,7 @@ components:
         id: {type: integer, format: int64, minimum: 1}
         updateToken: {type: integer, format: int64, minimum: 0, description: Revision to send with a full replacement; ordinary app edits advance it too.}
         recordingKey: {type: [string, "null"], format: uuid, description: UUID from the original recording, null for legacy records.}
-        assessmentPresent: {type: boolean, description: A successful workout edit clears the assessment for its date.}
+        assessmentPresent: {type: boolean, description: Whether a saved assessment exists for the training day.}
         workout: {$ref: "#/components/schemas/CoachWorkoutRecord"}
     CoachWorkoutRecord:
       type: object

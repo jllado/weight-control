@@ -28,17 +28,16 @@
         <Column header="Start time"><template #body="row">{{ row.data.mealTimeFormat() }}</template></Column>
         <Column header="Duration"><template #body="row">{{ row.data.durationMinutes == null ? '—' : `${row.data.durationMinutes} min` }}</template></Column>
         <Column header="Calories"><template #body="row">{{ format_nutrition_value(row.data.calories) }} kcal</template></Column>
-        <Column header="Rating"><template #body="row">{{ row.data.rating === null ? '—' : `${row.data.rating}/10` }}</template></Column>
+        <Column header="Rating"><template #body="row"><MealRating :meal="row.data" empty-label="—" /></template></Column>
         <Column header="Protein"><template #body="row">{{ format_macro(row.data.proteinGrams, row.data, 4) }}</template></Column>
         <Column header="Carbohydrates"><template #body="row">{{ format_macro(row.data.carbohydrateGrams, row.data, 4) }}</template></Column>
         <Column header="Fat"><template #body="row">{{ format_macro(row.data.fatGrams, row.data, 9) }}</template></Column>
         <Column header="Foods"><template #body="row"><div v-for="dish in row.data.dishes" :key="dish.id">{{ dish.name }} · {{ dish.calories }} kcal</div><span v-if="!row.data.dishes.length">—</span></template></Column>
         <Column header="Source"><template #body="row">{{ row.data.sourceLabel() }}</template></Column>
         <Column header="Notes"><template #body="row">{{ row.data.notes || '—' }}</template></Column>
-        <Column headerStyle="width: 150px">
+        <Column headerStyle="width: 100px">
           <template #body="row">
             <div class="nutrition-row-actions action-group action-group--compact">
-              <CompactAction icon="chatgpt-icon" :pt="{icon: {'aria-hidden': true}}" aria-label="Rate meal" @click="rate_meal(row.data)" />
               <CompactAction icon="pi pi-pencil" aria-label="Edit meal" @click="edit_meal(row.data)" />
               <CompactAction icon="pi pi-trash" aria-label="Delete meal" :action="() => remove_meal(row.data)" busyLabel="Deleting…" destructive />
             </div>
@@ -94,11 +93,11 @@ import CreateMeal from '@/components/CreateMeal.vue';
 import CreateFastingPeriod from '@/components/CreateFastingPeriod.vue';
 import FastingPeriodForm from '@/components/FastingPeriodForm.vue';
 import {userState} from '../state';
-import {buildMealRatingPrompt, openCoach} from '@/services/CoachService';
+import MealRating from './MealRating.vue';
 import {formatNutritionValue} from '@/model/Dish';
 
 export default {
-  components: {NutrientSummary, FoodList, DishRecipeList, CreateMeal, CreateFastingPeriod, FastingPeriodForm},
+  components: {MealRating, NutrientSummary, FoodList, DishRecipeList, CreateMeal, CreateFastingPeriod, FastingPeriodForm},
   data() {
     return {
       daily_summaries: [],
@@ -198,18 +197,6 @@ export default {
     },
     edit_meal(meal) {
       this.$router.push({path: `/meals/${meal.id}/edit`, query: {from: 'history'}});
-    },
-    rate_meal(meal) {
-      const copyPrompt = navigator.clipboard.writeText(buildMealRatingPrompt(meal));
-      openCoach();
-      copyPrompt
-          .then(() => this.$toast.add({
-            severity: 'info',
-            summary: 'Meal prompt copied',
-            detail: 'Paste it into ChatGPT to continue.',
-            life: 5000
-          }))
-          .catch(error => this.handle_error(error));
     },
     edit_fasting_period(period) {
       this.fasting_period = Object.assign({}, period);

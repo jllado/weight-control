@@ -13,6 +13,10 @@ public interface MealRepository extends JpaRepository<Meal, Long> {
     @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "dishes")
     List<Meal> findByUserOrderByMealDateDescIdAsc(User user);
 
+    record Intake(long id, LocalDate mealDate, java.time.LocalTime mealTime, int calories) { }
+
+    List<Intake> findIntakeByUserAndMealDateBetween(User user, LocalDate from, LocalDate to);
+
     Optional<Meal> findFirstByUserOrderByMealDateAscIdAsc(User user);
 
     Optional<Meal> findFirstByUserOrderByMealDateDescIdDesc(User user);

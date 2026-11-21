@@ -423,9 +423,10 @@ public final class MealDtos {
         MealSource source,
         List<MealDishResponse> dishes,
         Integer durationMinutes,
-        NutritionDtos.NutrientSummary nutrients) {
+        NutritionDtos.NutrientSummary nutrients,
+        String ratingExplanation) {
         public MealResponse(Long id, String dateFormat, LocalDate date, MealType mealType, Integer mealSequence, LocalTime mealTime, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, String notes, Integer rating, MealSource source, List<MealDishResponse> dishes, Integer durationMinutes) {
-            this(id, dateFormat, date, mealType, mealSequence, mealTime, calories, proteinGrams, carbohydrateGrams, fatGrams, notes, rating, source, dishes, durationMinutes, null);
+            this(id, dateFormat, date, mealType, mealSequence, mealTime, calories, proteinGrams, carbohydrateGrams, fatGrams, notes, rating, source, dishes, durationMinutes, null, null);
         }
 
         public static MealResponse from(Meal meal) {
@@ -445,7 +446,8 @@ public final class MealDtos {
                 meal.getSource(),
                 meal.getDishes().stream().map(MealDishResponse::from).toList(),
                 meal.getDurationMinutes(),
-                com.jllado.weightcontrol.service.NutrientSummaryService.summarize(List.of(meal))
+                com.jllado.weightcontrol.service.NutrientSummaryService.summarize(List.of(meal)),
+                meal.getRatingExplanation()
             );
         }
     }

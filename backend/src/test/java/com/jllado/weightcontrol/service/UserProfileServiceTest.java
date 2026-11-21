@@ -32,6 +32,8 @@ class UserProfileServiceTest {
     @Mock
     private PlanningWeekService planningWeeks;
 
+    @Mock com.jllado.weightcontrol.repository.MealRatingProfileHistory ratingProfiles;
+
     @InjectMocks
     private UserProfileService service;
 

@@ -24,12 +24,14 @@ class NutrientTargetServiceTest {
 
     @Mock UserRepository userRepository;
     @Mock WeeklyCaloriePlanService caloriePlans;
+    @Mock com.jllado.weightcontrol.repository.MealRatingProfileHistory ratingProfiles;
     @InjectMocks NutrientTargetService service;
 
     @Test
     void savesResolvedPersonalTargetsAndPreservesThemForLegacyUpdates() throws Exception {
         var mapper = new ObjectMapper().disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
         var owner = new User();
+        when(userRepository.findByIdForUpdate(owner.getId())).thenReturn(java.util.Optional.of(owner));
         when(userRepository.save(owner)).thenReturn(owner);
         var date = LocalDate.of(2026, 10, 10);
         when(caloriePlans.effectiveTargets(owner, date, date)).thenReturn(java.util.List.of(
@@ -111,6 +113,7 @@ class NutrientTargetServiceTest {
         user.setBirthDate(LocalDate.of(2010, 10, 10));
         user.setSex(UserSex.FEMALE);
         user.setNutrientVitaminDTargetMicrograms(new BigDecimal("20"));
+        when(userRepository.findByIdForUpdate(user.getId())).thenReturn(java.util.Optional.of(user));
         when(userRepository.save(user)).thenReturn(user);
         var date = LocalDate.of(2026, 10, 10);
         when(caloriePlans.effectiveTargets(user, date, date)).thenReturn(java.util.List.of(

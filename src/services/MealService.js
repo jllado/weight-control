@@ -41,9 +41,6 @@ export default {
         celebratePersonalRecords(response.recordAchievements);
         return response.result.map(toMeal);
     },
-    async rate(meal, rating) {
-        return toMeal(await put(`/meals/${meal.id}/rating`, {rating}));
-    },
     delete(meal) {
         return del(`/meals/${meal.id}`);
     }

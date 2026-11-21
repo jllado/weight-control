@@ -13,7 +13,6 @@ import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -32,7 +31,7 @@ public final class WorkoutAssessmentDtos {
         @NotBlank String strength,
         @NotBlank String improvement,
         @NotBlank String nextWorkoutAction,
-        @NotNull Instant planUpdatedAt,
+        Instant planUpdatedAt,
         @NotBlank String workoutContextToken,
         @AssertTrue boolean confirmed
     ) {
@@ -47,8 +46,15 @@ public final class WorkoutAssessmentDtos {
         String nextWorkoutAction,
         String goalSnapshot,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        @JsonInclude(JsonInclude.Include.NON_DEFAULT) boolean automatic
     ) {
+        public WorkoutAssessmentResponse(int goalAlignmentScore, int estimatedTrainingDemandScore, String rationale,
+            String strength, String improvement, String nextWorkoutAction, String goalSnapshot, Instant createdAt, Instant updatedAt) {
+            this(goalAlignmentScore, estimatedTrainingDemandScore, rationale, strength, improvement, nextWorkoutAction,
+                goalSnapshot, createdAt, updatedAt, false);
+        }
+
         public static WorkoutAssessmentResponse from(WorkoutAssessment assessment) {
             return new WorkoutAssessmentResponse(
                 assessment.getGoalAlignmentScore(),
@@ -59,7 +65,8 @@ public final class WorkoutAssessmentDtos {
                 assessment.getNextWorkoutAction(),
                 assessment.getGoalSnapshot(),
                 assessment.getCreatedAt(),
-                assessment.getUpdatedAt()
+                assessment.getUpdatedAt(),
+                assessment.isAutomatic()
             );
         }
     }

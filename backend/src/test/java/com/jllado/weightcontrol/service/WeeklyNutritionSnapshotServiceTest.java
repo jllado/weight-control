@@ -18,7 +18,7 @@ class WeeklyNutritionSnapshotServiceTest {
         user.getPlanningWeekChanges().add(new PlanningWeekChange(user, monday));
         var nutrition = mock(NutritionService.class);
         var plans = mock(WeeklyCaloriePlanService.class);
-        var targets = new NutrientTargetService(mock(UserRepository.class), plans);
+        var targets = new NutrientTargetService(mock(UserRepository.class), plans, mock(com.jllado.weightcontrol.repository.MealRatingProfileHistory.class));
         user.setLastCompletedDashboardDate(monday);
         var periods = WeeklyMetricsCalculator.comparisonPeriods(user, monday.minusDays(1));
         var snapshot = new WeeklyNutritionSnapshotService(nutrition, targets).capture(user, periods, budgets(periods, date -> 2000));
@@ -31,7 +31,7 @@ class WeeklyNutritionSnapshotServiceTest {
     @Test void snapshotFreezesThreePeriodsWithIndependentCoverageAndExactDatedTargets() {
         var nutrition = mock(NutritionService.class);
         var plans = mock(WeeklyCaloriePlanService.class);
-        var targets = new NutrientTargetService(mock(UserRepository.class), plans);
+        var targets = new NutrientTargetService(mock(UserRepository.class), plans, mock(com.jllado.weightcontrol.repository.MealRatingProfileHistory.class));
         var user = new User(); user.setBirthDate(LocalDate.of(1980,1,1)); user.setSex(UserSex.MALE);
         user.setMacroProteinTargetGrams(new BigDecimal("115")); user.setMacroFatTargetPercentage(new BigDecimal("30"));
         user.setNutrientEpaDhaTargetMilligrams(new BigDecimal("250"));

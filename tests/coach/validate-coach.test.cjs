@@ -200,9 +200,12 @@ test('Coach meal replacement exposes the required nutrient snapshot version dire
     assert.equal(replace.additionalProperties, false);
     assert.ok(!Object.hasOwn(replace.properties, 'id'));
     assert.match(replace.properties.nutrientSchemaVersion.description, /full meal replacement/i);
-    assert.equal(replace.anyOf[0].$ref, '#/components/schemas/MealReplaceWrite');
-    assert.equal(value.components.schemas.MealReplaceWrite.properties.dishes.items.$ref,
-        '#/components/schemas/CoachMealDishWrite');
+    assert.ok(replace.required.includes('nutrientSchemaVersion'));
+    assert.ok(!Object.hasOwn(replace.properties, 'rating'));
+    assert.ok(!Object.hasOwn(create.properties, 'rating'));
+    assert.ok(value.components.schemas.Meal.properties.ratingExplanation);
+    assert.deepEqual(value.paths['/coach/rating-rules'].get.responses['200'].content['application/json'].schema.required,
+        ['meal', 'workout']);
     assert.equal(create.properties.dishes.items.$ref, '#/components/schemas/CoachMealDishComplete');
     assert.equal(replace.properties.dishes.items.$ref, '#/components/schemas/CoachMealDishWrite');
     const complete = value.components.schemas.CoachMealDishComplete.allOf[1];

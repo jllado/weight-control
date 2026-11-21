@@ -13,6 +13,7 @@ import com.jllado.weightcontrol.domain.MacroTargetComparison;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.UserSex;
 import com.jllado.weightcontrol.repository.UserRepository;
+import com.jllado.weightcontrol.repository.MealRatingProfileHistory;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.math.MathContext;
@@ -34,7 +35,10 @@ public class NutrientTargetService {
     private final UserRepository userRepository;
     private final WeeklyCaloriePlanService caloriePlans;
 
-    public NutrientTargetService(UserRepository userRepository, WeeklyCaloriePlanService caloriePlans) {
+    private final MealRatingProfileHistory ratingProfiles;
+
+    public NutrientTargetService(UserRepository userRepository, WeeklyCaloriePlanService caloriePlans, MealRatingProfileHistory ratingProfiles) {
+        this.ratingProfiles = ratingProfiles;
         this.userRepository = userRepository;
         this.caloriePlans = caloriePlans;
     }
@@ -52,7 +56,9 @@ public class NutrientTargetService {
         ), macroTargets(user, calories));
     }
 
-    public NutrientTargetSettingsResponse update(User user, NutrientTargetOverrides overrides, LocalDate asOf) {
+    public NutrientTargetSettingsResponse update(User authenticatedUser, NutrientTargetOverrides overrides, LocalDate asOf) {
+        User user = userRepository.findByIdForUpdate(authenticatedUser.getId()).orElseThrow();
+        ratingProfiles.captureInitial(user);
         user.setNutrientVitaminDTargetMicrograms(overrides.vitaminDMicrograms());
         user.setNutrientOmega3TargetMilligrams(overrides.omega3Milligrams());
         user.setNutrientMagnesiumTargetMilligrams(overrides.magnesiumMilligrams());
@@ -64,6 +70,7 @@ public class NutrientTargetService {
             user.setMacroProteinTargetGrams(overrides.macros().proteinGrams());
             user.setMacroFatTargetPercentage(overrides.macros().fatPercentage());
         }
+        ratingProfiles.captureChange(user, java.time.Instant.now());
         return settings(userRepository.save(user), asOf);
     }
 

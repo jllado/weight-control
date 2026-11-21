@@ -38,6 +38,9 @@ public class WorkoutAssessment {
     @Column(name = "workout_date", nullable = false)
     private LocalDate workoutDate;
 
+    @Column(nullable = false)
+    private boolean automatic;
+
     @Column(name = "goal_alignment_score", nullable = false)
     private int goalAlignmentScore;
 
@@ -59,7 +62,7 @@ public class WorkoutAssessment {
     @Column(name = "goal_snapshot", nullable = false)
     private String goalSnapshot;
 
-    @Column(name = "plan_updated_at", nullable = false)
+    @Column(name = "plan_updated_at")
     private Instant planUpdatedAt;
 
     @CreationTimestamp

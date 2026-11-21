@@ -98,6 +98,10 @@ public class WeeklyCaloriePlanService {
         return row == null ? null : row.caloriesOn(date.getDayOfWeek());
     }
 
+    Integer savedCalories(User user, LocalDate date) {
+        return savedCalories(loadRows(user, date, date), date);
+    }
+
     private int effectiveCalories(User user, Map<LocalDate, WeeklyCaloriePlan> rows, LocalDate date) {
         Integer saved = savedCalories(rows, date);
         return saved == null ? profileTarget(user, date.getDayOfWeek()) : saved;

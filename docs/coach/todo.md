@@ -929,3 +929,7 @@ The meal estimate policy accepts food-specific model estimates after saved-refer
 Meal preflight uses enabled Code Interpreter with Decimal/HALF_UP scaling and sums before the readable proposal. Reuse that computed body for inspection and confirmation, preserve known reference values, disclose every catalog addition and keep registration false for uncertain matches. Verify the calculation capability in the saved/live GPT configuration.
 
 - Salt delivery: implement grams/coverage/strict personal limit, reviewed all-date owner enrichment, version 3 food replacements and coordinated private GPT publication; verify immutable history, saved/live configuration and a fresh no-save proposal.
+
+## Automatic ratings on recording
+
+Verify meal and workout saves and edits across the app and Coach, including legacy scores, same-day ordering, multi-session days, missing evidence and historical plan boundaries. Deploy the backend rules and private GPT together and verify a read-only rules and stored-evidence request after publication.

@@ -29,7 +29,7 @@ import org.junit.jupiter.api.Test;
 
 class MealRatingValidationTest {
     @Test
-    void manualEndpointSavesTenPointScoresAndRejectsInvalidRequests() throws Exception {
+    void legacyEndpointReadsStoredScoreAndRejectsInvalidRequests() throws Exception {
         var service = mock(MealService.class);
         var currentUser = mock(CurrentUserService.class);
         var mutationService = mock(PersonalRecordMutationService.class);
@@ -41,19 +41,21 @@ class MealRatingValidationTest {
         meal.setMealDate(LocalDate.of(2026, 8, 12));
         meal.setMealType(MealType.LUNCH);
         meal.setMealSequence(1);
-        meal.setRating(8);
-        when(service.rate(owner, 10L, 8)).thenReturn(meal);
+        meal.setRating(6);
+        meal.setRatingExplanation("Stored evidence");
+        when(service.findForUser(owner, 10L)).thenReturn(meal);
         var mvc = standaloneSetup(new MealController(service, currentUser, mutationService)).build();
         mvc.perform(put("/api/meals/10/rating")
                 .contentType("application/json").content("{\"rating\":8}"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.rating").value(8));
+            .andExpect(jsonPath("$.rating").value(6))
+            .andExpect(jsonPath("$.ratingExplanation").value("Stored evidence"));
         for (String body : new String[] {"{}", "{\"rating\":0}", "{\"rating\":11}", "{\"rating\":8.5}"}) {
             mvc.perform(put("/api/meals/10/rating")
                     .contentType("application/json").content(body))
                 .andExpect(status().isBadRequest());
         }
-        verify(service).rate(owner, 10L, 8);
+        verify(service).findForUser(owner, 10L);
         verifyNoMoreInteractions(service);
         verifyNoInteractions(mutationService);
     }

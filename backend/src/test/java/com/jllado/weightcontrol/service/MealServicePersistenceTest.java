@@ -1,6 +1,8 @@
 package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.jllado.weightcontrol.api.dto.MealDtos.CoachMealDishRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRequest;
@@ -64,6 +66,12 @@ class MealServicePersistenceTest {
     private GptActionNotificationService actionNotifications;
 
     @Autowired
+    private com.jllado.weightcontrol.repository.MealRatingProfileHistory profiles;
+
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    @Autowired
     private jakarta.persistence.EntityManager entityManager;
 
     @Autowired
@@ -113,42 +121,105 @@ class MealServicePersistenceTest {
     }
 
     @Test
-    void persistsMealRatingIndependentlyFromMealEdits() {
-        LocalDate date = LocalDate.now(DateTimes.USER_ZONE);
-        User user = new User();
-        user.setEmail("meal-rating@example.com");
-        user = userRepository.save(user);
-        var meal = mealService.create(user, request(date, "Rated dish"));
+    void appAndCoachPersistIdenticalScoresAndExplanationsAndReplaceEarlierRatingsOnlyWhenEdited() {
+        LocalDate date = LocalDate.of(2026, 8, 12);
+        var appOwner = ratingOwner("app");
+        var coachOwner = ratingOwner("coach");
+        var request = coachRequest(date, 1);
+        var app = mealService.create(appOwner, request.meal());
+        var coach = mealService.createConfirmed(coachOwner, request);
+        var expected = mealRepository.findById(app.getId()).orElseThrow();
 
-        mealService.rateConfirmed(user, meal.getId(), new com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRatingRequest(8, true));
-        var rated = mealRepository.findById(meal.getId()).orElseThrow();
-        assertEquals(8, rated.getRating());
-        assertEquals(500, rated.getCalories());
-        assertEquals(30, rated.getDurationMinutes());
-        assertEquals("Rated dish", rated.getDishes().getFirst().getName());
-        mealService.update(user, meal.getId(), request(date, "Edited rated dish"));
+        assertEquals(8, expected.getRating());
+        assertTrue(expected.getRatingExplanation().contains("Protein"));
+        assertTrue(expected.getRatingExplanation().contains("Fiber"));
+        var stored = mealRepository.findById(coach.getId()).orElseThrow();
+        assertEquals(expected.getRating(), stored.getRating());
+        assertEquals(expected.getRatingExplanation(), stored.getRatingExplanation());
 
-        assertEquals(8, mealRepository.findById(meal.getId()).orElseThrow().getRating());
+        jdbc.update("update meals set rating = null, rating_explanation = null where id = ?", app.getId());
+        jdbc.update("update meals set rating = 3, rating_explanation = null where id = ?", coach.getId());
+        mealService.update(appOwner, app.getId(), request.meal());
+        assertEquals(3, mealRepository.findById(coach.getId()).orElseThrow().getRating());
+        assertNull(mealRepository.findById(coach.getId()).orElseThrow().getRatingExplanation());
+        mealService.updateConfirmed(coachOwner, coach.getId(), coachRequest(date, 10));
+
+        for (var id : List.of(app.getId(), coach.getId())) {
+            var edited = mealRepository.findById(id).orElseThrow();
+            assertEquals(expected.getRating(), edited.getRating());
+            assertEquals(expected.getRatingExplanation(), edited.getRatingExplanation());
+        }
     }
 
     @Test
-    void coachMealCreateSavesItsRatingAndUpdatesPreserveOrReplaceIt() {
-        LocalDate date = LocalDate.now(DateTimes.USER_ZONE).minusDays(2);
-        User user = new User();
-        user.setEmail("coach-meal-rating@example.com");
+    void historicalEditUsesDatedTargetPlanningWeekAndOnlyIntakeThroughThisMeal() {
+        var user = ratingOwner("cutoff");
+        LocalDate wednesday = LocalDate.of(2026, 8, 12);
+        LocalDate monday = wednesday.minusDays(2);
+        jdbc.update("insert into planning_week_changes (user_id, effective_date) values (?, ?)", user.getId(), monday);
+        jdbc.update("insert into weekly_calorie_plans (user_id, week_start, wednesday_calories, revision) values (?, ?, ?, 0)",
+            user.getId(), monday.minusDays(2), 500);
+        user = userRepository.findById(user.getId()).orElseThrow();
+        mealService.create(user, timedSnack(monday.minusDays(1), 9000, 1));
+        mealService.create(user, timedSnack(monday, 1600, 1));
+        mealService.create(user, timedSnack(wednesday.plusDays(1), 9000, 1));
+        var later = mealService.create(user, timedSnack(wednesday, 9000, 20));
+        var equalEarlier = mealService.create(user, timedSnack(wednesday, 30, 12));
+        var meal = mealService.create(user, timedSnack(wednesday, 450, 12));
+        mealService.create(user, timedSnack(wednesday, 9000, 12));
+        var earlier = mealService.create(user, timedSnack(wednesday, 10, 8));
+
+        var saved = mealService.update(user, meal.getId(), timedSnack(wednesday, 500, 12));
+        var stored = mealRepository.findById(saved.getId()).orElseThrow();
+        assertEquals(6, stored.getRating());
+        assertTrue(stored.getRatingExplanation().contains("540 / 500 kcal"));
+        assertTrue(stored.getRatingExplanation().contains("2140 kcal across 2 recorded days"));
+        assertTrue(stored.getRatingExplanation().contains(monday.toString()));
+        for (var untouched : List.of(later, equalEarlier, earlier)) {
+            assertEquals(untouched.getRatingExplanation(), mealRepository.findById(untouched.getId()).orElseThrow().getRatingExplanation());
+        }
+    }
+
+    private MealRequest timedSnack(LocalDate date, int calories, int hour) {
+        return new MealRequest(date, MealType.SNACK, calories, null, null, null, LocalTime.of(hour, 0), null, 5);
+    }
+
+    private User ratingOwner(String suffix) {
+        var user = new User();
+        user.setEmail("meal-rating-" + suffix + "@example.com");
+        user.setTypicalCaloriesWednesday(2000);
+        user.setWeeklyAverageCalorieMaximum(1500);
         user = userRepository.save(user);
+        profiles.captureChange(user, LocalDate.of(2026, 8, 1).atStartOfDay(DateTimes.USER_ZONE).toInstant());
+        return user;
+    }
 
-        var lowest = mealService.createConfirmed(user, coachRequest(date, 1));
-        var highest = mealService.createConfirmed(user, coachRequest(date.plusDays(1), 10));
+    @Test
+    void laterProfileChangesNeverSupplyEarlierMissingTargetsAndPreserveDatedZero() {
+        var owner = ratingOwner("profile-history");
+        var unknownDate = LocalDate.of(2026, 7, 29);
+        var unknown = mealService.create(owner, timedSnack(unknownDate, 400, 12));
+        assertEquals(5, unknown.getRating());
+        assertTrue(unknown.getRatingExplanation().contains("unknown target"));
+        assertTrue(unknown.getRatingExplanation().contains("cap unknown"));
 
-        assertEquals(1, mealRepository.findById(lowest.getId()).orElseThrow().getRating());
-        assertEquals(10, mealRepository.findById(highest.getId()).orElseThrow().getRating());
+        var zeroDate = LocalDate.of(2026, 8, 5);
+        owner.setTypicalCaloriesWednesday(0);
+        owner.setWeeklyAverageCalorieMaximum(0);
+        owner.setMacroProteinTargetGrams(BigDecimal.TEN);
+        profiles.captureChange(owner, zeroDate.atStartOfDay(DateTimes.USER_ZONE).toInstant());
+        owner.setTypicalCaloriesWednesday(2500);
+        owner.setWeeklyAverageCalorieMaximum(2100);
+        owner.setMacroProteinTargetGrams(new BigDecimal("1000"));
+        profiles.captureChange(owner, zeroDate.plusDays(1).atStartOfDay(DateTimes.USER_ZONE).toInstant());
+        userRepository.save(owner);
 
-        mealService.updateConfirmed(user, lowest.getId(), coachRequest(date, null));
-        assertEquals(1, mealRepository.findById(lowest.getId()).orElseThrow().getRating());
-
-        mealService.updateConfirmed(user, lowest.getId(), coachRequest(date, 10));
-        assertEquals(10, mealRepository.findById(lowest.getId()).orElseThrow().getRating());
+        var zero = mealService.create(owner, timedSnack(zeroDate, 400, 12));
+        assertEquals(2, zero.getRating());
+        assertTrue(zero.getRatingExplanation().contains("400 / 0 kcal"));
+        assertTrue(zero.getRatingExplanation().contains("cap 0 kcal/day"));
+        var edited = mealService.update(owner, unknown.getId(), timedSnack(unknownDate, 400, 12));
+        assertEquals(unknown.getRatingExplanation(), edited.getRatingExplanation());
     }
 
     @Test

@@ -245,7 +245,7 @@ function workoutResponse(id, payload, exercises) {
     };
 }
 
-function workoutDays(workouts) {
+function workoutDays(workouts, updatedAssessments = new Map()) {
     const days = new Map();
     workouts.forEach(workout => {
         if (!days.has(workout.workoutDate)) days.set(workout.workoutDate, {workoutDate: workout.workoutDate, workoutDateFormat: workout.workoutDateFormat, sessions: [], assessment: null});
@@ -253,7 +253,7 @@ function workoutDays(workouts) {
         day.sessions.push(workout);
         if (workout.assessment) day.assessment = workout.assessment;
     });
-    return [...days.values()];
+    return [...days.values()].map(day => ({...day, assessment: updatedAssessments.get(day.workoutDate) ?? day.assessment}));
 }
 
 async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {currentRecords = [], historyEvents = [], achievements = [], catalog = [], initialNotifications = [], failWorkoutEvents = false, accountEmail = 'jllado@gmail.com'} = {}) {
@@ -777,7 +777,7 @@ async function enterFoodNutrients(dialog) {
     await dialog.getByLabel('Nutrient source', {exact: true}).fill('Test composition');
 }
 
-async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = [], initialFastingPeriods = [], fastingAchievements = [], initialLipidPanels = [], initialSleeps = [], initialWorkouts = [], workoutExercises = [], sleepLoad = Promise.resolve(), workoutLoad = Promise.resolve(), currentRecords = [], dashboardResponse, coachMetricsResponse, overallProgressResponse, profileResponse = profile, onApiRequest} = {}) {
+async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = [], mealRatingExplanation = 'The saved meal supplies protein within the calorie budget.', initialFastingPeriods = [], fastingAchievements = [], initialLipidPanels = [], initialSleeps = [], initialWorkouts = [], workoutExercises = [], sleepLoad = Promise.resolve(), workoutLoad = Promise.resolve(), currentRecords = [], dashboardResponse, coachMetricsResponse, overallProgressResponse, profileResponse = profile, onApiRequest} = {}) {
     let authenticated = !requiresLogin;
     const decisionOutcomes = [];
     let meals = initialMeals.map(meal => ({...meal, dishes: (meal.dishes || []).map(foodWithNutrients)}));
@@ -818,6 +818,12 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
     let lipidPanels = initialLipidPanels.map(panel => ({...panel}));
     const sleeps = initialSleeps.map(sleep => ({...sleep}));
     let workouts = initialWorkouts.map(workout => ({...workout, sessionReference: workout.sessionReference || `session-${workout.id}`, lines: workout.lines.map(line => ({...line}))}));
+    const updatedAssessments = new Map();
+    const savedAssessment = {
+        automatic: true, goalAlignmentScore: 7, estimatedTrainingDemandScore: 5, goalSnapshot: 'Build strength',
+        rationale: 'The recorded sessions contributed to the day score.', strength: 'Four recorded strength sets.',
+        improvement: 'The previous comparable day included three strength sets.', nextWorkoutAction: 'Continue the planned sessions.'
+    };
     const lastWeekDate = new Date(`${selectedDate}T12:00:00Z`);
     lastWeekDate.setUTCDate(lastWeekDate.getUTCDate() - 7);
     const selectedDashboard = dashboardResponse ?? {
@@ -909,14 +915,14 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
                 totals: {workoutCount: 1, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}
             });
             const totalsFor = workoutMetrics => ({workoutCount: workoutMetrics.length, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0});
-            const selectedWorkouts = workoutDays(workouts.filter(workout => workout.workoutDate >= weekStart && workout.workoutDate <= weekEnd)).map(toWorkoutMetric);
+            const selectedWorkouts = workoutDays(workouts.filter(workout => workout.workoutDate >= weekStart && workout.workoutDate <= weekEnd), updatedAssessments).map(toWorkoutMetric);
             const previousWeekStartValue = new Date(selectedCoachDateValue);
             previousWeekStartValue.setUTCDate(previousWeekStartValue.getUTCDate() - 7);
             const previousWeekStart = previousWeekStartValue.toISOString().slice(0, 10);
             const previousWeekEndValue = new Date(previousWeekStartValue);
             previousWeekEndValue.setUTCDate(previousWeekEndValue.getUTCDate() + 6);
             const previousWeekEnd = previousWeekEndValue.toISOString().slice(0, 10);
-            const previousWeekWorkouts = workoutDays(workouts.filter(workout => workout.workoutDate >= previousWeekStart && workout.workoutDate <= previousWeekEnd)).map(toWorkoutMetric);
+            const previousWeekWorkouts = workoutDays(workouts.filter(workout => workout.workoutDate >= previousWeekStart && workout.workoutDate <= previousWeekEnd), updatedAssessments).map(toWorkoutMetric);
             const previousWeekToDate = new Date(`${selectedCoachDate}T12:00:00Z`);
             previousWeekToDate.setUTCDate(previousWeekToDate.getUTCDate() - 7);
             const previousWeekToDateEnd = previousWeekToDate.toISOString().slice(0, 10);
@@ -952,6 +958,7 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             const id = Math.max(0, ...workouts.map(workout => workout.id)) + 1;
             const workout = workoutResponse(id, request.postDataJSON(), workoutExercises);
             workouts.push(workout);
+            updatedAssessments.set(workout.workoutDate, savedAssessment);
             return route.fulfill({json: {result: workout, recordAchievements: []}});
         }
         const workoutMatch = path.match(/^\/api\/workouts\/(\d+)$/);
@@ -959,6 +966,7 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             const id = Number(workoutMatch[1]);
             const workout = workoutResponse(id, request.postDataJSON(), workoutExercises);
             workouts = workouts.map(item => item.id === id ? workout : item);
+            updatedAssessments.set(workout.workoutDate, {...savedAssessment, goalAlignmentScore: 8, rationale: 'The revised session is included in the day score.'});
             return route.fulfill({json: {result: workout, recordAchievements: []}});
         }
         if (workoutMatch && request.method() === 'DELETE') {
@@ -972,7 +980,7 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             previousWeekDate.setUTCDate(previousWeekDate.getUTCDate() - 7);
             const previousWeek = previousWeekDate.toISOString().slice(0, 10);
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({
-                days: workoutDays(workouts.filter(workout => workout.workoutDate === date || workout.workoutDate === previousWeek)),
+                days: workoutDays(workouts.filter(workout => workout.workoutDate === date || workout.workoutDate === previousWeek), updatedAssessments),
                 currentWorkouts: workouts.filter(workout => workout.workoutDate === date),
                 previousWeekWorkouts: workouts.filter(workout => workout.workoutDate === previousWeek),
                 preloadWorkouts: workouts.filter(workout => workout.workoutDate <= date).sort((left, right) => right.workoutDate.localeCompare(left.workoutDate)).slice(0, 40),
@@ -1035,20 +1043,14 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             while (existingSnackSequences.includes(mealSequence)) {
                 mealSequence++;
             }
-            const meal = {id: meals.length + 1, dateFormat: payload.date.split('-').reverse().join('/'), mealSequence: payload.mealType === 'SNACK' ? mealSequence : 1, source: 'MANUAL', ...payload};
+            const meal = {id: meals.length + 1, dateFormat: payload.date.split('-').reverse().join('/'), mealSequence: payload.mealType === 'SNACK' ? mealSequence : 1, source: 'MANUAL', ...payload, rating: 8, ratingExplanation: mealRatingExplanation};
             meals = [...meals, meal];
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({result: meal, recordAchievements: []})});
         }
         const mealMatch = path.match(/^\/api\/meals\/(\d+)$/);
-        const mealRatingMatch = path.match(/^\/api\/meals\/(\d+)\/rating$/);
-        if (mealRatingMatch && request.method() === 'PUT') {
-            const id = Number(mealRatingMatch[1]);
-            meals = meals.map(meal => meal.id === id ? {...meal, rating: request.postDataJSON().rating} : meal);
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify(meals.find(meal => meal.id === id))});
-        }
         if (mealMatch && request.method() === 'PUT') {
             const id = Number(mealMatch[1]);
-            meals = meals.map(meal => meal.id === id ? {...meal, ...request.postDataJSON()} : meal);
+            meals = meals.map(meal => meal.id === id ? {...meal, ...request.postDataJSON(), rating: 9, ratingExplanation: 'The revised meal supplies more protein.'} : meal);
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({result: meals.find(meal => meal.id === id), recordAchievements: []})});
         }
         if (mealMatch && request.method() === 'DELETE') {
@@ -1314,7 +1316,7 @@ test('Coach launcher is authenticated and opens the configured GPT in a new tab'
     await authenticatedPage.close();
 });
 
-test('workout diary shows Coach assessments and opens a dated reassessment prompt', async ({page, context}) => {
+test('workout diary opens the saved training day assessment', async ({page}) => {
     const exercises = [{id: 1, name: 'Bench press', description: 'Horizontal press.', trackingMode: 'REPS'}];
     const workout = {
         id: 7,
@@ -1334,11 +1336,6 @@ test('workout diary shows Coach assessments and opens a dated reassessment promp
         },
         lines: [{exerciseId: 1, exerciseName: 'Bench press', exerciseDescription: 'Horizontal press.', trackingMode: 'REPS', position: 0, calories: null, averageHeartRate: null, sets: [{position: 0, repetitions: 8, durationSeconds: null, weight: 60}], intervals: []}]
     };
-    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-    await context.route(coachOriginPattern, route => route.fulfill({
-        contentType: 'text/html',
-        body: '<title>Weight Control Coach</title>'
-    }));
     await page.setViewportSize({width: 1440, height: 900});
     await mockAuthenticatedWorkouts(page, [workout], exercises);
     await openSpaRoute(page, '/workouts');
@@ -1348,17 +1345,12 @@ test('workout diary shows Coach assessments and opens a dated reassessment promp
     await row.getByText('Goal 8 · Demand 7').click();
     const dialog = page.getByRole('dialog', {name: 'Training day assessment'});
     await expect(dialog).toContainText('Improve upper-body strength');
-    await expect(dialog).toContainText('Add one pulling set.');
+    await expect(dialog).toContainText('Rationale: Strong alignment with the current strength goal.');
+    await expect(dialog).toContainText('Strength: Consistent compound work.');
+    await expect(dialog).toContainText('Improvement: Add one pulling set.');
     await dialog.locator('.p-dialog-footer').getByRole('button', {name: 'Close'}).click();
 
-    const coachPagePromise = context.waitForEvent('page');
-    const rateDay = row.getByRole('button', {name: 'Rate day', exact: true});
-    await expectChatGptIcon(rateDay);
-    await rateDay.click();
-    const coachPage = await coachPagePromise;
-    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
-        .toBe('Assess all my workout sessions on 2026-08-20 together as one training day against my active coaching plan.');
-    await coachPage.close();
+    await expect(row.getByRole('button', {name: 'Rate day', exact: true})).toHaveCount(0);
 });
 
 test('workout navigation scrolls in one row on mobile and preserves tab content', async ({page}, testInfo) => {
@@ -2416,42 +2408,13 @@ test('Home keeps lazy panels in a loading state until their data is ready', asyn
     await expect(session).toContainText('Strength session');
 });
 
-test('Home rates the selected workout with Coach', async ({page, context}, testInfo) => {
-    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-    await context.route('https://chatgpt.test/**', route => route.fulfill({
-        contentType: 'text/html',
-        body: '<title>Weight Control Coach</title>'
-    }));
-    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {
-        initialWorkouts: [dashboardWorkout(dashboard.anchorDate)]
-    });
-
-    await openSpaRoute(page, '/');
-    const workoutTab = page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Workout'});
-    await workoutTab.click();
-    const coachPagePromise = context.waitForEvent('page');
-    const rateDay = page.getByRole('button', {name: 'Rate day', exact: true});
-    for (const width of [376, 1280]) {
-        await page.setViewportSize({width, height: 900});
-        await expectChatGptIcon(rateDay);
-        await page.locator('.daily-workout-assessment').first().screenshot({path: testInfo.outputPath(`chatgpt-home-workout-${width}.png`)});
-    }
-    await rateDay.click();
-    const coachPage = await coachPagePromise;
-    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
-        .toBe(`Assess all my workout sessions on ${dashboard.anchorDate} together as one training day against my active coaching plan.`);
-    await coachPage.close();
-
-    await page.setViewportSize({width: 1440, height: 900});
-    await expect(page.getByRole('button', {name: 'Rate day', exact: true})).toBeVisible();
-});
-
-test('Home does not show a rating shortcut without a selected-date workout', async ({page}) => {
-    await mockAuthenticatedDashboard(page, dashboard.anchorDate);
-
+test('Home keeps an older unassessed training day readable', async ({page}) => {
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {initialWorkouts: [dashboardWorkout(dashboard.anchorDate)]});
     await openSpaRoute(page, '/');
     await page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Workout'}).click();
-    await expect(page.getByRole('button', {name: 'Rate day', exact: true})).toHaveCount(0);
+    const day = page.getByRole('region', {name: 'Selected day workouts'});
+    await expect(day.locator('.workout-session')).toHaveCount(1);
+    await expect(day.getByRole('button', {name: /assessment|Rate day/i})).toHaveCount(0);
 });
 
 test('dashboard shows sleep durations in hours', async ({page}) => {
@@ -5951,7 +5914,7 @@ test('dashboard shows persisted ten-point meal scores for the selected date', as
 
 test('Status meal ratings show each selected-date meal without opening Nutrition and update on reload', async ({page}, testInfo) => {
     let meals = [
-        {id: 1, date: '2026-08-12', mealType: 'LUNCH', rating: 8},
+        {id: 1, date: '2026-08-12', mealType: 'LUNCH', rating: 8, ratingExplanation: 'The recorded meal met the protein target.'},
         {id: 2, date: '2026-08-12', mealType: 'DINNER', rating: 9},
         {id: 3, date: '2026-08-12', mealType: 'SNACK', mealSequence: 1, rating: null},
         {id: 4, date: '2026-08-12', mealType: 'SNACK', mealSequence: 2, rating: 1},
@@ -5970,7 +5933,11 @@ test('Status meal ratings show each selected-date meal without opening Nutrition
     await expect(page.locator('.home-panels-tabs').getByRole('tab', {name: 'Status', exact: true})).toHaveAttribute('aria-selected', 'true');
     await expect(ratings.locator('dt')).toHaveText(['Lunch', 'Dinner', 'Snack 1', 'Snack 2']);
     await expect(row('Lunch').locator('dd')).toHaveText('8/10');
+    await row('Lunch').getByRole('button', {name: 'Lunch rating details: 8/10'}).click();
+    await expect(page.getByRole('dialog', {name: 'Meal rating'})).toContainText('The recorded meal met the protein target.');
+    await page.keyboard.press('Escape');
     await expect(row('Dinner').locator('dd')).toHaveText('9/10');
+    await expect(row('Dinner').getByRole('button')).toHaveCount(0);
     await expect(row('Snack 1').locator('dd')).toHaveText('Not rated');
     await expect(row('Snack 2').locator('dd')).toHaveText('1/10');
     for (const width of [376, 390, 575, 640, 960, 1280]) {
@@ -6038,90 +6005,9 @@ test('Status meal ratings distinguish loading and failure and refresh with pendi
     await expect(ratings.getByRole('button')).toHaveCount(0);
 });
 
-test('dashboard opens Coach with one prompt to rate every selected-date meal', async ({page, context}, testInfo) => {
-    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-    await context.route(coachOriginPattern, route => route.fulfill({body: '<title>Coach</title>'}));
-    const selectedDate = '2026-08-12';
-    const meals = [
-        {id: 1, date: selectedDate, mealType: 'BREAKFAST', mealSequence: 1, calories: 320, rating: 8},
-        {id: 2, date: selectedDate, mealType: 'LUNCH', mealSequence: 1, calories: 650, rating: null},
-        {id: 3, date: selectedDate, mealType: 'DINNER', mealSequence: 1, calories: 540, rating: 7}
-    ].map(meal => ({dateFormat: meal.date.split('-').reverse().join('/'), proteinGrams: null, carbohydrateGrams: null, fatGrams: null, source: 'MANUAL', dishes: [], ...meal}));
-    await mockAuthenticatedDashboard(page, selectedDate, {initialMeals: meals});
-    let selectedDay = 12;
-    await page.route('**/api/dashboard/retreat', route => {
-        const date = `2026-08-${--selectedDay}`;
-        return route.fulfill({json: {...dashboard, anchorDate: date, dailyStatus: dashboardDailyStatus(date)}});
-    });
-    await openSpaRoute(page, '/');
-
-    const tabs = page.locator('.home-panels-tabs');
-    await tabs.getByRole('tab', {name: 'Nutrition'}).click();
-    const panel = tabs.locator('.p-tabview-panel:visible');
-    const rateAll = panel.getByRole('button', {name: 'Rate all meals'});
-    const newMeal = panel.getByRole('button', {name: 'New', exact: true});
-    const headerActions = panel.locator('.meal-panel-header .tab-panel-actions');
-    await expect(rateAll).toBeVisible();
-    await expectChatGptIcon(rateAll);
-    await expect(newMeal).toBeVisible();
-
-    for (const width of [320, 376, 390, 575, 576, 640, 960, 1280]) {
-        await page.setViewportSize({width, height: 900});
-        await expect(rateAll).toBeVisible();
-        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-        if (width <= 575) {
-            await expect(headerActions).toHaveCSS('display', 'grid');
-            for (const button of [rateAll, newMeal]) {
-                expect((await button.boundingBox()).width).toBeCloseTo((await headerActions.boundingBox()).width, 0);
-                const alignment = await button.evaluate(element => {
-                    const icon = element.querySelector('.p-button-icon').getBoundingClientRect();
-                    const label = element.querySelector('.p-button-label').getBoundingClientRect();
-                    const bounds = element.getBoundingClientRect();
-                    return {buttonCenter: bounds.left + bounds.width / 2, contentCenter: (icon.left + label.right) / 2};
-                });
-                expect(alignment.contentCenter).toBeCloseTo(alignment.buttonCenter, 0);
-            }
-        } else {
-            await expect(headerActions).toHaveCSS('display', 'flex');
-        }
-        if (width <= 360) {
-            for (const row of await panel.locator('.meal-entry-main').all()) {
-                await expect(row).toHaveCSS('flex-direction', 'column');
-                const layout = await row.evaluate(element => {
-                    const main = element.getBoundingClientRect();
-                    const summary = element.querySelector('.meal-entry-summary').getBoundingClientRect();
-                    const actions = element.querySelector('.meal-entry-actions').getBoundingClientRect();
-                    return {
-                        main: {left: main.left, width: main.width},
-                        summary: {left: summary.left, width: summary.width, bottom: summary.bottom},
-                        actionsTop: actions.top
-                    };
-                });
-                expect(layout.summary.left).toBeCloseTo(layout.main.left, 0);
-                expect(layout.summary.width).toBeCloseTo(layout.main.width, 0);
-                expect(layout.summary.bottom).toBeLessThanOrEqual(layout.actionsTop);
-            }
-        }
-        if (width === 390) await expect(panel.locator('.meal-entry-main').first()).toHaveCSS('flex-direction', 'row');
-        if ([320, 390, 575, 576, 1280].includes(width)) await panel.screenshot({path: testInfo.outputPath(`rate-all-meals-${width}.png`)});
-    }
-
-    const coachPagePromise = context.waitForEvent('page');
-    await rateAll.click();
-    const coachPage = await coachPagePromise;
-    await expect(coachPage).toHaveTitle('Coach');
-    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
-        .toBe('Rate all my meals recorded on 2026-08-12, including meals already rated. Check meals from 2026-08-08 through 2026-08-12, my calorie targets and weekly-average cap, and my active coaching plan. Propose one integer score out of 10 and one improvement for each meal, in the returned meal order. Show the complete meal-by-meal list, then ask whether I want to save all the proposed ratings. Make no writes until I explicitly confirm the full list. Then save each meal\'s rating only. If any write fails, read back every meal, report saved and unsaved ratings accurately, and stop without rolling back or claiming full success.');
-    await coachPage.close();
-
-    await page.getByRole('button', {name: 'Previous Day', exact: true}).click();
-    await expect(rateAll).toHaveCount(0);
-});
-
-test('dashboard records meal calories and optional macronutrients', async ({page, context}, testInfo) => {
-    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-    await context.route(coachOriginPattern, route => route.fulfill({body: '<title>Coach</title>'}));
-    await mockAuthenticatedDashboard(page, '2026-08-12');
+test('dashboard records meal calories and optional macronutrients', async ({page}, testInfo) => {
+    const mealRatingExplanation = 'Base 5. Protein: 42.5 g in 925 kcal, standard reference 5 g/100 kcal (0). Fiber: amount unavailable (0). Day through meal: 925 / 2050 kcal (+2). Week from 2026-08-08: 925 kcal across 1 recorded day, cap 2050 kcal/day (+1).';
+    await mockAuthenticatedDashboard(page, '2026-08-12', {mealRatingExplanation});
     await openSpaRoute(page, '/');
 
     const tabs = page.locator('.home-panels-tabs');
@@ -6163,18 +6049,28 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     const totalBounds = await panel.locator('.meal-total').boundingBox();
     const caloriesBounds = await panel.locator('.meal-total span').boundingBox();
     expect(Math.abs(caloriesBounds.x + caloriesBounds.width - totalBounds.x - totalBounds.width)).toBeLessThanOrEqual(1);
-    const coachPagePromise = context.waitForEvent('page');
-    const rateMeal = lunch.getByRole('button', {name: 'Rate meal'});
-    for (const width of [376, 1280]) {
+    const rating = lunch.getByRole('button', {name: 'Lunch rating details: 8/10'});
+    await expect(panel.getByRole('button', {name: /Rate all meals|Rate meal/})).toHaveCount(0);
+    const details = page.getByRole('dialog', {name: 'Meal rating', exact: true});
+    for (const width of [376, 390, 1280]) {
         await page.setViewportSize({width, height: 900});
-        await expectChatGptIcon(rateMeal);
-        await lunch.screenshot({path: testInfo.outputPath(`chatgpt-home-meal-${width}.png`)});
+        await rating.focus();
+        await rating.press('Enter');
+        const explanation = details.getByText(mealRatingExplanation, {exact: true});
+        await expect(explanation).toBeVisible();
+        if (width === 390) {
+            const lines = await explanation.evaluate(element => {
+                const range = document.createRange();
+                range.selectNodeContents(element);
+                return range.getClientRects().length;
+            });
+            expect(lines).toBeGreaterThan(1);
+        }
+        expect(await details.evaluate(el => el.scrollWidth <= el.clientWidth && el.getBoundingClientRect().right <= innerWidth)).toBe(true);
+        await details.screenshot({path: testInfo.outputPath(`meal-rating-details-${width}.png`)});
+        await page.keyboard.press('Escape');
+        await expect(rating).toBeFocused();
     }
-    await rateMeal.click();
-    const coachPage = await coachPagePromise;
-    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
-        .toBe('Rate my Lunch on 2026-08-12 out of 10. Check the meals from 2026-08-08 through 2026-08-12, my calorie targets and weekly-average cap, and my active coaching plan. Suggest one improvement, present the proposed score for my confirmation, then save that rating to the meal after I confirm the exact score.');
-    await coachPage.close();
 
     for (const calories of [150, 250]) {
         await panel.getByRole('button', {name: 'New', exact: true}).click();
@@ -6197,6 +6093,11 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     const updateRequest = page.waitForRequest(request => /\/api\/meals\/\d+$/.test(request.url()) && request.method() === 'PUT');
     await dialog.getByRole('button', {name: 'Save', exact: true}).click();
     expect((await updateRequest).postDataJSON().proteinGrams).toBe(45);
+    const revisedRating = lunch.getByRole('button', {name: 'Lunch rating details: 9/10'});
+    await revisedRating.click();
+    await expect(details).toContainText('The revised meal supplies more protein.');
+    await expect(details).not.toContainText(mealRatingExplanation);
+    await page.keyboard.press('Escape');
     await expect(lunch).toContainText('P 45 g (26%)');
     await expect(panel.locator('.meal-total-macros')).toHaveText('P 45 g (26%) · C 80.25 g (47%) · F 20 g (26%)');
 
@@ -6575,7 +6476,7 @@ test.describe('dashboard 16-hour fasting target', () => {
     });
 });
 
-test('dashboard workout panel shows its saved Coach assessment summary', async ({page}, testInfo) => {
+test('dashboard workout panel shows the saved training day assessment', async ({page}, testInfo) => {
     const workout = {
         id: 7,
         workoutDate: '2026-08-12',
@@ -6621,7 +6522,13 @@ test('dashboard workout panel shows its saved Coach assessment summary', async (
     const tabs = page.locator('.home-panels-tabs');
     await tabs.getByRole('tab', {name: 'Workout'}).click();
     const panel = tabs.locator('.p-tabview-panel:visible');
-    await expect(panel.locator('.daily-workout-assessment').first().getByRole('button', {name: 'Rate day', exact: true})).toBeVisible();
+    const assessment = panel.locator('.daily-workout-assessment').first().getByRole('button', {name: /Training day assessment/});
+    await assessment.click();
+    const details = page.getByRole('dialog', {name: 'Training day assessment'});
+    await expect(details).toContainText(workout.assessment.rationale);
+    await expect(details).toContainText(workout.assessment.nextWorkoutAction);
+    await page.keyboard.press('Escape');
+    await expect(assessment).toBeFocused();
     await expect(panel.locator('.daily-workout-assessment').first()).toContainText('Goal alignment: 8/10');
     await expect(panel.getByText('8/10', {exact: true})).toBeVisible();
     await panel.locator('.workout-status-details > summary').click();
@@ -6635,10 +6542,8 @@ test('dashboard workout panel shows its saved Coach assessment summary', async (
     await panel.screenshot({path: testInfo.outputPath('workout-timing-dashboard-393.png')});
     await page.setViewportSize({width: 1280, height: 800});
     await panel.screenshot({path: testInfo.outputPath('workout-timing-dashboard-1280.png')});
-    const rate = panel.locator('.daily-workout-assessment').first().getByRole('button', {name: 'Rate day', exact: true});
     const edit = panel.locator('.workout-session').first().getByRole('button', {name: 'Edit'});
-    await expect(rate).toBeVisible();
-    expect((await rate.boundingBox()).y).toBeLessThan((await edit.boundingBox()).y);
+    expect((await assessment.boundingBox()).y).toBeLessThan((await edit.boundingBox()).y);
     await edit.click();
     const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
     await expect(editor.getByLabel('Start time (optional)', {exact: true})).toHaveValue('18:30');
@@ -7140,11 +7045,9 @@ test('dashboard reflection copies its dated prompt and opens the private Coach',
     await coachPage.close();
 });
 
-test('nutrition history summarizes macros and manages meals and fasting periods', async ({page, context}, testInfo) => {
-    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-    await context.route(coachOriginPattern, route => route.fulfill({body: '<title>Coach</title>'}));
+test('nutrition history summarizes macros and manages meals and fasting periods', async ({page}, testInfo) => {
     await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [
-        {id: 1, date: '2026-08-12', dateFormat: '12/08/2026', mealType: 'LUNCH', mealSequence: 1, mealTime: '13:15:00', durationMinutes: 30, calories: 925, proteinGrams: 42.5, carbohydrateGrams: 80.25, fatGrams: 20, notes: 'Chicken and rice', rating: 8, source: 'MANUAL'},
+        {id: 1, date: '2026-08-12', dateFormat: '12/08/2026', mealType: 'LUNCH', mealSequence: 1, mealTime: '13:15:00', durationMinutes: 30, calories: 925, proteinGrams: 42.5, carbohydrateGrams: 80.25, fatGrams: 20, notes: 'Chicken and rice', rating: 8, ratingExplanation: 'Protein contributed to this score.', source: 'MANUAL'},
         {id: 2, date: '2026-08-12', dateFormat: '12/08/2026', mealType: 'SNACK', mealSequence: 1, mealTime: null, calories: 150, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, notes: null, rating: null, source: 'MANUAL'},
         {id: 3, date: '2026-08-11', dateFormat: '11/08/2026', mealType: 'DINNER', mealSequence: 1, mealTime: null, calories: 780, proteinGrams: 50, carbohydrateGrams: 100, fatGrams: 20, notes: null, source: 'MANUAL'}
     ], initialFastingPeriods: [
@@ -7176,18 +7079,17 @@ test('nutrition history summarizes macros and manages meals and fasting periods'
     await expect(rows.nth(0)).toContainText('42.5 g · 25%');
     await expect(rows.nth(0)).toContainText('80.25 g · 48%');
     await expect(rows.nth(0)).toContainText('20 g · 27%');
-    const coachPagePromise = context.waitForEvent('page');
-    const rateMeal = rows.nth(0).getByRole('button', {name: 'Rate meal'});
+    await expect(rows.nth(0).getByRole('button', {name: 'Rate meal'})).toHaveCount(0);
+    const rating = rows.nth(0).getByRole('button', {name: 'Lunch rating details: 8/10'});
     for (const width of [376, 1280]) {
         await page.setViewportSize({width, height: 900});
-        await expectChatGptIcon(rateMeal);
-        await rateMeal.screenshot({path: testInfo.outputPath(`chatgpt-nutrition-rate-${width}.png`)});
+        await rating.click();
+        const details = page.getByRole('dialog', {name: 'Meal rating'});
+        await expect(details).toContainText('Protein contributed to this score.');
+        await details.screenshot({path: testInfo.outputPath(`nutrition-history-rating-${width}.png`)});
+        await page.keyboard.press('Escape');
+        await expect(rating).toBeFocused();
     }
-    await rateMeal.click();
-    const coachPage = await coachPagePromise;
-    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
-        .toBe('Rate my Lunch on 2026-08-12 out of 10. Check the meals from 2026-08-08 through 2026-08-12, my calorie targets and weekly-average cap, and my active coaching plan. Suggest one improvement, present the proposed score for my confirmation, then save that rating to the meal after I confirm the exact score.');
-    await coachPage.close();
     await expect(rows.nth(1)).toContainText('Snack 1');
     await expect(rows.nth(1)).toContainText('150 kcal');
     await expect(rows.nth(1)).toContainText('—');
@@ -11341,18 +11243,16 @@ test('workout status panel identifies sauna-only sessions and their rounds', asy
     }
 });
 
-test('multiple workout sessions remain independent on the dashboard and same-day preloads', async ({page, context}, testInfo) => {
+test('multiple workout sessions remain independent on the dashboard and same-day preloads', async ({page}, testInfo) => {
     const exercises = [{id: 1, name: 'Plank with controlled breathing and a comfortable range', description: 'Hold steady', trackingMode: 'SECONDS', exerciseType: 'TRAINING'}];
     const session = (id, time, duration, plannedSessionName = null) => workoutResponse(id, {workoutDate: '2026-08-12', startTime: time, durationMinutes: duration, plannedSessionName, lines: [{exerciseId: 1, segments: [{durationSeconds: 30}]}]}, exercises);
     const morning = session(1, '08:00', 45, 'McGill Big Three'), evening = session(2, '18:00', 30), untimed = session(3, null, null);
-    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-    await context.route(coachOriginPattern, route => route.fulfill({body: '<title>Coach</title>'}));
     await mockAuthenticatedDashboard(page, '2026-08-12', {initialWorkouts: [morning, evening, untimed], workoutExercises: exercises});
     await openSpaRoute(page, '/');
     await page.locator('.home-panels-tabs').getByRole('tab', {name: /^Workout/}).click();
     const group = page.getByRole('region', {name: 'Selected day workouts'});
     await expect(group.locator('.workout-session')).toHaveCount(3);
-    await expect(group.getByRole('button', {name: 'Rate day', exact: true})).toHaveCount(1);
+    await expect(group.getByRole('button', {name: 'Rate day', exact: true})).toHaveCount(0);
     await expect(page.getByText('Training days:', {exact: true}).locator('..').locator('.p-col-7').first()).toContainText('1');
     await expect(group.locator('.session-day-summary')).toContainText('Logged duration: 75 min (incomplete)');
     const dayDetails = group.locator('.workout-day-details');
@@ -11364,11 +11264,6 @@ test('multiple workout sessions remain independent on the dashboard and same-day
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
         await group.screenshot({path: testInfo.outputPath(`workout-sessions-${width}.png`)});
     }
-    const popup = context.waitForEvent('page');
-    await group.getByRole('button', {name: 'Rate day', exact: true}).click();
-    const coach = await popup;
-    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe('Assess all my workout sessions on 2026-08-12 together as one training day against my active coaching plan.');
-    await coach.close();
     await page.getByRole('button', {name: 'Add session', exact: true}).click();
     const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
     const source = starter.getByRole('combobox', {name: 'Previous workout', exact: true});
@@ -11386,12 +11281,24 @@ test('multiple workout sessions remain independent on the dashboard and same-day
     expect((await saving).postDataJSON()).toMatchObject({workoutDate: '2026-08-12', plannedSessionName: null, lines: [{segments: [{durationSeconds: 30}]}]});
     await expect(editor).not.toBeVisible();
     await expect(group.locator('.workout-session')).toHaveCount(4);
+    const assessment = group.getByRole('button', {name: /Training day assessment/});
+    await expect(assessment).toHaveCount(1);
+    await expect(assessment).toContainText('Goal alignment: 7/10');
     await expect(group.locator('.session-day-summary')).toContainText('Logged duration: 95 min (incomplete)');
     await group.locator('.workout-session').first().getByRole('button', {name: 'Edit', exact: true}).click();
     await editor.locator('#workout-duration').fill('50'); await editor.locator('#workout-duration').press('Tab');
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(editor).not.toBeVisible();
     await expect(group.locator('.session-day-summary')).toContainText('Logged duration: 100 min (incomplete)');
+    await expect(assessment).toHaveCount(1);
+    await expect(assessment).toContainText('Goal alignment: 8/10');
+    await assessment.click();
+    const details = page.getByRole('dialog', {name: 'Training day assessment'});
+    await expect(details).toContainText('Plan alignment: The revised session is included in the day score.');
+    await expect(details).toContainText('Recorded training: Four recorded strength sets.');
+    await expect(details).toContainText('Prior comparison: The previous comparable day included three strength sets.');
+    await expect(details).not.toContainText('The recorded sessions contributed');
+    await page.keyboard.press('Escape');
     const eveningDetails = group.locator('.workout-session').nth(1).locator('.workout-session-details');
     await eveningDetails.locator('summary').click();
     await expect(eveningDetails).toContainText('Duration: 30 min');
@@ -13375,7 +13282,6 @@ test('standardized actions keep dashboard and history controls aligned at every 
     await page.locator('.home-panels-tabs').getByRole('tab', {name: /^Workout/}).click();
     const group = page.getByRole('region', {name: 'Selected day workouts'}).locator('.session-actions');
     await expect(group.locator('button')).toHaveCount(2);
-    await expect(page.getByRole('button', {name: 'Rate day', exact: true})).toHaveClass(/compact-action/);
     expect((await group.locator('.p-button-label').allTextContents()).every(label => !label.trim())).toBe(true);
     for (const width of [376, 390, 393, 574, 575, 576, 639, 640, 641, 959, 960, 961, 1280]) {
         await page.setViewportSize({width, height: 900});
@@ -13512,12 +13418,15 @@ for (const medication of [false, true]) {
     });
 }
 
-test('workout diary keeps complete training days together with one rating action', async ({page, context}, testInfo) => {
+test('workout diary keeps complete training days together with one saved assessment', async ({page}, testInfo) => {
     const exercises = [{id: 1, name: 'Dumbbell walking lunges with a controlled comfortable range', description: 'Walk with control.', trackingMode: 'REPS', exerciseType: 'TRAINING'}];
     const session = (id, date) => workoutResponse(id, {workoutDate: date, lines: [{exerciseId: 1, segments: [{repetitions: 20, weight: 4}]}]}, exercises);
     const workouts = [...Array.from({length: 12}, (_, index) => session(index + 1, '2026-08-20')), ...Array.from({length: 10}, (_, index) => session(index + 20, `2026-08-${String(19 - index).padStart(2, '0')}`))];
-    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-    await context.route(coachOriginPattern, route => route.fulfill({body: '<title>Coach</title>'}));
+    workouts[0].assessment = {
+        goalAlignmentScore: 8, estimatedTrainingDemandScore: 7, goalSnapshot: 'Build strength',
+        rationale: 'This score covers the recorded training across all sessions.',
+        strength: 'Consistent sets.', improvement: 'Log recovery.', nextWorkoutAction: 'Follow the next planned session.'
+    };
     await mockAuthenticatedWorkouts(page, workouts, exercises);
     await openSpaRoute(page, '/workouts');
     const desktop = page.locator('.diary-desktop');
@@ -13525,21 +13434,20 @@ test('workout diary keeps complete training days together with one rating action
     for (const width of [376, 390, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 900});
         const visibleDiary = width <= 575 ? mobile : desktop;
-        await expect(visibleDiary.getByRole('button', {name: 'Rate day', exact: true})).toHaveCount(10);
-        await expectChatGptIcon(visibleDiary.getByRole('button', {name: 'Rate day', exact: true}).first());
+        const assessment = visibleDiary.getByRole('button', {name: /Training day assessment/});
+        await expect(assessment).toHaveCount(1);
+        await expect(visibleDiary.getByRole('button', {name: 'Rate day', exact: true})).toHaveCount(0);
         if (width <= 575) await expect(mobile.locator('.mobile-diary-day').first().locator('.mobile-diary-workout')).toHaveCount(12);
         else {
             await expect(desktop.locator('tbody tr').first().locator('.diary-day-session')).toHaveCount(12);
-            await expect(desktop.getByRole('button', {name: 'Rate day', exact: true}).first()).toBeInViewport();
+            await expect(assessment).toBeInViewport();
         }
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
         await page.screenshot({path: testInfo.outputPath(`daily-workouts-${width}.png`)});
     }
-    const popup = context.waitForEvent('page');
-    await desktop.getByRole('button', {name: 'Rate day', exact: true}).first().click();
-    const coach = await popup;
-    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe('Assess all my workout sessions on 2026-08-20 together as one training day against my active coaching plan.');
-    await coach.close();
+    await desktop.getByRole('button', {name: /Training day assessment/}).click();
+    await expect(page.getByRole('dialog', {name: 'Training day assessment'})).toContainText(workouts[0].assessment.rationale);
+    await page.keyboard.press('Escape');
     await page.setViewportSize({width: 390, height: 900});
     await mobile.getByRole('button', {name: 'Next', exact: true}).click();
     await expect(mobile.locator('.mobile-diary-day')).toHaveCount(1);

@@ -97,7 +97,7 @@ class WorkoutTimingPersistenceTest {
     }
 
     @Test
-    void coachFullReplacementKeepsRecordedDetailAndSiblingButClearsDateAssessment() {
+    void coachFullReplacementKeepsRecordedDetailAndSiblingAndRefreshesDateAssessment() {
         var user = assessmentOwner();
         var otherAccount = new User(); otherAccount.setEmail(UUID.randomUUID() + "@example.com"); var other = users.save(otherAccount);
         var date = LocalDate.of(2026, 8, 20);
@@ -139,8 +139,8 @@ class WorkoutTimingPersistenceTest {
         var after = service.findCoachEntries(user, date, date);
         assertEquals(1, updated.getRevision());
         assertEquals("Edited", after.getFirst().workout().note());
-        assertFalse(after.getFirst().assessmentPresent());
-        assertFalse(after.get(1).assessmentPresent());
+        assertTrue(after.getFirst().assessmentPresent());
+        assertTrue(after.get(1).assessmentPresent());
         assertEquals("Sibling", after.get(1).workout().note());
         assertEquals(42, after.getFirst().workout().lines().getFirst().exerciseDurationSeconds());
         assertTrue(after.getFirst().workout().lines().getFirst().sets().get(1).skipped());
@@ -368,33 +368,78 @@ class WorkoutTimingPersistenceTest {
         assertEquals(10, service.requireOwned(user, sameTime.getId()).getDurationMinutes());
     }
 
-    @Test void dailyRatingsInvalidateOnAddEditMoveAndFinalDeletion() {
-        final var user = assessmentOwner();
+    @Test void appAndCoachPersistIdenticalEvidenceAndRefreshOnlyTheAffectedDays() {
+        var user = assessmentOwner();
+        var other = assessmentOwner();
         var date = LocalDate.of(2026, 8, 20);
-        var request = assessmentWorkout(date);
+        var workout = assessmentWorkout(date);
+        var request = new WorkoutRequest(date, null, workout.lines(), null, 10, null, null, null, null,
+            null, null, UUID.randomUUID().toString());
         var first = service.create(user, request);
-        saveDailyRating(user, date);
-        assertTrue(ratings.findByUserAndWorkoutDate(user, date).isPresent());
-        var second = service.create(user, request);
-        assertTrue(ratings.findByUserAndWorkoutDate(user, date).isEmpty());
-        saveDailyRating(user, date);
-        service.update(user, first.getId(), request);
-        assertTrue(ratings.findByUserAndWorkoutDate(user, date).isEmpty());
+        var fromCoach = service.createCoach(other, request).workout();
+        var saved = ratings.findByUserAndWorkoutDate(user, date).orElseThrow();
+        var coachSaved = ratings.findByUserAndWorkoutDate(other, date).orElseThrow();
+        assertEquals(saved.getGoalAlignmentScore(), coachSaved.getGoalAlignmentScore());
+        assertEquals(saved.getEstimatedTrainingDemandScore(), coachSaved.getEstimatedTrainingDemandScore());
+        assertEquals(saved.getRationale(), coachSaved.getRationale());
+        assertEquals(saved.getStrength(), coachSaved.getStrength());
+        assertEquals(saved.getImprovement(), coachSaved.getImprovement());
+
+        // A legacy manually rated day and an unrated day both acquire the automatic result on edit.
+        jdbc.update("update workout_assessments set goal_alignment_score=10, rationale='Manual', automatic=false where id=?", saved.getId());
+        jdbc.update("delete from workout_assessments where id=?", coachSaved.getId());
         var tomorrow = new WorkoutRequest(date.plusDays(1), null, request.lines(), null, null, null, null, null, null);
-        var third = service.create(user, tomorrow);
-        saveDailyRating(user, date); saveDailyRating(user, date.plusDays(1));
+        var future = service.create(user, tomorrow);
+        var untouched = ratings.findByUserAndWorkoutDate(user, tomorrow.workoutDate()).orElseThrow();
+        assertEquals("Manual", ratings.findByUserAndWorkoutDate(user, date).orElseThrow().getRationale());
+        assertTrue(ratings.findByUserAndWorkoutDate(other, date).isEmpty());
+
+        service.update(user, first.getId(), request);
+        service.updateCoach(other, fromCoach.getId(), fromCoach.getRevision(), request);
+        var edited = ratings.findByUserAndWorkoutDate(user, date).orElseThrow();
+        assertTrue(edited.isAutomatic());
+        assertEquals(saved.getId(), edited.getId());
+        assertEquals(saved.getGoalAlignmentScore(), edited.getGoalAlignmentScore());
+        assertEquals(saved.getRationale(), edited.getRationale());
+        assertEquals(saved.getImprovement(), edited.getImprovement()); // Tomorrow cannot become comparison evidence.
+        assertEquals(edited.getRationale(), ratings.findByUserAndWorkoutDate(other, date).orElseThrow().getRationale());
+        assertEquals(untouched.getUpdatedAt(), ratings.findByUserAndWorkoutDate(user, tomorrow.workoutDate()).orElseThrow().getUpdatedAt());
+
+        var second = service.create(user, workout);
+        assertTrue(ratings.findByUserAndWorkoutDate(user, date).orElseThrow().getStrength().startsWith("2 completed"));
         service.update(user, first.getId(), tomorrow);
-        assertTrue(ratings.findByUserAndWorkoutDate(user, date).isEmpty());
-        assertTrue(ratings.findByUserAndWorkoutDate(user, date.plusDays(1)).isEmpty());
-        saveDailyRating(user, date);
+        assertTrue(ratings.findByUserAndWorkoutDate(user, date).orElseThrow().getStrength().startsWith("1 completed"));
+        assertTrue(ratings.findByUserAndWorkoutDate(user, tomorrow.workoutDate()).orElseThrow().getStrength().startsWith("2 completed"));
         service.delete(user, second.getId());
         assertTrue(ratings.findByUserAndWorkoutDate(user, date).isEmpty());
         assertThrows(NotFoundException.class, () -> assessments.getContext(user, date, null));
-        assertEquals(2, service.findOnDates(user, List.of(date.plusDays(1))).size());
-        assertTrue(service.requireOwned(user, third.getId()).getLines().size() > 0);
+        service.delete(user, future.getId());
+        assertTrue(ratings.findByUserAndWorkoutDate(user, tomorrow.workoutDate()).orElseThrow().getStrength().startsWith("1 completed"));
     }
 
-    @Test void concurrentMutationRejectsWaitingStaleRatingAndWaitingMutationClearsSavedRating() throws Exception {
+    @Test void historyFiltersLoadingBasisAndOwnerBeforeTakingThreePriorDays() {
+        var owner = assessmentOwner();
+        var other = assessmentOwner();
+        var date = LocalDate.of(2026, 8, 20);
+        var exercise = exercises.create(new ExerciseRequest("Load comparison " + UUID.randomUUID(), "Reps",
+            ExerciseTrackingMode.REPS, ExerciseType.TRAINING, PrimaryMuscleGroup.CORE));
+        java.util.function.BiFunction<LocalDate, BigDecimal, WorkoutRequest> day = (when, kg) -> {
+            var set = new WorkoutSegmentRequest(8, null, kg, null, null, null, null, null, null);
+            var line = new WorkoutLineRequest(exercise.getId(), null, null, List.of(set, set, set), null);
+            return new WorkoutRequest(when, null, List.of(line), null, null, null, null, null, null);
+        };
+        service.create(owner, day.apply(date.minusDays(90), BigDecimal.TEN));
+        service.create(owner, day.apply(date.minusDays(91), BigDecimal.valueOf(60)));
+        for (int ago = 1; ago <= 3; ago++) service.create(owner, day.apply(date.minusDays(ago), null));
+        service.create(other, day.apply(date.minusDays(1), BigDecimal.valueOf(80)));
+        service.create(owner, day.apply(date.plusDays(1), BigDecimal.valueOf(80)));
+        service.create(owner, day.apply(date, BigDecimal.valueOf(12.5)));
+        var assessment = ratings.findByUserAndWorkoutDate(owner, date).orElseThrow();
+        assertEquals(4, assessment.getEstimatedTrainingDemandScore()); // Three sets, 125% of the eligible day.
+        assertEquals("125% of comparable workload across 1 prior day(s).", assessment.getImprovement());
+    }
+
+    @Test void concurrentMutationRejectsWaitingStaleRatingAndWaitingMutationRetainsCalculatedRating() throws Exception {
         final var user = assessmentOwner();
         var date = LocalDate.of(2026, 8, 20);
         var request = assessmentWorkout(date);
@@ -415,7 +460,7 @@ class WorkoutTimingPersistenceTest {
             });
             var rejected = assertThrows(java.util.concurrent.ExecutionException.class, () -> pending.get(10, java.util.concurrent.TimeUnit.SECONDS));
             assertInstanceOf(BadRequestException.class, rejected.getCause());
-            assertTrue(ratings.findByUserAndWorkoutDate(user, date).isEmpty());
+            assertTrue(ratings.findByUserAndWorkoutDate(user, date).isPresent());
             var current = dailyRatingRequest(user, date);
             var pendingEdit = transaction.execute(status -> {
                 assessments.save(user, date, null, current);
@@ -428,7 +473,7 @@ class WorkoutTimingPersistenceTest {
                 return edit;
             });
             pendingEdit.get(10, java.util.concurrent.TimeUnit.SECONDS);
-            assertTrue(ratings.findByUserAndWorkoutDate(user, date).isEmpty());
+            assertTrue(ratings.findByUserAndWorkoutDate(user, date).isPresent());
         }
     }
 

@@ -23,7 +23,7 @@ public final class WorkoutPlanSessionEvidence {
 
     public static WorkoutPlanTargetSnapshot snapshot(WorkoutPlanDay.Target target) {
         return new WorkoutPlanTargetSnapshot(target.exerciseName(), target.exerciseDescription(), target.trackingMode(),
-            target.exerciseType(), target.cardioMetric(), target.stretchingUnit(), target.segments(), target.supersetGroupId());
+            target.exerciseType(), target.cardioMetric(), target.stretchingUnit(), target.segments(), target.supersetGroupId(), target.exerciseId());
     }
 
     private static String targetSignature(WorkoutPlanTargetSnapshot target) {
