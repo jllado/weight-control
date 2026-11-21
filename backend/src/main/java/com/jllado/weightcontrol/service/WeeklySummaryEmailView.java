@@ -19,7 +19,9 @@ public record WeeklySummaryEmailView(
     WeeklyReflectionView weeklyReflection,
     String appUrl,
     WeeklySummaryPresentationMapper.Presentation presentation,
-    VisualSummary visualSummary
+    VisualSummary visualSummary,
+    List<String> workoutTargetNotes,
+    String workoutReviewDue
 ) {
 
     public record VisualSummary(PeriodHeaders periods, RoutineHero routines, List<OverviewCard> overview,
@@ -32,7 +34,9 @@ public record WeeklySummaryEmailView(
         List<DayBar> days, List<RoutineAttention> watchouts, int watchoutCount) { }
     public record DayBar(String label, String value, int width, Status status) { }
     public record RoutineAttention(String name, String value) { }
-    public record OverviewCard(String key, String label, String value, String detail, Status status, Delta previous, Delta yearAgo) { }
+    public record OverviewCard(String key, String label, String value, String detail, Status status, Delta previous, Delta yearAgo) {
+        public boolean showStatus() { return !value.equals(status.label()); }
+    }
     public record WorkoutRow(String label, String current, String previous, Delta previousDelta, String yearAgo, Delta yearAgoDelta, String target, Status status,
         String previousTarget, Status previousStatus, String yearAgoTarget, Status yearAgoStatus) { }
     public record NutritionTable(List<NutrientRow> rows, boolean hasYearAgo, String note, List<NutrientRow> references) { }
@@ -40,6 +44,8 @@ public record WeeklySummaryEmailView(
         String previousTarget, Delta previousDelta, String yearAgo, String yearAgoTarget, Delta yearAgoDelta, String coverage, Status previousStatus, Status yearAgoStatus) { }
     public record WeeklyRoutineView(String name, String value, String dates) { }
     public record ReflectionTeaser(String title, String summary) { }
+
+    public String workoutPlanUrl() { return java.net.URI.create(appUrl).resolve("/workouts?tab=plan").toString(); }
 
     public String actionUrl(String sourceKey) {
         return java.net.URI.create(appUrl).resolve("/actions?source=" + java.net.URLEncoder.encode(sourceKey, java.nio.charset.StandardCharsets.UTF_8)).toString();

@@ -5,6 +5,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.jllado.weightcontrol.api.dto.WeeklySummaryDtos.WeeklySummaryScheduleRequest;
+import com.jllado.weightcontrol.api.dto.BloodPressureDtos.BloodPressureRequest;
+import com.jllado.weightcontrol.api.dto.WeightDtos.WeightRequest;
 import com.jllado.weightcontrol.api.dto.WeeklyCaloriePlanDtos.DayPlanRequest;
 import com.jllado.weightcontrol.api.dto.WeeklyCaloriePlanDtos.WeeklyCaloriePlanRequest;
 import com.jllado.weightcontrol.domain.PlanningWeekChange;
@@ -17,6 +19,9 @@ import com.jllado.weightcontrol.domain.InAppNotificationType;
 import com.jllado.weightcontrol.repository.InAppNotificationRepository;
 import com.jllado.weightcontrol.repository.SavedWeeklySummaryRepository;
 import com.jllado.weightcontrol.repository.UserRepository;
+import com.jllado.weightcontrol.repository.BloodPressureRepository;
+import com.jllado.weightcontrol.repository.WeightRepository;
+import com.jllado.weightcontrol.util.DateTimes;
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.time.LocalDate;
@@ -57,6 +62,10 @@ class WeeklySummarySchedulePersistenceTest {
     @Autowired private WeeklyCaloriePlanRepository caloriePlanRepository;
     @Autowired private PlanningWeekChangeRepository weekChanges;
     @Autowired private HealthDataContextService coach;
+    @Autowired private WeightService weightService;
+    @Autowired private BloodPressureService bloodPressureService;
+    @Autowired private WeightRepository weights;
+    @Autowired private BloodPressureRepository bloodPressures;
     @MockitoBean private WeeklySummaryMailSender mail;
     private User owner;
     private final ZonedDateTime due = ZonedDateTime.parse("2026-08-18T08:30:00+02:00[Europe/Madrid]");
@@ -74,7 +83,50 @@ class WeeklySummarySchedulePersistenceTest {
         notifications.deleteAll();
         caloriePlanRepository.deleteAll();
         weekChanges.deleteAll();
+        weights.deleteAll();
+        bloodPressures.deleteAll();
         users.deleteAll();
+    }
+
+    @Test
+    void missingFollowUpsKeepTheLatestEarlierReadingsFrozenInTheSavedReport() {
+        LocalDate end = LocalDate.of(2026, 8, 14);
+        LocalDate prior = end.minusDays(6);
+        recordWeight(owner, prior.minusDays(9), "74.00");
+        recordWeight(owner, prior, "73.25");
+        recordPressure(owner, prior.minusDays(4), 124, 81);
+        recordPressure(owner, prior, 118, 77);
+        recordWeight(owner, end.plusDays(3), "72.00");
+        recordPressure(owner, end.plusDays(3), 114, 75);
+        var other = new User();
+        other.setEmail("other@example.com");
+        other = users.saveAndFlush(other);
+        recordWeight(other, end.minusDays(1), "82.00");
+        recordPressure(other, end.minusDays(1), 128, 83);
+
+        var saved = service.createForFriday(owner, end, end.plusDays(4));
+        String originalJson = saved.getSnapshotJson();
+        var snapshot = service.readSnapshot(saved);
+        var outcomes = snapshot.outcomes();
+        assertNull(outcomes.weight());
+        assertNull(outcomes.bloodPressure());
+        assertEquals(new WeeklySummarySnapshot.PriorWeightMeasurement(prior, new BigDecimal("73.25")), outcomes.priorWeight());
+        assertEquals(new WeeklySummarySnapshot.BloodPressureMeasurement(prior, 118, 77), outcomes.priorBloodPressure());
+        assertEquals(2, snapshot.warnings().size());
+
+        recordWeight(owner, end.minusDays(1), "72.50");
+        recordPressure(owner, end.plusDays(1), 116, 76);
+        var reopened = service.createForFriday(owner, end, end.plusWeeks(2));
+        assertEquals(originalJson, reopened.getSnapshotJson());
+        assertEquals(outcomes, service.readSnapshot(reopened).outcomes());
+    }
+
+    private void recordWeight(User user, LocalDate date, String kg) {
+        weightService.create(user, new WeightRequest(DateTimes.startOfDay(date), new BigDecimal(kg), new BigDecimal("21.0"), new BigDecimal("48.0")));
+    }
+
+    private void recordPressure(User user, LocalDate date, int systolic, int diastolic) {
+        bloodPressureService.create(user, new BloodPressureRequest(DateTimes.startOfDay(date), systolic, diastolic));
     }
 
     @Test
@@ -141,7 +193,7 @@ class WeeklySummarySchedulePersistenceTest {
         service.sendScheduled(users.findById(owner.getId()).orElseThrow(), due.plusSeconds(20));
         service.updateDeliverySchedule(owner, new WeeklySummaryScheduleRequest(DayOfWeek.WEDNESDAY, LocalTime.of(8, 30), true, DayOfWeek.MONDAY, LocalTime.of(8, 0)));
         service.sendScheduled(users.findById(owner.getId()).orElseThrow(), due.plusDays(1));
-        verify(mail, times(1)).send(any(User.class), any(WeeklySummarySnapshot.class), any());
+        verify(mail, times(1)).send(any(User.class), any(WeeklySummarySnapshot.class), any(), any());
         assertEquals(json, summaries.findByUserAndFridayDate(owner, friday).orElseThrow().getSnapshotJson());
     }
 
@@ -195,14 +247,14 @@ class WeeklySummarySchedulePersistenceTest {
         var friday = service.latestCompletedWeekEnd(owner, due.toLocalDate());
         var saved = service.createForFriday(owner, friday, due.toLocalDate());
         String json = saved.getSnapshotJson();
-        doThrow(new IllegalStateException("Simulated SMTP failure")).when(mail).send(any(User.class), any(WeeklySummarySnapshot.class), any());
+        doThrow(new IllegalStateException("Simulated SMTP failure")).when(mail).send(any(User.class), any(WeeklySummarySnapshot.class), any(), any());
         assertThrows(IllegalStateException.class, () -> service.sendScheduled(owner, due));
         assertNull(summaries.findByUserAndFridayDate(owner, friday).orElseThrow().getScheduledEmailedAt());
         assertEquals(json, summaries.findByUserAndFridayDate(owner, friday).orElseThrow().getSnapshotJson());
-        doNothing().when(mail).send(any(User.class), any(WeeklySummarySnapshot.class), any());
+        doNothing().when(mail).send(any(User.class), any(WeeklySummarySnapshot.class), any(), any());
         service.sendScheduled(owner, due.plusSeconds(20));
         assertEquals(due.plusSeconds(20).toInstant(), summaries.findByUserAndFridayDate(owner, friday).orElseThrow().getScheduledEmailedAt());
         assertEquals(json, summaries.findByUserAndFridayDate(owner, friday).orElseThrow().getSnapshotJson());
-        verify(mail, times(2)).send(any(User.class), any(WeeklySummarySnapshot.class), any());
+        verify(mail, times(2)).send(any(User.class), any(WeeklySummarySnapshot.class), any(), any());
     }
 }

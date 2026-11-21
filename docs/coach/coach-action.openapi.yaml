@@ -3887,7 +3887,7 @@ components:
         evidenceStatus:
           type: string
           enum: [AVAILABLE, UNAVAILABLE, AMBIGUOUS, HISTORICAL_VERSION_UNAVAILABLE]
-          description: AVAILABLE is one owner-owned plan within start/review dates, known by Madrid midnight and not archived during the day. Same-day lifecycle changes or multiple candidates are AMBIGUOUS; later edits are HISTORICAL_VERSION_UNAVAILABLE. Other statuses provide no expected day.
+          description: AVAILABLE uses the owned version in effect for the full Madrid date. Review dates are reminders. Midday target changes or overlapping plans can be AMBIGUOUS. A missing historical version supplies no expected workout.
         startDate: {type: [string, "null"], format: date}
         reviewDate: {type: [string, "null"], format: date}
         updatedAt: {type: [string, "null"], format: date-time}
@@ -4900,6 +4900,16 @@ components:
           type: object
           required: [weight, bloodPressure]
           properties:
+            priorWeight:
+              description: Latest earlier recorded weight when the follow-up window has no reading. Captured with the report. Exclude it from follow-up calculations.
+              oneOf:
+                - $ref: "#/components/schemas/OutcomeWeight"
+                - type: "null"
+            priorBloodPressure:
+              description: Latest earlier recorded blood pressure when the follow-up window has no reading. Captured with the report. Exclude it from follow-up calculations.
+              oneOf:
+                - $ref: "#/components/schemas/OutcomeBloodPressure"
+                - type: "null"
             weight:
               oneOf:
                 - $ref: "#/components/schemas/OutcomeWeight"

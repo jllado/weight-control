@@ -25,7 +25,8 @@ public final class DashboardDtos {
         DailyStatusResponse lastWeekDailyStatus,
         WeekStatusResponse weekStatus,
         WeekStatusResponse weekAgoStatus,
-        WinsAndMissesStatusResponse winsAndMissesStatus
+        WinsAndMissesStatusResponse winsAndMissesStatus,
+        LocalDate workoutPlanReviewDueDate
     ) {
     }
 

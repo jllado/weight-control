@@ -169,7 +169,7 @@ class WeeklySummaryVisualSummaryTest {
         assertEquals("≥ 125.00 g",rows.get(0).target());assertEquals("≥ 120.00 g",rows.get(0).previousTarget());
         assertTrue(rows.get(0).previous().contains("7/7 days"));
         assertEquals("0.00 µg",rows.get(3).current());assertEquals("Not available",rows.get(3).status().label());
-        assertTrue(rows.get(4).current().startsWith("≈ "));assertEquals("See report references",rows.get(4).target());
+        assertTrue(rows.get(4).current().startsWith("≈ "));assertEquals("EPA+DHA: no complete-day intake average (target unavailable) · ALA: no complete-day intake average (target unavailable)",rows.get(4).target());
         assertEquals("#486277",rows.get(4).status().color());
         assertEquals("Not available",rows.get(5).current());assertTrue(rows.get(5).coverage().contains("Partial coverage"));
         assertEquals(1,rows.get(5).coverage().split("Partial coverage",-1).length - 1);

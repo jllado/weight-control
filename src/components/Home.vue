@@ -240,6 +240,10 @@
             </ul>
           </details>
         </section>
+        <p v-if="workout_plan_review_due_date" class="dashboard-plan-review">
+          <span>Workout plan review due · {{ format_coach_metric_date(workout_plan_review_due_date) }}</span>
+          <router-link :to="{name: 'WorkoutDiary', query: {tab: 'plan'}}">Review workout plan</router-link>
+        </p>
         <DashboardActions :date="action_date()" />
         <Panel header="Week Score" class="week-status">
           <p>{{ periodLabel(selectedWeek.start, selectedWeek.end) }}<br />Previous: {{ periodLabel(previousWeek.start, previousWeek.end) }}</p>
@@ -1399,6 +1403,7 @@ export default {
       measurement_blood_pressure_form_visible: false,
       decision_entry: null,
       last_completed_dashboard_date: null,
+      workout_plan_review_due_date: null,
       reflection_overview: null,
       latest_reflection: null,
       active_dashboard_tab: dashboardDeepLink(this.$route.query)?.index ?? (this.$route.query.tab === 'calories' ? 6 : 0),
@@ -2968,6 +2973,7 @@ export default {
       this.latest_reflection = latestReflectionDate ? await reflectionService.get(latestReflectionDate) : null;
     },
     apply_dashboard(dashboard) {
+      this.workout_plan_review_due_date = dashboard.workoutPlanReviewDueDate;
       this.last_completed_dashboard_date = dashboard.lastCompletedDashboardDate ? new Date(dashboard.lastCompletedDashboardDate) : null;
       this.active_fasting_period = dashboard.activeFastingPeriod;
       this.daily_status = dashboard.dailyStatus;
@@ -4888,6 +4894,12 @@ class MeasureGraphData {
 </style>
 
 <style scoped>
+.dashboard-plan-review {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: .25rem .75rem;
+}
 .sleep-coach-warning { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
 .sleep-coach-warning > .pi { color: var(--yellow-700, #a16207); flex-shrink: 0; }
 .sleep-coach-warning-copy { flex: 1; min-width: 0; overflow-wrap: anywhere; }

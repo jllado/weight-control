@@ -18,9 +18,10 @@ public class WeeklyWorkoutTargetService {
         return new WeeklyWorkoutTargets(period(user, periods.current()), period(user, periods.previous()), period(user, periods.yearAgo()));
     }
     private WeeklyWorkoutTargets.Period period(User user, PlanningWeekService.Period window) {
-        var days = window.start().datesUntil(window.end().plusDays(1)).map(date -> new WeeklyWorkoutTargets.Day(date,
-            WorkoutPlanEvidenceResolver.resolve(date, plans.findAssessmentCandidates(user, date,
-                date.atStartOfDay(DateTimes.USER_ZONE).toInstant(), date.plusDays(1).atStartOfDay(DateTimes.USER_ZONE).toInstant())))).toList();
+        var candidates = plans.findAssessmentCandidates(user, window.end(), window.start().atStartOfDay(DateTimes.USER_ZONE).toInstant(),
+            window.end().plusDays(1).atStartOfDay(DateTimes.USER_ZONE).toInstant());
+        var days = window.start().datesUntil(window.end().plusDays(1))
+            .map(date -> new WeeklyWorkoutTargets.Day(date, WorkoutPlanEvidenceResolver.resolve(date, candidates))).toList();
         return summarize(days);
     }
     static WeeklyWorkoutTargets.Period summarize(List<WeeklyWorkoutTargets.Day> days) {

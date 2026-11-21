@@ -10889,6 +10889,50 @@ test('existing mixed sauna workout retains strength while sauna picker choices s
     await expect(page.getByRole('option', {name: 'Lunge', exact: true})).toBeVisible();
 });
 
+for (const width of [390, 1280]) {
+    test(`dashboard links a due workout plan review at ${width}px`, async ({page}) => {
+        await page.setViewportSize({width, height: 900});
+        const response = {...dashboard, workoutPlanReviewDueDate: '2026-08-12'};
+        await mockAuthenticatedDashboard(page, dashboard.anchorDate, {dashboardResponse: response});
+        await openSpaRoute(page, '/');
+        const reminder = page.locator('.dashboard-plan-review');
+        await expect(reminder).toContainText('Workout plan review due · 12/08/2026');
+        const link = reminder.getByRole('link', {name: 'Review workout plan'});
+        await expect(link).toHaveAttribute('href', '/workouts?tab=plan');
+        await reminder.scrollIntoViewIfNeeded();
+        const box = await reminder.boundingBox();
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(width);
+        await page.screenshot({path: test.info().outputPath(`dashboard-review-${width}.png`)});
+        await link.click();
+        await expect(page).toHaveURL(/workouts\?tab=plan/);
+        response.workoutPlanReviewDueDate = null;
+        await openSpaRoute(page, '/');
+        await expect(page.getByText('Week Score', {exact: true}).first()).toBeVisible();
+        await expect(reminder).toHaveCount(0);
+    });
+}
+
+test('weekly workout plan permits postponing a review on its due date with the same targets', async ({page}) => {
+    await page.clock.setFixedTime(new Date('2026-10-26T09:00:00Z'));
+    const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, sessions: []}));
+    days[0] = {day: 'MONDAY', rest: false, note: null, sessions: [{name: 'Strength', note: null, lines: [
+        {exerciseId: 1, exerciseName: 'Squat with a deliberately long descriptive exercise name', exerciseType: 'TRAINING', trackingMode: 'REPS', segments: [{repetitions: 8, weight: 40}]}
+    ]}]};
+    const state = await mockWeeklyPlans(page, {id: 1, updateToken: 'first', startDate: '2026-09-14', reviewDate: '2026-10-26', days});
+    await openSpaRoute(page, '/workouts?tab=plan');
+    const section = page.getByRole('region', {name: 'Weekly workout plan'});
+    await expect(section).toContainText('Review due');
+    await section.getByRole('button', {name: 'Edit plan', exact: true}).click();
+    await section.getByLabel('Review date', {exact: true}).fill('2026-11-09');
+    await section.getByRole('button', {name: 'Save plan'}).click();
+    await expect(section.getByRole('button', {name: 'Edit plan', exact: true})).toBeVisible();
+    await expect(section).not.toContainText('Review due');
+    expect(state.current.reviewDate).toBe('2026-11-09');
+    expect(state.current.days[0].sessions[0]).toMatchObject({name: 'Strength', lines: [{exerciseId: 1, segments: [{repetitions: 8, weight: 40}]}]});
+    expect(state.current.days.slice(1).every(day => day.rest)).toBe(true);
+});
+
 test('weekly workout plan edits timed, cardio and stretching targets without recording a workout', async ({page}) => {
     const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, lines: []}));
     const targets = [

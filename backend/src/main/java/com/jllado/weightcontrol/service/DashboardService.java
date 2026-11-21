@@ -11,6 +11,7 @@ import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.Mood;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.UserRepository;
+import com.jllado.weightcontrol.repository.WorkoutPlanRepository;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
@@ -30,19 +31,22 @@ public class DashboardService {
     private final MoodService moodService;
     private final DecisionOutcomeService decisionOutcomeService;
     private final FastingPeriodService fastingPeriodService;
+    private final WorkoutPlanRepository workoutPlans;
 
     public DashboardService(
         DailyStatusSnapshotService snapshotService,
         UserRepository userRepository,
         MoodService moodService,
         DecisionOutcomeService decisionOutcomeService,
-        FastingPeriodService fastingPeriodService
+        FastingPeriodService fastingPeriodService,
+        WorkoutPlanRepository workoutPlans
     ) {
         this.snapshotService = snapshotService;
         this.userRepository = userRepository;
         this.moodService = moodService;
         this.decisionOutcomeService = decisionOutcomeService;
         this.fastingPeriodService = fastingPeriodService;
+        this.workoutPlans = workoutPlans;
     }
 
     public DashboardDtos.DashboardResponse getDashboard(User user) {
@@ -61,7 +65,8 @@ public class DashboardService {
             toDailyStatusResponse(lastWeek, moods),
             toWeek(user, snapshotService.getWeek(user, selectedDate), moods),
             toWeek(user, snapshotService.getFullWeek(user, WeeklyMetricsCalculator.comparisonPeriods(user, selectedDate).previous().end()), moods),
-            toWinsAndMissesStatusResponse(decisionOutcomeService.summarize(user, selectedDate))
+            toWinsAndMissesStatusResponse(decisionOutcomeService.summarize(user, selectedDate)),
+            workoutPlans.findDueReviewDate(user, LocalDate.now(com.jllado.weightcontrol.util.DateTimes.USER_ZONE)).orElse(null)
         );
     }
 

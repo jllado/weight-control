@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.domain;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
@@ -21,4 +22,12 @@ public class WorkoutPlan {
     @Column(name = "updated_at", nullable = false) private Instant updatedAt;
     @Column(name = "archived_at") private Instant archivedAt;
     @Column(name = "update_token", nullable = false, length = 36) private String updateToken;
+    @ElementCollection
+    @CollectionTable(name = "workout_plan_versions", joinColumns = @JoinColumn(name = "plan_id"))
+    @OrderColumn(name = "version_index")
+    private List<WorkoutPlanVersion> previousVersions = new ArrayList<>();
+
+    public WorkoutPlanVersion currentVersion() {
+        return new WorkoutPlanVersion(startDate, reviewDate, updatedAt, days);
+    }
 }

@@ -118,7 +118,18 @@ public record WeeklySummarySnapshot(
     public record BackPainPeriodSummary(int checkInCount, int episodeCount) {
     }
 
-    public record OutcomeMeasurements(WeightMeasurement weight, BloodPressureMeasurement bloodPressure) {
+    public record OutcomeMeasurements(
+        WeightMeasurement weight,
+        BloodPressureMeasurement bloodPressure,
+        PriorWeightMeasurement priorWeight,
+        BloodPressureMeasurement priorBloodPressure
+    ) {
+        public OutcomeMeasurements(WeightMeasurement weight, BloodPressureMeasurement bloodPressure) {
+            this(weight, bloodPressure, null, null);
+        }
+    }
+
+    public record PriorWeightMeasurement(LocalDate measuredDate, BigDecimal weightKg) {
     }
 
     public record WeightMeasurement(

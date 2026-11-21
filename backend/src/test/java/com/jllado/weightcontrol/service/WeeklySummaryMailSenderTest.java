@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -103,22 +104,98 @@ class WeeklySummaryMailSenderTest {
         String html = htmlContent(message), text = plainText(message);
         var minutes = workoutCells(html, "Active cardio minutes");
         assertTrue(minutes.get(0).contains("Partial coverage") && minutes.get(0).contains("Not available") && minutes.get(0).contains("#486277"));
-        assertTrue(minutes.get(1).contains("Plan unavailable") && minutes.get(1).contains("#486277"));
+        assertTrue(minutes.get(1).contains("90 min") && minutes.get(1).contains("#486277"));
         assertTrue(minutes.get(2).contains("0 min") && minutes.get(2).contains("Below goal") && minutes.get(2).contains("#c05621"));
         assertTrue(text.contains("≥ 1.5 min · Partial coverage · Not available · Target: ≥ 100.00 min"));
-        assertTrue(text.contains("Last week: 90 min · Plan unavailable"));
-        assertTrue(!text.contains("Plan unavailable · Target: Plan unavailable"));
+        assertTrue(text.contains("Last week: 90 min · Change:"));
+        for (String body : List.of(text, html)) {
+            assertEquals(1, occurrences(body, "Plan targets unavailable because plan evidence was not captured."));
+            assertFalse(body.contains("Plan unavailable"));
+        }
         java.nio.file.Files.createDirectories(Path.of("build/test-artifacts"));
         java.nio.file.Files.writeString(Path.of("build/test-artifacts/weekly-workout-partial.html"), html);
     }
 
+    @Test
+    void archivedUnavailableTargetsDescribeOnlyTheCapturedEvidence() throws Exception {
+        var mapper = new ObjectMapper().findAndRegisterModules();
+        ObjectNode json = mapper.valueToTree(WeeklySummaryEmailFixtures.populated());
+        var evidence = new com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.AssessmentWeeklyPlanData("UNAVAILABLE", null, null, null, null);
+        var days = List.of(new WeeklyWorkoutTargets.Day(LocalDate.of(2026, 10, 3), evidence),
+            new WeeklyWorkoutTargets.Day(LocalDate.of(2026, 10, 4), evidence));
+        var unavailable = new WeeklyWorkoutTargets.Period(days, null, null, null, null, null, null);
+        json.set("workoutTargets", mapper.valueToTree(new WeeklyWorkoutTargets(unavailable, null, null)));
+        var message = renderWorkoutEmail(mapper.treeToValue(json, WeeklySummarySnapshot.class));
+        for (String body : List.of(plainText(message), htmlContent(message))) {
+            assertEquals(1, occurrences(body, "the saved report contains no applicable plan targets"));
+        }
+    }
+
     private MimeMessage renderWorkoutEmail(WeeklySummarySnapshot snapshot) throws Exception {
+        return renderWorkoutEmail(snapshot, null);
+    }
+
+    private MimeMessage renderWorkoutEmail(WeeklySummarySnapshot snapshot, LocalDate reviewDue) throws Exception {
         JavaMailSender transport = mock(JavaMailSender.class);
         MimeMessage message = new MimeMessage(Session.getInstance(new Properties()));
         when(transport.createMimeMessage()).thenReturn(message);
-        new WeeklySummaryMailSender(transport, templateEngine(), new WeeklySummaryEmailViewFactory(), properties()).send(user(), snapshot, null);
+        new WeeklySummaryMailSender(transport, templateEngine(), new WeeklySummaryEmailViewFactory(), properties()).send(user(), snapshot, null, reviewDue);
         message.saveChanges();
         return message;
+    }
+
+    private static int occurrences(String body, String phrase) {
+        return body.split(java.util.regex.Pattern.quote(phrase), -1).length - 1;
+    }
+
+    @Test
+    void bothMailPartsShowDatedEarlierContextOnceAndKeepTheSavedMoodBand() throws Exception {
+        var mapper = new ObjectMapper().findAndRegisterModules();
+        ObjectNode json = mapper.valueToTree(WeeklySummaryEmailFixtures.populated());
+        json.put("schemaVersion", 12);
+        var outcomes = (ObjectNode) json.get("outcomes");
+        outcomes.putNull("weight").putNull("bloodPressure");
+        outcomes.putObject("priorWeight").put("measuredDate", "2026-10-20").put("weightKg", 75.6);
+        outcomes.putObject("priorBloodPressure").put("measuredDate", "2026-10-18").put("systolic", 112).put("diastolic", 72);
+        ((ObjectNode) json.at("/progress/currentPeriod/weight")).put("measurementCount", 1);
+        ((ObjectNode) json.at("/progress/currentPeriod")).put("moodAverage", new BigDecimal("3.97"));
+        var message = renderWorkoutEmail(mapper.treeToValue(json, WeeklySummarySnapshot.class), LocalDate.of(2026, 10, 22));
+        for (String body : List.of(htmlContent(message), plainText(message))) {
+            assertTrue(body.contains("23 October 2026 – 25 October 2026"));
+            assertTrue(body.contains("Latest earlier reading: 75.6 kg on 20 October 2026"));
+            assertTrue(body.contains("Latest earlier reading: 112/72 mm Hg on 18 October 2026"));
+            assertTrue(body.contains("1 reading"));
+            assertFalse(body.contains("1 readings"));
+            assertTrue(body.contains("3.97/5"));
+            assertTrue(body.contains("Neutral"));
+            assertEquals(1, occurrences(body, "Workout plan review due 22 October 2026"));
+            assertTrue(body.contains("https://weight.example/workouts?tab=plan"));
+            String pressure = body.substring(body.indexOf("Follow-up blood pressure"), body.indexOf("112/72 mm Hg"));
+            assertEquals(1, occurrences(pressure, "Not available"));
+        }
+        outcomes.putNull("priorBloodPressure");
+        var withoutPrior = renderWorkoutEmail(mapper.treeToValue(json, WeeklySummarySnapshot.class));
+        for (String body : List.of(htmlContent(withoutPrior), plainText(withoutPrior))) {
+            assertTrue(body.contains("Latest earlier reading: 75.6 kg on 20 October 2026"));
+            assertEquals(1, occurrences(body, "No earlier reading"));
+            assertFalse(body.contains("Workout plan review due"));
+        }
+    }
+
+    @Test
+    void omegaAssessmentIdentifiesEachCapturedFormTargetAndMissingEvidenceInBothMailParts() throws Exception {
+        var mapper = new ObjectMapper().findAndRegisterModules();
+        ObjectNode json = mapper.valueToTree(WeeklySummaryEmailFixtures.populated());
+        var forms = (com.fasterxml.jackson.databind.node.ArrayNode) json.at("/nutrition/current/measures");
+        forms.add(mapper.valueToTree(new WeeklyNutritionSnapshot.Measure("epaDha", "EPA+DHA", "mg",
+            new BigDecimal("220.0"), 7, 7, 7, 7, 1, new BigDecimal("320"), com.jllado.weightcontrol.domain.MacroTargetComparison.MINIMUM, null)));
+        forms.add(mapper.valueToTree(new WeeklyNutritionSnapshot.Measure("ala", "ALA", "mg",
+            null, 0, 1, 1, 2, 0, new BigDecimal("1050"), com.jllado.weightcontrol.domain.MacroTargetComparison.MINIMUM, null)));
+        var message = renderWorkoutEmail(mapper.treeToValue(json, WeeklySummarySnapshot.class));
+        for (String body : List.of(htmlContent(message), plainText(message))) {
+            assertTrue(body.contains("EPA+DHA: ≈ 220 mg (target ≥ 320 mg, Below goal)"));
+            assertTrue(body.contains("ALA: no complete-day intake average (target ≥ 1050 mg)"));
+        }
     }
 
     private List<String> workoutCells(String html, String label) {
@@ -301,7 +378,8 @@ class WeeklySummaryMailSenderTest {
             assertTrue(text.contains(value), "Text: " + value);
         }
         assertTrue(!html.contains("Timed activity"));
-        assertTrue(text.contains("Strength sessions: 2 · Plan unavailable\n"));
+        assertTrue(text.contains("Strength sessions: 2\n"));
+        assertEquals(3, occurrences(text, "Plan targets unavailable because plan evidence was not captured."));
         assertEquals(1, text.split("Total sessions:", -1).length - 1);
         java.nio.file.Files.createDirectories(Path.of("build/test-artifacts"));
         java.nio.file.Files.writeString(Path.of("build/test-artifacts/weekly-workout-activity.html"), html);
@@ -313,6 +391,8 @@ class WeeklySummaryMailSenderTest {
             new WeeklySummarySnapshot.OutcomeMeasurements(null, null), List.of(), null, List.of(), List.of());
         sender.send(user, legacy, null);
         legacyMessage.saveChanges();
+        assertFalse(plainText(legacyMessage).contains("Not available · Not available"));
+        assertFalse(java.util.regex.Pattern.compile("Not available</strong><br><span[^>]*>Not available</span>").matcher(htmlContent(legacyMessage)).find());
         assertTrue(plainText(legacyMessage).contains("Strength sessions: Not available"));
         assertTrue(plainText(legacyMessage).contains("Active cardio minutes: Not available"));
         for (String body : List.of(htmlContent(legacyMessage), plainText(legacyMessage))) {

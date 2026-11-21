@@ -100,6 +100,7 @@ function normalizeWinsAndMissesStatus(data) {
 export function normalizeDashboard(data) {
     return {
         anchorDate: data.anchorDate,
+        workoutPlanReviewDueDate: data.workoutPlanReviewDueDate,
         lastCompletedDashboardDate: data.lastCompletedDashboardDate,
         activeFastingPeriod: data.activeFastingPeriod ? new FastingPeriod(data.activeFastingPeriod) : null,
         dailyStatus: normalizeDailyStatus(data.dailyStatus),

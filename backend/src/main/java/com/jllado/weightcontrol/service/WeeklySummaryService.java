@@ -42,11 +42,13 @@ import com.jllado.weightcontrol.repository.UserRepository;
 import com.jllado.weightcontrol.repository.WeeklyReflectionRepository;
 import com.jllado.weightcontrol.repository.WeightRepository;
 import com.jllado.weightcontrol.repository.WorkoutRepository;
+import com.jllado.weightcontrol.repository.WorkoutPlanRepository;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot.BloodPressureMeasurement;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot.BackPainSummary;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot.BackPainPeriodSummary;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot.GoalEvidence;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot.OutcomeMeasurements;
+import com.jllado.weightcontrol.service.WeeklySummarySnapshot.PriorWeightMeasurement;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot.PersonalRecordSnapshot;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot.RoutineProgress;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot.WeightMeasurement;
@@ -77,7 +79,7 @@ import org.springframework.data.domain.Sort;
 @Service
 public class WeeklySummaryService {
 
-    static final int SNAPSHOT_SCHEMA_VERSION = 11;
+    static final int SNAPSHOT_SCHEMA_VERSION = 12;
     private static final Logger LOG = LoggerFactory.getLogger(WeeklySummaryService.class);
 
     private final WeightRepository weightRepository;
@@ -105,6 +107,7 @@ public class WeeklySummaryService {
     private final AppProperties properties;
     private final WeeklyNutritionSnapshotService nutritionSnapshots;
     private final WeeklyWorkoutTargetService workoutTargets;
+    private final WorkoutPlanRepository workoutPlans;
 
     public WeeklySummaryService(
         WeightRepository weightRepository,
@@ -131,7 +134,8 @@ public class WeeklySummaryService {
         ObjectMapper objectMapper,
         AppProperties properties,
         WeeklyNutritionSnapshotService nutritionSnapshots,
-        WeeklyWorkoutTargetService workoutTargets
+        WeeklyWorkoutTargetService workoutTargets,
+        WorkoutPlanRepository workoutPlans
     ) {
         this.weightRepository = weightRepository;
         this.bloodPressureRepository = bloodPressureRepository;
@@ -158,15 +162,17 @@ public class WeeklySummaryService {
         this.properties = properties;
         this.nutritionSnapshots = nutritionSnapshots;
         this.workoutTargets = workoutTargets;
+        this.workoutPlans = workoutPlans;
     }
 
     @Transactional
     public void send(User user) {
         requireOwner(user);
         requireEnabled();
-        LocalDate fridayDate = latestCompletedWeekEnd(user, LocalDate.now(DateTimes.USER_ZONE));
+        LocalDate deliveryDate = LocalDate.now(DateTimes.USER_ZONE);
+        LocalDate fridayDate = latestCompletedWeekEnd(user, deliveryDate);
         SavedWeeklySummary saved = createForFriday(user, fridayDate);
-        sendSavedSummary(user, saved);
+        sendSavedSummary(user, saved, deliveryDate);
         LOG.info("Sent weekly summary for {}", fridayDate);
     }
 
@@ -204,7 +210,7 @@ public class WeeklySummaryService {
         LocalDate friday = latestCompletedWeekEnd(owner, localNow.toLocalDate());
         SavedWeeklySummary saved = createForLockedUserIfMissing(owner, friday).summary();
         if (saved.getScheduledEmailedAt() != null) return;
-        sendSavedSummary(owner, saved);
+        sendSavedSummary(owner, saved, localNow.toLocalDate());
         saved.setScheduledEmailedAt(now.toInstant());
         savedSummaryRepository.save(saved);
         LOG.info("Sent scheduled weekly summary for {}", friday);
@@ -230,8 +236,9 @@ public class WeeklySummaryService {
         return notificationService.recordWeeklySummaryReminder(owner, friday, evaluatedAt);
     }
 
-    private void sendSavedSummary(User user, SavedWeeklySummary saved) {
-        mailSender.send(user, readSnapshot(saved), weeklyReflectionRepository.findByWeeklySummary(saved).orElse(null));
+    private void sendSavedSummary(User user, SavedWeeklySummary saved, LocalDate deliveryDate) {
+        mailSender.send(user, readSnapshot(saved), weeklyReflectionRepository.findByWeeklySummary(saved).orElse(null),
+            workoutPlans.findDueReviewDate(user, deliveryDate).orElse(null));
     }
 
     @Transactional
@@ -533,7 +540,17 @@ public class WeeklySummaryService {
         OffsetDateTime end = DateTimes.startOfDay(fridayDate.plusDays(3));
         List<Weight> weights = weightRepository.findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(user, start, end);
         List<BloodPressure> bloodPressures = bloodPressureRepository.findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(user, start, end);
-        return new OutcomeMeasurements(selectWeight(weights, fridayDate), selectBloodPressure(bloodPressures, fridayDate));
+        WeightMeasurement weight = selectWeight(weights, fridayDate);
+        BloodPressureMeasurement bloodPressure = selectBloodPressure(bloodPressures, fridayDate);
+        PriorWeightMeasurement priorWeight = weight == null
+            ? weightRepository.findFirstByUserAndMeasuredAtLessThanOrderByMeasuredAtDesc(user, start)
+                .map(value -> new PriorWeightMeasurement(DateTimes.toLocalDate(value.getMeasuredAt()), value.getWeight())).orElse(null)
+            : null;
+        BloodPressureMeasurement priorBloodPressure = bloodPressure == null
+            ? bloodPressureRepository.findFirstByUserAndMeasuredAtLessThanOrderByMeasuredAtDesc(user, start)
+                .map(WeeklySummaryService::toBloodPressureMeasurement).orElse(null)
+            : null;
+        return new OutcomeMeasurements(weight, bloodPressure, priorWeight, priorBloodPressure);
     }
 
     private WeightMeasurement selectWeight(List<Weight> weights, LocalDate fridayDate) {
@@ -557,8 +574,12 @@ public class WeeklySummaryService {
             .map(date -> readings.stream().filter(value -> DateTimes.toLocalDate(value.getMeasuredAt()).equals(date)).max(Comparator.comparing(BloodPressure::getMeasuredAt)))
             .flatMap(Optional::stream)
             .findFirst()
-            .map(value -> new BloodPressureMeasurement(DateTimes.toLocalDate(value.getMeasuredAt()), value.getUpper(), value.getLower()))
+            .map(WeeklySummaryService::toBloodPressureMeasurement)
             .orElse(null);
+    }
+
+    private static BloodPressureMeasurement toBloodPressureMeasurement(BloodPressure value) {
+        return new BloodPressureMeasurement(DateTimes.toLocalDate(value.getMeasuredAt()), value.getUpper(), value.getLower());
     }
 
     List<WeeklySummarySnapshot.WeeklyRoutineProgress> weeklyRoutineProgress(User user, LocalDate periodStart, LocalDate periodEnd) {

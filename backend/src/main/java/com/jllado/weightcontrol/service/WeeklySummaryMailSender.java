@@ -7,6 +7,7 @@ import com.jllado.weightcontrol.domain.WeeklyReflection;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.List;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -43,7 +44,11 @@ public class WeeklySummaryMailSender {
     }
 
     public void send(User user, WeeklySummarySnapshot snapshot, WeeklyReflection reflection) {
-        send(viewFactory.create(user, snapshot, reflection, properties.weeklySummary().appUrl()));
+        send(user, snapshot, reflection, null);
+    }
+
+    public void send(User user, WeeklySummarySnapshot snapshot, WeeklyReflection reflection, LocalDate reviewDue) {
+        send(viewFactory.create(user, snapshot, reflection, properties.weeklySummary().appUrl(), reviewDue));
     }
 
     private void send(WeeklySummaryEmailView view) {
@@ -92,8 +97,9 @@ public class WeeklySummaryMailSender {
         }
         text.append("\nYour week at a glance\n").append(summary.goalsLabel()).append("\n\n");
         summary.overview().forEach(card -> {
-            text.append(card.label()).append(": ").append(card.value())
-                .append("\n").append(card.status().label()).append(" · ").append(card.detail());
+            text.append(card.label()).append(": ").append(card.value()).append("\n");
+            if (card.showStatus()) text.append(card.status().label()).append(" · ");
+            text.append(card.detail());
             if (!card.key().equals("weekendWeight") && !card.key().equals("bloodPressure")) {
                 text.append("\nvs last week: ").append(card.previous().text())
                     .append("\nvs 52 weeks ago: ").append(card.yearAgo().text());
@@ -106,14 +112,18 @@ public class WeeklySummaryMailSender {
             .append("\n52 weeks ago: ").append(summary.periods().yearAgo()).append("\n")
             .append("Mixed workouts count in each category; categories do not add up to total sessions.\n")
             .append("Changes show this week minus the comparison week.\n\n");
+        if (view.workoutReviewDue() != null)
+            text.append("Workout plan review due ").append(view.workoutReviewDue()).append(": ").append(view.workoutPlanUrl()).append("\n\n");
+        view.workoutTargetNotes().forEach(note -> text.append(note).append("\n"));
         summary.workouts().forEach(row -> text.append(row.label()).append(": ").append(row.current()).append(workoutAssessment(row.status(), row.target()))
             .append("\nLast week: ").append(row.previous()).append(workoutAssessment(row.previousStatus(), row.previousTarget())).append(" · Change: ").append(row.previousDelta().text())
             .append("\n52 weeks ago: ").append(row.yearAgo()).append(workoutAssessment(row.yearAgoStatus(), row.yearAgoTarget())).append(" · Change: ").append(row.yearAgoDelta().text()).append("\n\n"));
         text.append("Nutrition · daily averages\n")
             .append("Available targets come from saved evidence. ≈ marks estimated values; partial coverage is shown beside the nutrient.\n\n");
         summary.nutrition().rows().forEach(row -> {
-            text.append(row.label()).append(": ").append(row.current()).append(" · ").append(row.status().label())
-                .append("\nSaved target: ").append(row.target()).append(" · ").append(row.coverage())
+            text.append(row.label()).append(": ").append(row.current());
+            if (!row.current().equals(row.status().label())) text.append(" · ").append(row.status().label());
+            text.append("\nSaved target: ").append(row.target()).append(" · ").append(row.coverage())
                 .append("\nLast week: ").append(row.previous()).append(" · Change: ").append(row.previousDelta().text())
                 .append(" · Target: ").append(row.previousTarget()).append("\n");
             text.append("\n");
@@ -131,7 +141,7 @@ public class WeeklySummaryMailSender {
             .append("Missing days are not treated as zero.\n").toString();
     }
     private String workoutAssessment(WeeklySummaryEmailView.Status status, String target) {
-        return " · " + status.label() + (target.equals("Plan unavailable") ? "" : " · Target: " + target);
+        return target.equals("Plan unavailable") ? "" : " · " + status.label() + " · Target: " + target;
     }
 
 }

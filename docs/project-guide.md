@@ -79,6 +79,8 @@ Private Coach GPT -> bearer-authenticated /api/chatgpt-actions/** -> scoped appl
 
 Settings → First day of planning week schedules a weekday change for its next occurrence in Madrid. The default is Saturday. `PlanningWeekService.period` and the frontend `PlanningWeek` model resolve the historical date, including a shortened week before a change. Reports freeze the inclusive dates, prior comparisons, and outcome window (closing day through two days later). Calendar controls, rolling windows, and scheduled delivery days remain independent. Weekly calorie targets stay attached to dates even when their reporting period changes.
 
+The workout plan review is due on its saved Madrid date. The dashboard and outgoing weekly email show the reminder while the active plan is due. Editing the review date keeps its workouts in effect. New weekly snapshots capture the latest earlier reading for each missing follow-up separately. Emails render those values as dated context.
+
 ## Task routing
 
 | Product area | Frontend starting points | Backend starting points | Tests and detailed docs |
