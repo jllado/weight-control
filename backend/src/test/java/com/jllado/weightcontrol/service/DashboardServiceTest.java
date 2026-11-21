@@ -44,6 +44,9 @@ class DashboardServiceTest {
     @Mock
     private FastingPeriodService fastingPeriodService;
 
+    @Mock
+    private com.jllado.weightcontrol.repository.WorkoutPlanRepository workoutPlans;
+
     @InjectMocks
     private DashboardService service;
 
@@ -110,7 +113,9 @@ class DashboardServiceTest {
         activeFast.setStartTime(java.time.OffsetDateTime.parse("2026-06-19T20:00:00+02:00"));
         when(fastingPeriodService.findActiveAutomaticPeriod(user)).thenReturn(Optional.of(activeFast));
 
+        when(workoutPlans.findDueReviewDate(user, LocalDate.now(com.jllado.weightcontrol.util.DateTimes.USER_ZONE))).thenReturn(Optional.of(user.getDashboardAnchorDate()));
         DashboardDtos.DashboardResponse dashboard = service.getDashboard(user);
+        assertEquals(user.getDashboardAnchorDate(), dashboard.workoutPlanReviewDueDate());
 
         assertEquals(LocalDate.of(2026, 6, 19), dashboard.lastCompletedDashboardDate());
         assertEquals(activeFast.getStartTime(), dashboard.activeFastingPeriod().startTime());

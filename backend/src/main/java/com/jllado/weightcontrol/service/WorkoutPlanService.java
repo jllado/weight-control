@@ -86,6 +86,7 @@ public class WorkoutPlanService {
         if (!plan.getUpdateToken().equals(token)) throw new ResponseStatusException(HttpStatus.CONFLICT, "The workout plan changed. Reload it and review your changes before saving again.");
     }
     private void apply(WorkoutPlan plan, WorkoutPlanRequest request, List<WorkoutPlanDay> days) {
+        if (plan.getId() != null) plan.getPreviousVersions().add(plan.currentVersion());
         plan.setStartDate(request.startDate()); plan.setReviewDate(request.reviewDate()); plan.setNotes(request.notes());
         plan.setDays(days); plan.setUpdatedAt(Instant.now()); plan.setUpdateToken(UUID.randomUUID().toString());
     }

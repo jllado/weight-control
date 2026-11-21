@@ -23,6 +23,24 @@ import org.testcontainers.containers.MariaDBContainer;
 
 @SpringBootTest(properties = {"app.auth.google-client-id=test-client-id", "app.chat-gpt-actions.public-base-url=https://test.example", "app.chat-gpt-actions.file-signing-secret=test-file-signing-secret-30-bytes-long"})
 class WorkoutPlanPersistenceTest {
+    @Test
+    void reviewReminderUsesCurrentOwnerAndClearsAfterPostponementOrReplacement() {
+        var owner = user();
+        var request = week(List.of());
+        var plan = service.create(owner, request);
+        var date = request.reviewDate();
+        assertTrue(workoutPlans.findDueReviewDate(owner, date.minusDays(1)).isEmpty());
+        assertEquals(date, workoutPlans.findDueReviewDate(owner, date).orElseThrow());
+        assertEquals(date, workoutPlans.findDueReviewDate(owner, date.plusDays(1)).orElseThrow());
+        assertTrue(workoutPlans.findDueReviewDate(user(), date).isEmpty());
+        var postponed = new WorkoutPlanRequest(request.startDate(), date.plusWeeks(1), request.notes(), request.days());
+        var updated = service.update(owner, plan.id(), new WorkoutPlanUpdateRequest(postponed, plan.updateToken()));
+        assertEquals(plan.days(), updated.days());
+        assertTrue(workoutPlans.findDueReviewDate(owner, date).isEmpty());
+        service.create(owner, new WorkoutPlanRequest(request.startDate(), date.plusWeeks(2), request.notes(), request.days()));
+        assertTrue(workoutPlans.findDueReviewDate(owner, date.plusWeeks(1)).isEmpty());
+    }
+
     @TestConfiguration(proxyBeanMethods = false)
     static class DatabaseConfiguration {
         @Bean @ServiceConnection MariaDBContainer<?> database() { return new MariaDBContainer<>("mariadb:11.8").withDatabaseName("workout_plans"); }
@@ -399,7 +417,40 @@ class WorkoutPlanPersistenceTest {
         jdbc.update("update workout_plans set created_at = ?, archived_at = null, start_date = ? where id = ?", "2026-09-10 10:00:00", date.plusDays(1), saved.id());
         assertTrue(workoutPlans.findAssessmentCandidates(owner, date, start, end).isEmpty());
         jdbc.update("update workout_plans set start_date = ?, review_date = ? where id = ?", date.minusDays(7), date.minusDays(1), saved.id());
-        assertTrue(workoutPlans.findAssessmentCandidates(owner, date, start, end).isEmpty());
+        assertEquals("AVAILABLE", datedEvidence(owner, date).evidenceStatus());
+    }
+
+    @Test void editsPreserveDatedTargetsAcrossReviewPostponementAppEditsAndCoachEdits() {
+        var owner = user();
+        var workoutDay = LocalDate.of(2026, 11, 2); // Monday
+        var exercise = exercise(ExerciseTrackingMode.REPS, ExerciseType.TRAINING);
+        var scheduled = week(List.of(new WorkoutPlanLineRequest(exercise.getId(), List.of(reps(7)), null)));
+        var created = service.create(owner, scheduled);
+        // This plan predates version capture and its last known edit predates the workout.
+        jdbc.update("update workout_plans set created_at = ?, updated_at = ? where id = ?",
+            "2026-09-14 07:00:00", "2026-10-05 07:00:00", created.id());
+        var postponed = new WorkoutPlanRequest(scheduled.startDate(), workoutDay.plusWeeks(3), scheduled.notes(), scheduled.days());
+        var edited = service.update(owner, created.id(), new WorkoutPlanUpdateRequest(postponed, created.updateToken()));
+        jdbc.update("update workout_plans set updated_at = ? where id = ?", "2026-11-02 09:00:00", created.id());
+        var targets = datedEvidence(owner, workoutDay);
+        assertEquals("AVAILABLE", targets.evidenceStatus());
+        assertEquals(scheduled.reviewDate(), targets.reviewDate());
+        assertEquals(7, targets.day().sessions().getFirst().plannedTargets().getFirst().segments().getFirst().repetitions());
+        var rest = week(List.of());
+        var coachEdit = new WorkoutPlanRequest(workoutDay.plusDays(1), postponed.reviewDate(), null, rest.days());
+        service.updateConfirmed(owner, new CoachWorkoutPlanUpdateRequest(coachEdit, edited.updateToken(), true, 1));
+        jdbc.update("update workout_plans set updated_at = ? where id = ?", "2026-11-09 12:00:00", created.id());
+        assertEquals(targets, datedEvidence(owner, workoutDay));
+        assertEquals("AMBIGUOUS", datedEvidence(owner, workoutDay.plusWeeks(1)).evidenceStatus());
+        assertTrue(datedEvidence(owner, workoutDay.plusWeeks(2)).day().rest());
+        assertEquals("HISTORICAL_VERSION_UNAVAILABLE", datedEvidence(owner, scheduled.startDate().plusDays(1)).evidenceStatus());
+        assertEquals(2, jdbc.queryForObject("select count(*) from workout_plan_versions where plan_id = ?", Integer.class, created.id()));
+    }
+
+    private com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.AssessmentWeeklyPlanData datedEvidence(User owner, LocalDate date) {
+        var start = date.atStartOfDay(com.jllado.weightcontrol.util.DateTimes.USER_ZONE).toInstant();
+        var end = date.plusDays(1).atStartOfDay(com.jllado.weightcontrol.util.DateTimes.USER_ZONE).toInstant();
+        return WorkoutPlanEvidenceResolver.resolve(date, workoutPlans.findAssessmentCandidates(owner, date, start, end));
     }
 
     private User user() { var user = new User(); user.setEmail(UUID.randomUUID() + "@example.com"); return users.save(user); }

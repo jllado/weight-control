@@ -126,7 +126,7 @@ export default {
       });
     },
     todayDay() { return dayjs(madridDate()).format('dddd').toUpperCase(); },
-    reviewDue() { return this.current && dayjs().startOf('day').isAfter(dayjs(this.current.reviewDate)); },
+    reviewDue() { return this.current && this.current.reviewDate <= madridDate(); },
     dayWorkout() { const day = this.draft.days[this.dayIndex], session = this.sessionIndex === null ? {name: null, note: '', lines: [], saunaSession: false, saunaRoundsMinutes: []} : day.sessions[this.sessionIndex]; return {workoutDate: this.draft.startDate, note: session.note || '', plannedSessionName: session.name, saunaSession: session.saunaSession, saunaRoundsMinutes: session.saunaRoundsMinutes, lines: session.lines.map(line => ({...line, sets: line.segments, intervals: line.segments}))}; },
     copyOptions() { return this.draft ? this.orderedDays.map(({day, index}) => ({label: dayLabel(day.day), value: index, ready: day.rest === true || day.sessions.length > 0})).filter(day => day.value !== this.copyIndex && day.ready) : []; }
   },

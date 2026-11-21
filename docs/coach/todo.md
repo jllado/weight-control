@@ -664,6 +664,8 @@ The supported schema contains 30 Actions; sleep reads use getHealthEntries(entry
 
 ## Independent weekly summaries and reflections (#284)
 
+Schema 12 reports can include the last dated weight or blood pressure before an empty follow-up window. Keep it separate from the recorded outcomes. Review reminders use the active workout plan at delivery time.
+
 - [x] Keep daily Friday reflections untouched and add a separate immutable Saturday–Friday summary archive with independent weekly reflections.
 - [x] Snapshot typed comparisons, body composition, blood pressure, routine completion, personal records, applicable historical goals and dated Friday–Sunday outcomes.
 - [x] Enforce owner-scoped APIs, unique owner/week, idempotent locked creation and no summary update/delete endpoint.

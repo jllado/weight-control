@@ -126,11 +126,15 @@ test('Back panel shows compact trends and deltas and recomputes with dashboard n
 test('Back panel distinguishes loading failure, missing evidence and observed zero with Retry', async ({page}) => {
     const state = await mockBackPainHome(page, {records: [], fail: true});
     await page.goto('/');
+    // Let the lazy charts finish their own failed load before recovering the shared endpoint.
+    await page.locator('.dashboard-charts-trigger').scrollIntoViewIfNeeded();
+    await expect(page.locator('.dashboard-charts')).toBeVisible();
     const trends = await openBack(page);
-    await expect(page.getByRole('alert').filter({hasText: 'Unable to load back check-ins'})).toBeVisible();
+    const alert = page.locator('.home-panels-tabs').getByRole('alert').filter({hasText: 'Unable to load back check-ins'});
+    await expect(alert).toBeVisible();
     await expect(trends).toHaveCount(0);
     state.fail = false;
-    await page.getByRole('button', {name: 'Retry', exact: true}).click();
+    await alert.getByRole('button', {name: 'Retry', exact: true}).click();
     await expect(trends.locator('.trend-average')).toHaveText('—');
     await expect(trends.locator('.trend-change')).toHaveText('—');
     await page.getByRole('button', {name: 'Add check-in', exact: true}).click();

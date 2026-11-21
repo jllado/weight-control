@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -97,6 +98,7 @@ class WeeklySummaryServiceTest {
     private BackPainEpisodeRepository backPainEpisodeRepository;
     private CalorieService calorieService;
     private WorkoutRepository workoutRepository;
+    private final com.jllado.weightcontrol.repository.WorkoutPlanRepository workoutPlans = mock(com.jllado.weightcontrol.repository.WorkoutPlanRepository.class);
     private DecisionOutcomeRepository decisionOutcomeRepository;
     private RoutineRepository routineRepository;
     private RoutineCheckinRepository routineCheckinRepository;
@@ -285,7 +287,7 @@ class WeeklySummaryServiceTest {
             .filter(card -> card.label().equals("Back pain"))
             .findFirst().orElseThrow();
 
-        assertEquals(11, snapshot.schemaVersion());
+        assertEquals(12, snapshot.schemaVersion());
         assertTrue(saved.getSnapshotJson().contains("\"subjectLabel\":\"Goblet squat\""));
         assertEquals(List.of("Heaviest load — Goblet squat", "Highest weight", "Longest routine streak — Evening stretch"),
             new WeeklySummaryEmailViewFactory().create(user, snapshot, null, "https://weight.example").records().stream()
@@ -342,6 +344,7 @@ class WeeklySummaryServiceTest {
         ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
         ObjectNode json = mapper.valueToTree(legacySnapshot);
         ((ObjectNode) json.get("backPain")).remove(List.of("lastWeek", "yearAgo"));
+        ((ObjectNode) json.get("outcomes")).remove(List.of("priorWeight", "priorBloodPressure"));
         SavedWeeklySummary saved = new SavedWeeklySummary();
         saved.setSnapshotJson(json.toString());
 
@@ -355,6 +358,8 @@ class WeeklySummaryServiceTest {
 
         assertEquals(3, snapshot.backPain().checkInCount());
         assertEquals(schemaVersion, snapshot.schemaVersion());
+        assertNull(snapshot.outcomes().priorWeight());
+        assertNull(snapshot.outcomes().priorBloodPressure());
         assertEquals("2 episodes · 2 days", card.value());
         assertEquals("3 check-ins · Severity: Mild: 2 · Regions: Lower: 2 · Sides: Left: 2", card.detail());
         assertEquals("No data last week", card.previousComparison().text());
@@ -580,7 +585,7 @@ class WeeklySummaryServiceTest {
             service.send(user);
         }
 
-        verify(mailSender, times(2)).send(user, snapshot, null);
+        verify(mailSender, times(2)).send(user, snapshot, null, null);
         assertEquals(scheduledAt, saved.getScheduledEmailedAt());
         verify(savedSummaryRepository, times(2)).findByUserAndFridayDateForUpdate(user, friday);
         verifyNoInteractions(snapshotService);
@@ -627,7 +632,7 @@ class WeeklySummaryServiceTest {
 
         assertEquals(originalJson, saved.getSnapshotJson());
         verify(savedSummaryRepository, times(1)).save(any());
-        verify(mailSender).send(user, original, reflection);
+        verify(mailSender).send(user, original, reflection, null);
         verifyNoInteractions(snapshotService, weightRepository, bloodPressureRepository);
     }
 
@@ -692,6 +697,52 @@ class WeeklySummaryServiceTest {
         assertEquals(friday.plusDays(1), outcomes.bloodPressure().measuredDate());
         assertEquals(120, outcomes.bloodPressure().systolic());
         assertEquals(80, outcomes.bloodPressure().diastolic());
+    }
+
+    @Test
+    void absentFollowUpsWithNoEarlierReadingsHaveNoContext() {
+        var outcomes = service(properties(true)).outcomeMeasurements(user(), LocalDate.of(2026, 8, 14));
+        assertEquals(new WeeklySummarySnapshot.OutcomeMeasurements(null, null, null, null), outcomes);
+    }
+
+    @Test
+    void missingWeightGetsPriorContextAlongsideAnObservedBloodPressure() {
+        User user = user();
+        LocalDate end = LocalDate.of(2026, 8, 14);
+        LocalDate priorDate = end.minusDays(5);
+        var start = DateTimes.startOfDay(end);
+        var cutoff = DateTimes.startOfDay(end.plusDays(3));
+        when(bloodPressureRepository.findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(user, start, cutoff))
+            .thenReturn(List.of(bloodPressure(end.plusDays(1), 123, 79)));
+        when(weightRepository.findFirstByUserAndMeasuredAtLessThanOrderByMeasuredAtDesc(user, start))
+            .thenReturn(Optional.of(weight(priorDate, "73.2")));
+
+        var outcomes = service(properties(true)).outcomeMeasurements(user, end);
+
+        assertNull(outcomes.weight());
+        assertEquals(new WeeklySummarySnapshot.PriorWeightMeasurement(priorDate, new BigDecimal("73.2")), outcomes.priorWeight());
+        assertEquals(end.plusDays(1), outcomes.bloodPressure().measuredDate());
+        assertNull(outcomes.priorBloodPressure());
+    }
+
+    @Test
+    void missingBloodPressureGetsPriorContextAlongsideAnObservedWeight() {
+        User user = user();
+        LocalDate end = LocalDate.of(2026, 8, 14);
+        LocalDate priorDate = end.minusDays(5);
+        var start = DateTimes.startOfDay(end);
+        var cutoff = DateTimes.startOfDay(end.plusDays(3));
+        when(weightRepository.findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(user, start, cutoff))
+            .thenReturn(List.of(weight(end, "73.8")));
+        when(bloodPressureRepository.findFirstByUserAndMeasuredAtLessThanOrderByMeasuredAtDesc(user, start))
+            .thenReturn(Optional.of(bloodPressure(priorDate, 118, 76)));
+
+        var outcomes = service(properties(true)).outcomeMeasurements(user, end);
+
+        assertNull(outcomes.bloodPressure());
+        assertEquals(new WeeklySummarySnapshot.BloodPressureMeasurement(priorDate, 118, 76), outcomes.priorBloodPressure());
+        assertEquals(end, outcomes.weight().measuredDate());
+        assertNull(outcomes.priorWeight());
     }
 
     @Test
@@ -860,10 +911,12 @@ class WeeklySummaryServiceTest {
         when(userRepository.findByIdForUpdate(owner.getId())).thenReturn(Optional.of(owner));
         when(savedSummaryRepository.findByUserAndFridayDateForUpdate(owner, friday)).thenReturn(Optional.of(saved));
 
+        LocalDate reviewDate = friday.minusWeeks(2);
+        if (due) when(workoutPlans.findDueReviewDate(owner, now.withZoneSameInstant(DateTimes.USER_ZONE).toLocalDate())).thenReturn(Optional.of(reviewDate));
         service.sendScheduled(owner, now);
 
         if (due) {
-            verify(mailSender).send(owner, snapshot, null);
+            verify(mailSender).send(owner, snapshot, null, reviewDate);
             assertEquals(now.toInstant(), saved.getScheduledEmailedAt());
         } else {
             verifyNoInteractions(savedSummaryRepository, mailSender);
@@ -1022,7 +1075,8 @@ class WeeklySummaryServiceTest {
             new ObjectMapper().findAndRegisterModules(),
             properties,
             mock(WeeklyNutritionSnapshotService.class),
-            mock(WeeklyWorkoutTargetService.class)
+            mock(WeeklyWorkoutTargetService.class),
+            workoutPlans
         );
     }
 

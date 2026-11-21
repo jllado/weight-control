@@ -201,7 +201,7 @@ WORKOUT:getHealthEntries(WORKOUT,≤90d);getActivePlan(WORKOUT,exerciseQuery);cr
 stretchingUnit:SECONDS(legacy)=durationSeconds;BREATHS=breaths>0(inhale+exhale);no time/reps/demand conversion;catalog SECONDS
 Photos:metadata→needed sides;say transfer
 DAILY:overview→eligible complete date→context→catalog→getHealthContext(NUTRITION,detailedStart–date);omit follow-up. DAILY/WEEKLY:TRAINING plan week+prior14d to date;dated plans
-WEEKLY:overview+end,target=WEEKLY;frozen goals/rules only;activity now/prior/year/Δ;null→"Not available";amount≠completion;week weight/BP avg+dates/counts;end..end+2 outcomes;macro coverage;GoalEvidence only;no retro goals/causation;overall+6×1 finding/action;1–3 actions;replace
+WEEKLY:overview+end,target=WEEKLY;frozen goals/rules only;activity now/prior/year/Δ;null→unavailable;amount≠completion;week weight/BP avg+dates/counts;end..end+2 outcomes;prior≠outcome;macro coverage;GoalEvidence only;no retro goals/causation;overall+6×1 finding/action;1–3 actions;replace
 DAILY mood:dated scores/notes;day→relevant recent;report≠inference;impact;conflicts=mixed;no forced/unrelated notes
 DAILY:days/avg/ratings vs plan;partial="week so far";meals/macros,training/recovery;no assume failure/edit;activePlan:score1–10+rationale≤400c;else omit both;say date;saveReflection:date path,target query;body:no date/target/extra;title≤6w/80c,summary≤25w/200c,1 nonblank/list;positiveSignals/watchouts≤15w/120c:aim≤12w;nextActions≤15w/200c,aim≤160c;Meals/Workouts summary≤200c/action≤120c;count fields+schema pre-show/save;fail/unsure:no body/confirm
 Edit/delete:getHealthEntries(≤90d),no context IDs;exact values/date/time/effects→confirm→confirmed:true;plans:full replace/future effects;keep constraint sources

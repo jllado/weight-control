@@ -42,6 +42,7 @@ class WeeklyWorkoutTargetServiceTest {
     @Test void resolverRetainsHistoricalAmbiguityAndDoesNotReadTodaysReplacement() {
         var date = LocalDate.of(2026, 10, 19); var plan = new WorkoutPlan();
         plan.setStartDate(date); plan.setReviewDate(date.plusDays(6));
+        plan.setCreatedAt(date.minusDays(1).atStartOfDay(com.jllado.weightcontrol.util.DateTimes.USER_ZONE).toInstant());
         plan.setUpdatedAt(date.plusDays(1).atStartOfDay(com.jllado.weightcontrol.util.DateTimes.USER_ZONE).toInstant());
         assertEquals("HISTORICAL_VERSION_UNAVAILABLE", WorkoutPlanEvidenceResolver.resolve(date, List.of(plan)).evidenceStatus());
         plan.setUpdatedAt(date.atTime(12, 0).atZone(com.jllado.weightcontrol.util.DateTimes.USER_ZONE).toInstant());
