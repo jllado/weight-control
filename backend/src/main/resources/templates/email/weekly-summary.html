@@ -87,12 +87,15 @@ a { color:#317db6; }
 <th scope="col" class="data-cell" width="25%" style="padding:12px 8px;">This week</th>
 <th scope="col" class="data-cell" width="21%" style="padding:12px 8px;">Saved target</th>
 <th scope="col" class="data-cell" width="26%" style="padding:12px 8px;">Last week</th>
-</tr></thead><tbody><tr th:each="row : ${v.nutrition.rows}" style="border-bottom:1px solid #becfde;vertical-align:top;overflow-wrap:anywhere;">
-<th scope="row" class="data-cell" style="text-align:left;padding:12px 8px;font-weight:normal;"><strong th:text="${row.label}">Nutrient</strong><br><span style="font-size:12px;color:#486277;" th:text="${row.coverage}">Coverage</span></th>
+</tr></thead><tbody th:each="row : ${v.nutrition.rows}" th:with="formTargets=${row.key == 'omega3' and (row.target != 'Target unavailable' or row.previousTarget != 'Target unavailable')}"><tr style="border-bottom:1px solid #becfde;vertical-align:top;overflow-wrap:anywhere;">
+<th scope="row" th:id="|nutrient-${row.key}|" class="data-cell" style="text-align:left;padding:12px 8px;font-weight:normal;"><strong th:text="${row.label}">Nutrient</strong><br><span style="font-size:12px;color:#486277;" th:text="${row.coverage}">Coverage</span></th>
 <td class="data-cell" style="padding:12px 8px;"><strong th:style="|color:${row.status.color}|" th:text="${row.current}">Value</strong><th:block th:if="${row.current != row.status.label}"><br><span style="font-size:12px;" th:style="|font-size:12px;color:${row.status.color}|" th:text="${row.status.label}">Status</span></th:block></td>
-<td class="data-cell" style="padding:12px 8px;" th:text="${row.target}">Target</td>
-<td class="data-cell" style="padding:12px 8px;"><span th:text="${row.previous}">Baseline</span><br><strong th:text="|Change: ${row.previousDelta.text}|">Change</strong><br><span style="font-size:12px;color:#486277;" th:text="|Target: ${row.previousTarget}|">Prior target</span></td>
-</tr></tbody></table>
+<td class="data-cell" style="padding:12px 8px;" th:text="${formTargets ? 'By form (below)' : row.target}">Target</td>
+<td class="data-cell" style="padding:12px 8px;"><span th:text="${row.previous}">Baseline</span><br><strong th:text="|Change: ${row.previousDelta.text}|">Change</strong><th:block th:unless="${formTargets}"><br><span style="font-size:12px;color:#486277;" th:text="|Target: ${row.previousTarget}|">Prior target</span></th:block></td>
+</tr><tr th:if="${formTargets}"><td colspan="4" headers="nutrient-omega3" class="data-cell" style="padding:8px 8px 12px;border-bottom:1px solid #becfde;">
+<p style="margin:0;"><strong th:text="|This week · ${v.periods.current}|">This week</strong><br><span th:text="${row.target}">Current omega-3 targets</span></p>
+<p style="margin:8px 0 0;"><strong th:text="|Last week · ${v.periods.previous}|">Last week</strong> · <span th:style="|color:${row.previousStatus.color}|" th:text="${row.previousStatus.label}">Status</span><br><span th:text="${row.previousTarget}">Previous omega-3 targets</span></p>
+</td></tr></tbody></table>
 <p style="margin:8px 0 0;font-size:13px;color:#486277;" th:text="${v.nutrition.note}">Comparison availability</p>
 <p th:if="${v.nutrition.hasYearAgo}" style="margin:8px 0 0;font-size:14px;"><a th:href="${summary.appUrl}" style="color:#317db6;">See the available 52-week nutrient comparison in the full report ↗</a></p>
 </td></tr>

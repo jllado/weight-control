@@ -196,6 +196,19 @@ class WeeklySummaryMailSenderTest {
             assertTrue(body.contains("EPA+DHA: ≈ 220 mg (target ≥ 320 mg, Below goal)"));
             assertTrue(body.contains("ALA: no complete-day intake average (target ≥ 1050 mg)"));
         }
+        String html = htmlContent(message);
+        int omegaRow = html.indexOf("id=\"nutrient-omega3\"");
+        int details = html.indexOf("<td colspan=\"4\" headers=\"nutrient-omega3\"", omegaRow);
+        assertTrue(omegaRow >= 0 && details > omegaRow);
+        String values = html.substring(omegaRow, details);
+        assertTrue(values.contains("Below goal") && values.contains("Change:"));
+        assertFalse(values.contains("EPA+DHA:"));
+        String formTargets = html.substring(details, html.indexOf("</td>", details));
+        assertTrue(formTargets.contains("This week · 17 Oct – 23 October 2026"));
+        assertTrue(formTargets.contains("Last week · 10 Oct – 16 October 2026"));
+        assertTrue(formTargets.contains("EPA+DHA: ≈ 220 mg"));
+        assertEquals(2, occurrences(formTargets, "EPA+DHA:"));
+        assertEquals(2, occurrences(formTargets, "ALA:"));
     }
 
     private List<String> workoutCells(String html, String label) {
