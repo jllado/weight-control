@@ -145,7 +145,7 @@ import DishRecipeForm from './DishRecipeForm.vue';
 import {normalizeDish, quantityLabel, macroSummary, foodPayload, nutritionFields} from '../model/Dish';
 
 import MealPreloadOption from './MealPreloadOption.vue';
-import {copyFoodSnapshot, copyMealSnapshot, foodTitle, previousDays} from '../model/MealDayCopy';
+import {copyFoodSnapshot, copyMealSnapshot, foodTitle, preloadDate, previousDays} from '../model/MealDayCopy';
 
 export default {
   name: "MealForm",
@@ -259,7 +259,8 @@ export default {
           .slice(0, 14)
           .map(candidate => {
             const title = foodTitle(candidate.dishes);
-            return {...candidate, title, label: `${title} · ${candidate.dateFormat}`};
+            const dateFormat = preloadDate(candidate.date);
+            return {...candidate, title, dateFormat, label: `${title} · ${dateFormat}`};
           });
     },
     calculated_calories() {
@@ -354,7 +355,7 @@ export default {
       this.vv.carbohydrateGrams.$model = source.carbohydrateGrams;
       this.vv.fatGrams.$model = source.fatGrams;
       this.vv.notes.$model = source.notes || '';
-      this.vv.dishes.$model = (source.dishes || []).map(dish => ({...normalizeDish(dish), key: crypto.randomUUID()}));
+      this.vv.dishes.$model = source.dishes.map(dish => ({...copyFoodSnapshot(dish), key: crypto.randomUUID()}));
       this.selected_meal = null;
     },
     async save() {

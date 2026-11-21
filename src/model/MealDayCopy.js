@@ -14,7 +14,14 @@ export function copyMealSnapshot(meal) {
 }
 
 export function foodTitle(foods) {
-    return foods.length ? foods[0].name + (foods.length > 1 ? ` + ${foods.length - 1} ${foods.length === 2 ? 'food' : 'foods'}` : '') : 'No foods';
+    if (!foods.length) return 'No foods';
+    const first = foods.find(food => !/\b(?:salads?|ensaladas?|amanida|amanides)\b/i.test(food.name)) ?? foods[0];
+    if (foods.length === 1) return first.name;
+    return `${first.name} + ${foods.length - 1} ${foods.length === 2 ? 'food' : 'foods'}`;
+}
+
+export function preloadDate(date) {
+    return dayjs(date).format('ddd, DD/MM/YYYY');
 }
 
 export function previousDays(meals, targetDate) {
@@ -27,7 +34,7 @@ export function previousDays(meals, targetDate) {
     return [...days.entries()].sort(([left], [right]) => right.localeCompare(left)).slice(0, 14).map(([date, entries]) => {
         const title = foodTitle(entries.flatMap(meal => meal.dishes));
         const calories = entries.reduce((sum, meal) => sum + meal.calories, 0);
-        const dateFormat = dayjs(date).format('DD/MM/YYYY');
-        return {date, dateFormat, title, calories, meals: entries, label: `${dateFormat} · ${calories.toLocaleString('en-US')} kcal`};
+        const dateFormat = preloadDate(date);
+        return {date, dateFormat, title, calories, meals: entries, label: `${title} · ${dateFormat} · ${calories.toLocaleString('en-US')} kcal`};
     });
 }

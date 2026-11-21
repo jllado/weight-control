@@ -7554,7 +7554,7 @@ test('meal preloads show the latest 14 matching earlier entries with dish titles
         const options = page.getByRole('option');
         await expect(options).toHaveCount(14);
         await expect(options.first().locator('strong')).toHaveText(`${longName} + 2 foods`);
-        await expect(options.first().locator('small')).toHaveText('16/08/2026');
+        await expect(options.first().locator('small')).toHaveText('Sun, 16/08/2026');
         await expect(options.first()).toContainText('200 kcal');
         await expect(options.nth(1).locator('strong')).toHaveText('No foods');
         await expect(options.last().locator('strong')).toHaveText('Dish 3');

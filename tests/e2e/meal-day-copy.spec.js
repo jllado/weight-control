@@ -188,10 +188,10 @@ test('day selector keeps latest 14 distinct earlier days, food count and kcal; d
         const options = page.getByRole('option');
         await expect(options).toHaveCount(14);
         await expect(options.first().locator('strong')).toHaveText(`${longName} + 3 foods`);
-        await expect(options.first().locator('small')).toHaveText('19/08/2026');
+        await expect(options.first().locator('small')).toHaveText('Wed, 19/08/2026');
         await expect(options.first()).toContainText('1,225 kcal');
         await expect(options.nth(1).locator('strong')).toHaveText('No foods');
-        await expect(options.last().locator('small')).toHaveText('04/08/2026');
+        await expect(options.last().locator('small')).toHaveText('Tue, 04/08/2026');
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await page.screenshot({path: testInfo.outputPath(`day-selector-${width}.png`), animations: 'disabled'});
         await selector.press('Escape');
@@ -222,6 +222,64 @@ test('day selector keeps latest 14 distinct earlier days, food count and kcal; d
     }
     expect(state.writes).toEqual([]);
     expect(state.errors).toEqual([]);
+});
+
+test.describe('Preload titles for saved salad foods', () => {
+    test.use({timezoneId: 'America/Los_Angeles'});
+
+    function samples() {
+        return [
+            meal(61, sourceDate, 'BREAKFAST', {dishes: [food('Green SALAD'), food('Tomato salad')]}),
+            meal(62, sourceDate, 'LUNCH', {dishes: [food('Fruit salad'), food(longName), food('Nuts')]}),
+            meal(63, '2026-08-18', 'LUNCH', {dishes: [food('Curry'), food('Side salad')]}),
+            meal(64, '2026-08-17', 'LUNCH', {dishes: [food('Chickpea salad')]}),
+            meal(65, '2026-08-16', 'LUNCH', {dishes: [food('Ensalada verde'), food('Amanida de tomàquet')]}),
+            meal(66, '2026-08-15', 'LUNCH', {dishes: [food('Stew'), food('Rice')]})
+        ];
+    }
+
+    for (const width of [390, 1280]) {
+        test(`previous meal and day use the saved order and weekday at ${width}px`, async ({page}, testInfo) => {
+            await page.setViewportSize({width, height: 900});
+            const foods = samples();
+            const state = await openCopy(page, foods);
+            const day = page.getByRole('combobox', {name: 'Preload a previous day', exact: true});
+            await day.click();
+            const options = page.getByRole('option');
+            await expect(options.first()).toHaveAccessibleName(longName + ' + 4 foods · Wed, 19/08/2026 · 666 kcal');
+            await expect(options.first().locator('strong')).toHaveText(longName + ' + 4 foods');
+            await expect(options.first().locator('small')).toHaveText('Wed, 19/08/2026');
+            await options.first().scrollIntoViewIfNeeded();
+            expect(await options.first().evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+            await page.screenshot({path: testInfo.outputPath(`salad-day-options-${width}.png`), animations: 'disabled'});
+            await day.press('Escape');
+
+            await page.getByRole('combobox', {name: 'Meal', exact: true}).click();
+            await page.getByRole('option', {name: 'Lunch', exact: true}).click();
+            await page.getByRole('combobox', {name: 'Preload a previous meal', exact: true}).click();
+            await expect(options.locator('strong')).toHaveText([longName + ' + 2 foods', 'Curry + 1 food', 'Chickpea salad', 'Ensalada verde + 1 food', 'Stew + 1 food']);
+            await expect(options.locator('small')).toHaveText(['Wed, 19/08/2026', 'Tue, 18/08/2026', 'Mon, 17/08/2026', 'Sun, 16/08/2026', 'Sat, 15/08/2026']);
+            expect(await options.first().evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+            await page.screenshot({path: testInfo.outputPath(`salad-meal-options-${width}.png`), animations: 'disabled'});
+            await options.first().click();
+            await expect(page.locator('.meal-dish-summary strong')).toHaveText(foods[1].dishes.map(dish => dish.name));
+            const save = page.waitForRequest(req => new URL(req.url()).pathname === '/api/meals' && req.method() === 'POST');
+            await page.route('**/api/meals', route => route.request().method() === 'POST'
+                ? route.fulfill({json: {result: {...foods[1], date: targetDate, id: 100, rating: null}, recordAchievements: []}}) : route.fallback());
+            await page.locator('#meal-form').getByRole('button', {name: 'Save', exact: true}).click();
+            expect((await save).postDataJSON().dishes).toEqual(snapshot(foods[1]).dishes.map(dish => ({...dish, nutrientSchemaVersion: 3})));
+            expect(state.meals).toEqual(foods);
+        });
+    }
+
+    test('selecting a day copies every salad and non-salad snapshot in saved order across meals', async ({page}) => {
+        const foods = samples(), state = await openCopy(page, foods);
+        await chooseDay(page);
+        await page.locator('#meal-day-copy').getByRole('button', {name: 'Save', exact: true}).click();
+        await expect.poll(() => state.writes.length).toBe(1);
+        expect(state.writes[0].body.meals).toEqual(foods.slice(0, 2).map(snapshot));
+        expect(state.meals.filter(m => m.date === sourceDate)).toEqual(foods.slice(0, 2));
+    });
 });
 
 test('day copy rejects occupied targets while normal meal selection remains available', async ({page}) => {

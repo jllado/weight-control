@@ -32,7 +32,7 @@ export default class Meal {
             return;
         }
         this.id = source.id;
-        this.date = new Date(source.date);
+        this.date = dayjs(source.date).toDate();
         this.dateFormat = source.dateFormat || dayjs(this.date).format('DD/MM/YYYY');
         this.mealType = source.mealType;
         this.mealSequence = source.mealSequence;
