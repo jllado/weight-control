@@ -395,7 +395,8 @@ class WorkoutPlanPersistenceTest {
         jdbc.update("update workout_plans set updated_at = ?, update_token = ? where id = ?", "2026-09-15 10:00:00", UUID.randomUUID().toString(), saved.id());
         assertThrows(BadRequestException.class, () -> assessments.save(owner, date, null, request));
         assertEquals("HISTORICAL_VERSION_UNAVAILABLE", json.valueToTree(assessments.getContext(owner, date, null)).path("weeklyPlan").path("evidenceStatus").asText());
-        assertEquals(0, jdbc.queryForObject("select count(*) from workout_assessments where user_id = ?", Integer.class, owner.getId()));
+        assertEquals(10, before.currentAssessment().goalAlignmentScore());
+        assertEquals(before.currentAssessment(), assessments.getContext(owner, date, null).currentAssessment());
     }
 
     @Test void assessmentCandidateQueryHonorsOwnerDatesAndMadridLifecycleBoundaries() {

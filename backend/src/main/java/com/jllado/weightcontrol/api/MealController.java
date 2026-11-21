@@ -53,7 +53,7 @@ public class MealController {
 
     @PutMapping("/{id}/rating")
     public MealResponse rate(@PathVariable Long id, @Valid @RequestBody MealRatingRequest request) {
-        return MealResponse.from(service.rate(currentUserService.requireUser(), id, request.rating()));
+        return MealResponse.from(service.findForUser(currentUserService.requireUser(), id));
     }
 
     @DeleteMapping("/{id}")

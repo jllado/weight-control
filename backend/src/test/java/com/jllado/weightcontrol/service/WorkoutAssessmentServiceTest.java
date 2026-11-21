@@ -82,6 +82,7 @@ class WorkoutAssessmentServiceTest {
         plan = new CoachingPlan();
         plan.setUser(user);
         plan.setGoal("Improve upper-body strength");
+        plan.setStartDate(WORKOUT_DATE.minusDays(30));
         plan.setUpdatedAt(PLAN_UPDATED_AT);
     }
 
@@ -148,34 +149,21 @@ class WorkoutAssessmentServiceTest {
     }
 
     @Test
-    void confirmedSaveCreatesAssessmentAndDerivesTheGoalSnapshot() {
+    void legacyCoachRequestCannotCreateARatingForAnUntouchedWorkout() {
         givenCurrentContext();
-        when(assessmentRepository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
-
-        var response = service.save(user, WORKOUT_DATE, null, request(true, 8, "Clear alignment with the active goal."));
-
-        verify(assessmentRepository).saveAndFlush(any());
-        assertEquals("Improve upper-body strength", response.goalSnapshot());
-        assertEquals(8, response.goalAlignmentScore());
-        var saved = org.mockito.ArgumentCaptor.forClass(WorkoutAssessment.class);
-        verify(assessmentRepository).saveAndFlush(saved.capture());
-        assertSame(user, saved.getValue().getUser());
-        assertEquals(WORKOUT_DATE, saved.getValue().getWorkoutDate());
-        assertEquals(PLAN_UPDATED_AT, saved.getValue().getPlanUpdatedAt());
+        assertThrows(NotFoundException.class, () -> service.save(user, WORKOUT_DATE, null, request(true, 8, "Legacy estimate.")));
+        verify(assessmentRepository, org.mockito.Mockito.never()).save(any());
     }
 
     @Test
-    void reassessmentAtomicallyUpdatesTheExistingRow() {
-        WorkoutAssessment existing = assessment(workout, 5);
+    void legacyCoachRequestReturnsTheSavedAssessmentWithoutOverwritingIt() {
+        var existing = assessment(workout, 5);
         when(assessmentRepository.findByUserAndWorkoutDate(user, WORKOUT_DATE)).thenReturn(Optional.of(existing));
         givenCurrentContext();
-        when(assessmentRepository.saveAndFlush(existing)).thenReturn(existing);
-
-        service.save(user, WORKOUT_DATE, null, request(true, 9, "Improved alignment after the revised session."));
-
-        verify(assessmentRepository).saveAndFlush(existing);
-        assertEquals(9, existing.getGoalAlignmentScore());
-        assertEquals("Improved alignment after the revised session.", existing.getRationale());
+        var result = service.save(user, WORKOUT_DATE, null, request(true, 9, "Proposed different rating."));
+        assertEquals(5, result.goalAlignmentScore());
+        assertEquals("Clear alignment with the active goal.", result.rationale());
+        verify(assessmentRepository, org.mockito.Mockito.never()).save(any());
     }
 
     @Test
@@ -211,13 +199,13 @@ class WorkoutAssessmentServiceTest {
     }
 
     @Test
-    void contextRequiresAnOwnedWorkoutAndAnActivePlan() {
+    void contextRequiresAnOwnedWorkoutAndWorksWithoutACoachingPlan() {
         when(workoutRepository.findSessionsOnDate(user, WORKOUT_DATE)).thenReturn(List.of());
         assertThrows(NotFoundException.class, () -> service.getContext(user, WORKOUT_DATE, null));
 
         when(workoutRepository.findSessionsOnDate(user, WORKOUT_DATE)).thenReturn(List.of(workout));
         when(coachingPlanRepository.findByUser(user)).thenReturn(Optional.empty());
-        assertThrows(BadRequestException.class, () -> service.getContext(user, WORKOUT_DATE, null));
+        assertNull(service.getContext(user, WORKOUT_DATE, null).activePlan());
     }
 
     @Test
@@ -400,6 +388,171 @@ class WorkoutAssessmentServiceTest {
         var evidence = service.getContext(user, WORKOUT_DATE, null).weeklyPlan();
         assertEquals(status, evidence.evidenceStatus());
         if (!status.equals("AVAILABLE")) assertNull(evidence.day());
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {true, false})
+    void datedTargetsRetainAlignmentAfterAnExerciseRenameForPlannedAndManualRecordings(boolean savedSelection) {
+        var target = new WorkoutPlanDay.Target(10L, "Bench press", null, ExerciseTrackingMode.REPS, ExerciseType.TRAINING,
+            null, List.of(new WorkoutPlanDay.Segment(8, null, null, null, null, null, null, null, null)), StretchingUnit.SECONDS);
+        var session = new WorkoutPlanDay.Session("Strength", null, List.of(target));
+        var dated = WorkoutPlanEvidenceResolver.resolve(WORKOUT_DATE, List.of(weeklyPlan(List.of(session))));
+        if (savedSelection) {
+            workout.setPlannedSessionName(session.name());
+            workout.setPlannedTargets(List.of(new WorkoutPlanTargetSnapshot("Bench press", null, ExerciseTrackingMode.REPS,
+                ExerciseType.TRAINING, null, StretchingUnit.SECONDS, target.segments())));
+        }
+        var day = List.of(workout);
+        assertEquals(10, WorkoutRatingRules.calculate(day, dated, WorkoutRatingRules.load(day), List.of()).alignment());
+        workout.getLines().getFirst().getExercise().setName("Barbell bench press");
+        assertEquals(10, WorkoutRatingRules.calculate(day, dated, WorkoutRatingRules.load(day), List.of()).alignment());
+        workout.getLines().getFirst().setExercise(exercise(99L, "Bench press"));
+        assertEquals(savedSelection ? 1 : 5, WorkoutRatingRules.calculate(day, dated, WorkoutRatingRules.load(day), List.of()).alignment());
+        var json = new ObjectMapper().findAndRegisterModules().valueToTree(dated);
+        assertFalse(json.toString().contains("exerciseId"));
+    }
+
+    @Test
+    void alignmentCountsCompletedTargetsAndSkippedSetsOnceAcrossSessions() {
+        var target = new WorkoutPlanDay.Target(10L, "Bench press", null, ExerciseTrackingMode.REPS, ExerciseType.TRAINING,
+            null, java.util.Collections.nCopies(2, new WorkoutPlanDay.Segment(8, null, BigDecimal.TEN, null, null, null, null, null, null)),
+            StretchingUnit.SECONDS);
+        var session = new WorkoutPlanDay.Session("Press", null, List.of(target));
+        var weekly = WorkoutPlanEvidenceResolver.resolve(WORKOUT_DATE, List.of(weeklyPlan(List.of(session, session))));
+        workout.setPlannedSessionName("Press");
+        workout.setPlannedTargets(List.of(WorkoutPlanSessionEvidence.snapshot(target)));
+        workout.getLines().getFirst().getSegments().getFirst().setWeight(BigDecimal.TEN);
+        var skipped = new WorkoutSegment();
+        skipped.setSkipped(true);
+        workout.getLines().getFirst().getSegments().add(skipped);
+        var second = workout(WORKOUT_DATE, exercise(10L, "Bench press"));
+        second.setPlannedSessionName("Press");
+        second.setPlannedTargets(workout.getPlannedTargets());
+        var done = second.getLines().getFirst().getSegments().getFirst();
+        done.setWeight(BigDecimal.TEN);
+        second.getLines().getFirst().getSegments().add(done);
+        var both = List.of(workout, second);
+        assertEquals(8, WorkoutRatingRules.calculate(both, weekly, WorkoutRatingRules.load(both), List.of()).alignment());
+        var single = List.of(workout);
+        assertEquals(5, WorkoutRatingRules.calculate(single, weekly, WorkoutRatingRules.load(single), List.of()).alignment());
+        assertEquals(6, WorkoutRatingRules.calculate(single, WorkoutPlanEvidenceResolver.resolve(WORKOUT_DATE, List.of()),
+            WorkoutRatingRules.load(single), List.of()).alignment());
+    }
+
+    @Test
+    void restRecoveryAndSkippedTrainingHaveNoDemandAndCompletedCardioUsesOnlyIntervalTime() {
+        var rest = WorkoutPlanEvidenceResolver.resolve(WORKOUT_DATE, List.of(weeklyPlan(List.of())));
+        var stretch = exercise(12L, "Stretch");
+        stretch.setExerciseType(ExerciseType.STRETCHING);
+        var warmup = exercise(13L, "Prepare");
+        warmup.setExerciseType(ExerciseType.WARM_UP);
+        var cardio = exercise(14L, "Running");
+        cardio.setTrackingMode(ExerciseTrackingMode.CARDIO);
+        var recovery = workout(WORKOUT_DATE, stretch, warmup, cardio);
+        recovery.setSaunaSession(true);
+        recovery.setSaunaRoundsMinutes(List.of(30));
+        recovery.setDurationMinutes(90);
+        var interval = recovery.getLines().getLast().getSegments().getFirst();
+        interval.setSkipped(true);
+        var day = List.of(recovery);
+        var rated = WorkoutRatingRules.calculate(day, rest, WorkoutRatingRules.load(day), List.of());
+        assertEquals(10, rated.alignment());
+        assertEquals(1, rated.demand());
+        interval.setSkipped(false);
+        interval.setRepetitions(null);
+        interval.setDurationSeconds(900);
+        var withCardio = WorkoutRatingRules.calculate(day, rest, WorkoutRatingRules.load(day), List.of());
+        assertEquals(3, withCardio.alignment());
+        assertEquals(3, withCardio.demand());
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"6,1", "7,2", "8,2", "9,2", "10,3"})
+    void relativeDemandUsesInclusiveSeventyFiveAndOneHundredTwentyFivePercentThresholds(int reps, int expected) {
+        var previous = workout(WORKOUT_DATE.minusDays(1), exercise(10L, "Bench press"));
+        workout.getLines().getFirst().getSegments().getFirst().setRepetitions(reps);
+        var today = List.of(workout);
+        var unavailable = WorkoutPlanEvidenceResolver.resolve(WORKOUT_DATE, List.of());
+        var result = WorkoutRatingRules.calculate(today, unavailable, WorkoutRatingRules.load(today), List.of(List.of(previous)));
+        assertEquals(expected, result.demand());
+        assertEquals(5, result.alignment());
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({
+        "25,4.60,3,125%", "25,4.59,2,124.73%", "25,4.61,3,125.27%",
+        "15,4.60,1,75%", "15,4.59,1,74.84%", "15,4.61,2,75.16%"
+    })
+    void demandComparesExactDecimalVolumes(int reps, BigDecimal weight, int score, String percentage) {
+        var previous = workout(WORKOUT_DATE.minusDays(1), exercise(10L, "Bench press"));
+        var baseline = previous.getLines().getFirst().getSegments().getFirst();
+        baseline.setRepetitions(20);
+        baseline.setWeight(new BigDecimal("4.60"));
+        var current = workout.getLines().getFirst().getSegments().getFirst();
+        current.setRepetitions(reps);
+        current.setWeight(weight);
+        var day = List.of(workout);
+        var unavailable = WorkoutPlanEvidenceResolver.resolve(WORKOUT_DATE, List.of());
+        var result = WorkoutRatingRules.calculate(day, unavailable, WorkoutRatingRules.load(day), List.of(List.of(previous)));
+        assertEquals(score, result.demand());
+        assertTrue(result.improvement().startsWith(percentage + " of"));
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({
+        "124999,0,Just under 125%", "125001,1,Just over 125%",
+        "74999,-1,Just under 75%", "75001,0,Just over 75%"
+    })
+    void percentageRoundingPreservesWhichSideOfTheThresholdTheScoreUsed(int numerator, int adjustment, String percentage) {
+        var ratio = new WorkoutLoadRatio(java.math.BigInteger.valueOf(numerator), java.math.BigInteger.valueOf(100000));
+        assertEquals(adjustment, ratio.adjustment());
+        assertEquals(percentage, ratio.percentage());
+    }
+
+    @Test
+    void demandAveragesRecurringFractionsExactlyAcrossExercisesAndDays() {
+        var bench = exercise(10L, "Bench press");
+        var row = exercise(11L, "Row");
+        var day = List.of(workout(WORKOUT_DATE, bench, row));
+        var first = workout(WORKOUT_DATE.minusDays(1), bench, row);
+        var second = workout(WORKOUT_DATE.minusDays(2), bench);
+        day.getFirst().getLines().get(0).getSegments().getFirst().setRepetitions(2);
+        day.getFirst().getLines().get(1).getSegments().getFirst().setRepetitions(7);
+        first.getLines().get(0).getSegments().getFirst().setRepetitions(3);
+        first.getLines().get(1).getSegments().getFirst().setRepetitions(3);
+        second.getLines().getFirst().getSegments().getFirst().setRepetitions(2);
+        // Daily means are (2/3 + 7/3)/2 and 2/2, giving an exact overall ratio of 5/4.
+        var result = WorkoutRatingRules.calculate(day, WorkoutPlanEvidenceResolver.resolve(WORKOUT_DATE, List.of()),
+            WorkoutRatingRules.load(day), List.of(List.of(first), List.of(second)));
+        assertEquals(3, result.demand());
+        assertTrue(result.improvement().startsWith("125% of"));
+    }
+
+    @Test
+    void alignmentHonorsPositiveCardioTargetsAndNeverTreatsFutureGoalsAsHistorical() {
+        var run = exercise(22L, "Bike");
+        run.setTrackingMode(ExerciseTrackingMode.CARDIO);
+        workout = workout(WORKOUT_DATE, run);
+        var interval = workout.getLines().getFirst().getSegments().getFirst();
+        interval.setRepetitions(null);
+        interval.setDurationSeconds(600);
+        interval.setSpeedKph(BigDecimal.valueOf(5));
+        var target = new WorkoutPlanTargetSnapshot("Bike", null, ExerciseTrackingMode.CARDIO, ExerciseType.TRAINING, null, null,
+            List.of(new WorkoutPlanDay.Segment(null, 600, null, BigDecimal.TEN, null, null, null, null, null)));
+        workout.setPlannedTargets(List.of(target));
+        workout.setPlannedSaunaRoundsMinutes(List.of(10));
+        workout.setSaunaSession(true);
+        workout.setSaunaRoundsMinutes(List.of(10));
+        givenCurrentContext();
+        plan.setUpdatedAt(WORKOUT_DATE.plusDays(1).atStartOfDay(com.jllado.weightcontrol.util.DateTimes.USER_ZONE).toInstant());
+        service.refresh(user, WORKOUT_DATE);
+        var stored = org.mockito.ArgumentCaptor.forClass(WorkoutAssessment.class);
+        verify(assessmentRepository).save(stored.capture());
+        assertEquals(8, stored.getValue().getGoalAlignmentScore());
+        assertEquals(2, stored.getValue().getEstimatedTrainingDemandScore());
+        assertEquals("Recorded session targets", stored.getValue().getGoalSnapshot());
+        assertNull(stored.getValue().getPlanUpdatedAt());
+        assertNull(service.getContext(user, WORKOUT_DATE, null).activePlan());
     }
 
     private WorkoutPlan weeklyPlan(List<WorkoutPlanDay.Session> sessions) {

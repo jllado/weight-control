@@ -77,25 +77,28 @@ class MealServiceTest {
     @Mock
     private CatalogFoodService catalogFoodService;
 
+    @Mock
+    private MealRatingService ratingService;
+
     @InjectMocks
     private MealService service;
 
     @Test
-    void ratingOnlyChangesScoreAndRequiresConfirmationAndOwnership() {
+    void legacyCoachRatingOnlyReadsAndRequiresConfirmationAndOwnership() {
         var owner = user(1L);
         var meal = meal(10L, owner, LocalDate.of(2026, 8, 12), MealType.LUNCH, 1);
         meal.setCalories(500);
         meal.setNotes("Preserve notes");
         meal.setDurationMinutes(30);
         when(repository.findById(10L)).thenReturn(Optional.of(meal));
-        when(repository.save(meal)).thenReturn(meal);
 
         assertThrows(BadRequestException.class, () -> service.rateConfirmed(owner, 10L, new CoachMealRatingRequest(8, false)));
         assertNull(meal.getRating());
         assertThrows(NotFoundException.class, () -> service.rateConfirmed(user(2L), 10L, new CoachMealRatingRequest(8, true)));
         assertNull(meal.getRating());
         assertEquals(meal, service.rateConfirmed(owner, 10L, new CoachMealRatingRequest(8, true)));
-        assertEquals(8, meal.getRating());
+        assertNull(meal.getRating());
+        verify(repository, org.mockito.Mockito.never()).save(meal);
         assertEquals(500, meal.getCalories());
         assertEquals("Preserve notes", meal.getNotes());
         assertEquals(30, meal.getDurationMinutes());
@@ -261,16 +264,14 @@ class MealServiceTest {
     }
 
     @Test
-    void rateStoresRatingForOwnedMeal() {
+    void legacyAppRatingReturnsExistingRatingForOwnedMeal() {
         User user = user(1L);
         Meal meal = meal(10L, user, LocalDate.now(DateTimes.USER_ZONE), MealType.LUNCH, 1);
         when(repository.findById(10L)).thenReturn(Optional.of(meal));
-        when(repository.save(meal)).thenReturn(meal);
+        meal.setRating(7);
 
-        service.rate(user, 10L, 4);
-
-        assertEquals(4, meal.getRating());
-        verify(repository).save(meal);
+        assertEquals(7, service.findForUser(user, 10L).getRating());
+        verify(repository, org.mockito.Mockito.never()).save(meal);
     }
 
     @Test
@@ -425,6 +426,7 @@ class MealServiceTest {
     private User user(Long id) {
         User user = new User();
         user.setId(id);
+        org.mockito.Mockito.lenient().when(userRepository.findByIdForUpdate(id)).thenReturn(Optional.of(user));
         return user;
     }
 

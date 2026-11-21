@@ -50,7 +50,7 @@ class MealDayCopyPersistenceTest {
     @Test void storesIndependentExactSnapshotsWithoutScalingSummingOrFillingUnknownEvidence() throws Exception {
         User owner = user("exact");
         var original = meals.copyDay(owner, request(DAY.minusDays(1), List.of(snapshot(MealType.LUNCH, 1)))).getFirst();
-        meals.rate(owner, original.getId(), 9);
+        jdbc.update("update meals set rating = 9, rating_explanation = null where id = ?", original.getId());
         var source = MealResponse.from(meals.findForUser(owner, original.getId()));
         var edited = snapshot(MealType.LUNCH, 1);
         var result = mutations.copyMealDay(owner, request(DAY, List.of(edited, totals(MealType.SNACK, 2), totals(MealType.SNACK, 5))));
@@ -59,7 +59,8 @@ class MealDayCopyPersistenceTest {
         assertNotEquals(original.getId(), copied.getId());
         assertNotEquals(original.getDishes().getFirst().getId(), copied.getDishes().getFirst().getId());
         assertEquals(MealSource.MANUAL, copied.getSource());
-        assertNull(copied.getRating());
+        assertNotNull(copied.getRating());
+        assertNotNull(copied.getRatingExplanation());
         assertEquals(777, copied.getCalories());
         assertEquals(new BigDecimal("12.34"), copied.getProteinGrams());
         var dish = copied.getDishes().getFirst();
@@ -86,6 +87,18 @@ class MealDayCopyPersistenceTest {
         var other = user("other");
         assertThrows(NotFoundException.class, () -> meals.findForUser(other, copied.getId()));
         assertEquals(1, meals.copyDay(other, request(DAY, List.of(totals(MealType.LUNCH, 1)))).size());
+    }
+
+    @Test void copiedDayScoresAllTimedMealsInOrderThenUntimedMealsInStorageOrder() {
+        User owner = user("copy-rating-order");
+        var batch = meals.copyDay(owner, request(DAY, List.of(
+            timed(MealType.DINNER, LocalTime.of(20, 0), 15), totals(MealType.SNACK, 1),
+            timed(MealType.BREAKFAST, LocalTime.of(8, 0), 15), totals(MealType.SNACK, 2))));
+        var expected = List.of(176, 264, 88, 352);
+        for (int i = 0; i < batch.size(); i++) {
+            var meal = repository.findById(batch.get(i).getId()).orElseThrow();
+            assertTrue(meal.getRatingExplanation().contains("Day through meal: " + expected.get(i) + " /"));
+        }
     }
 
     @Test void httpBoundaryAuthenticatesValidatesAndReturnsTheWholeSavedDay() throws Exception {
@@ -267,7 +280,6 @@ class MealDayCopyPersistenceTest {
             () -> meals.update(owner, existing.getId(), new MealRequest(DAY.minusDays(1), MealType.LUNCH, 501, null, null, null, null, null, null)),
             () -> meals.createConfirmed(owner, coach),
             () -> meals.updateConfirmed(owner, existing.getId(), new CoachMealRequest(DAY.minusDays(1), MealType.LUNCH, 502, null, null, null, LocalTime.NOON, null, MealSource.MANUAL, true, List.of(), 30)),
-            () -> meals.rate(owner, existing.getId(), 8),
             () -> meals.deleteConfirmed(owner, existing.getId(), true));
         try (var pool = Executors.newSingleThreadExecutor()) {
             for (Runnable write : writes) {

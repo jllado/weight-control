@@ -31,10 +31,12 @@ public class MealService {
 
     private final MealRepository repository;
     private final UserRepository userRepository;
+    private final MealRatingService ratingService;
     private final FastingPeriodService fastingPeriodService;
     private final CatalogFoodService catalogFoodService;
 
-    public MealService(MealRepository repository, FastingPeriodService fastingPeriodService, CatalogFoodService catalogFoodService, UserRepository userRepository) {
+    public MealService(MealRepository repository, FastingPeriodService fastingPeriodService, CatalogFoodService catalogFoodService, UserRepository userRepository, MealRatingService ratingService) {
+        this.ratingService = ratingService;
         this.userRepository = userRepository;
         this.repository = repository;
         this.catalogFoodService = catalogFoodService;
@@ -66,19 +68,15 @@ public class MealService {
     }
 
     private Meal create(User user, MealRequest request, MealSource source) {
-        return create(user, request, source, null);
-    }
-
-    private Meal create(User user, MealRequest request, MealSource source, Integer rating) {
-        lockMutations(user);
+        User owner = lockMutations(user);
         validateDate(request.date());
         Meal meal = new Meal();
         meal.setUser(user);
         meal.setSource(source);
-        meal.setRating(rating);
         applyIdentity(meal, user, request.date(), request.mealType());
         apply(meal, request);
         Meal saved = CoachActionTiming.time("mealSave", "mealPersistence", () -> repository.save(meal));
+        ratingService.apply(owner, List.of(meal));
         CoachActionTiming.time("mealSave", "fastingRecalculation", () -> {
             fastingPeriodService.recalculateAutomaticPeriods(user);
             return null;
@@ -87,7 +85,7 @@ public class MealService {
     }
 
     public Meal update(User user, Long id, MealRequest request) {
-        lockMutations(user);
+        User owner = lockMutations(user);
         validateDate(request.date());
         Meal meal = requireOwned(user, id);
         FoodSnapshotCompatibility.requireAwareReplacement(request.nutrientSchemaVersion(), meal.getDishes());
@@ -98,26 +96,20 @@ public class MealService {
         repository.flush();
         apply(meal, request);
         Meal saved = repository.save(meal);
+        ratingService.apply(owner, List.of(meal));
         fastingPeriodService.recalculateAutomaticPeriods(user);
         return saved;
     }
 
-    public Meal rate(User user, Long id, int rating) {
-        lockMutations(user);
-        Meal meal = requireOwned(user, id);
-        meal.setRating(rating);
-        return repository.save(meal);
-    }
-
     public Meal rateConfirmed(User user, Long id, CoachMealRatingRequest request) {
         requireConfirmation(request.confirmed());
-        return rate(user, id, request.rating());
+        return findForUser(user, id);
     }
 
     public Meal createConfirmed(User user, CoachMealRequest request) {
         requireConfirmation(request.confirmed());
         CoachFoodNutrition.requireComplete(request.dishes().stream().map(com.jllado.weightcontrol.api.dto.MealDtos.CoachMealDishRequest::meal).toList());
-        Meal meal = create(user, request.meal(), request.source(), request.rating());
+        Meal meal = create(user, request.meal(), request.source());
         CoachActionTiming.time("mealSave", "foodCatalogRegistration", () -> {
             registerCoachFoods(user, meal, request);
             return null;
@@ -126,7 +118,7 @@ public class MealService {
     }
 
     public Meal updateConfirmed(User user, Long id, CoachMealRequest request) {
-        lockMutations(user);
+        User owner = lockMutations(user);
         requireConfirmation(request.confirmed());
         validateDate(request.date());
         Meal meal = requireOwned(user, id);
@@ -171,21 +163,19 @@ public class MealService {
         mealRequest = new MealRequest(mealRequest.date(), mealRequest.mealType(), mealRequest.calories(), mealRequest.proteinGrams(), mealRequest.carbohydrateGrams(), mealRequest.fatGrams(), mealRequest.mealTime(), mealRequest.notes(), dishes, mealRequest.durationMinutes(), request.nutrientSchemaVersion());
         apply(meal, mealRequest);
         meal.setSource(request.source());
-        if (request.rating() != null) {
-            meal.setRating(request.rating());
-        }
         Meal saved = repository.save(meal);
+        ratingService.apply(owner, List.of(meal));
         registerCoachFoods(user, meal, request);
         fastingPeriodService.recalculateAutomaticPeriods(user);
         return saved;
     }
 
-    private void lockMutations(User user) {
-        userRepository.findByIdForUpdate(user.getId());
+    private User lockMutations(User user) {
+        return userRepository.findByIdForUpdate(user.getId()).orElseThrow();
     }
 
     public List<Meal> copyDay(User user, CopyDayRequest request) {
-        lockMutations(user);
+        User owner = lockMutations(user);
         validateDate(request.date());
         var identities = new java.util.HashSet<String>();
         for (var snapshot : request.meals()) {
@@ -219,6 +209,7 @@ public class MealService {
             }
             return repository.save(meal);
         }).toList();
+        ratingService.apply(owner, saved);
         fastingPeriodService.recalculateAutomaticPeriods(user);
         return saved;
     }

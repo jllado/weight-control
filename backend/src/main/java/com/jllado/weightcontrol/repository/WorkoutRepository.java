@@ -52,5 +52,15 @@ public interface WorkoutRepository extends JpaRepository<Workout, Long> {
     @Query("select w from Workout w where w.user = :user and w.workoutDate = :workoutDate order by case when w.startTime is null then 1 else 0 end, w.startTime, w.createdAt, w.id")
     List<Workout> findSessionsOnDate(User user, LocalDate workoutDate);
 
+    @Query("""
+        select distinct w.workoutDate from Workout w join w.lines l join l.segments s
+        where w.user = :user and w.workoutDate between :from and :to
+          and s.skipped = false and ((l.exercise.id in :weightedIds and s.weight > 0)
+              or (l.exercise.id in :unweightedIds and (s.weight is null or s.weight = 0)))
+        order by w.workoutDate desc
+        """)
+    List<LocalDate> findComparableDates(User user, LocalDate from, LocalDate to, java.util.Set<Long> weightedIds,
+        java.util.Set<Long> unweightedIds, Pageable pageable);
+
     long countByUser(User user);
 }

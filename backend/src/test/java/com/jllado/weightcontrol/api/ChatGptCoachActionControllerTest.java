@@ -927,21 +927,19 @@ class ChatGptCoachActionControllerTest {
     }
 
     @Test
-    void confirmedMealRatingUsesCurrentUserWithoutReplacingNutrition() throws Exception {
+    void legacyMealRatingReturnsStoredScoreWithoutNotification() throws Exception {
         var meal = meal();
-        meal.setRating(8);
+        meal.setRating(7);
         when(currentUserService.requireUser()).thenReturn(user);
-        when(mealService.findForUser(user, 30L)).thenReturn(meal);
         when(mealService.rateConfirmed(eq(user), eq(30L), any())).thenReturn(meal);
 
         mockMvc.perform(put("/api/chatgpt-actions/coach/meals/30").param("target", "RATING")
                 .contentType("application/json").content("{\"rating\":8,\"confirmed\":true}"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.rating").value(8))
+            .andExpect(jsonPath("$.rating").value(7))
             .andExpect(jsonPath("$.calories").value(700));
         verify(mealService).rateConfirmed(user, 30L, new com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRatingRequest(8, true));
-        verify(notifications).recordGptAction(user, "Meal rated", "/?tab=calories&date=2026-08-20");
-        verifyNoInteractions(personalRecordMutationService, fastingPeriodService);
+        verifyNoInteractions(notifications, personalRecordMutationService, fastingPeriodService);
     }
 
     @Test
@@ -959,7 +957,7 @@ class ChatGptCoachActionControllerTest {
     @Test
     void mealRatingPreservesOwnershipFailureWithoutSuccessNotification() throws Exception {
         when(currentUserService.requireUser()).thenReturn(user);
-        when(mealService.findForUser(user, 30L)).thenThrow(new com.jllado.weightcontrol.service.NotFoundException("Meal not found"));
+        when(mealService.rateConfirmed(eq(user), eq(30L), any())).thenThrow(new com.jllado.weightcontrol.service.NotFoundException("Meal not found"));
         mockMvc.perform(put("/api/chatgpt-actions/coach/meals/30").param("target", "RATING")
                 .contentType("application/json").content("{\"rating\":8,\"confirmed\":true}"))
             .andExpect(status().isNotFound());
@@ -1406,8 +1404,17 @@ class ChatGptCoachActionControllerTest {
             .andExpect(jsonPath("$.user").doesNotExist());
 
         verify(workoutAssessmentService).getContext(user, workoutDate, null);
-        verify(notifications).recordGptAction(user, "Workout assessment saved", "/?tab=workout&date=2026-08-20");
+        verifyNoInteractions(notifications);
 
+    }
+
+    @Test
+    void ratingRulesExposeTheBackendScoringDefinitions() throws Exception {
+        mockMvc.perform(get("/api/chatgpt-actions/coach/rating-rules"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.meal").value(com.jllado.weightcontrol.service.MealRatingService.RULES))
+            .andExpect(jsonPath("$.workout").value(com.jllado.weightcontrol.service.WorkoutRatingRules.DESCRIPTION));
+        verifyNoInteractions(notifications);
     }
 
     @Test

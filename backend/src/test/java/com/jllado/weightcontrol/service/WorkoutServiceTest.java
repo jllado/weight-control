@@ -47,6 +47,9 @@ class WorkoutServiceTest {
     private com.jllado.weightcontrol.repository.WorkoutAssessmentRepository assessmentRepository;
 
     @Mock
+    private WorkoutAssessmentService assessments;
+
+    @Mock
     private RoutineAutomationService routineAutomationService;
 
     @org.junit.jupiter.api.BeforeEach
@@ -153,7 +156,7 @@ class WorkoutServiceTest {
 
 
     @Test
-    void savingSaunaReconcilesRoutinesAndInvalidatesAssessmentOnceAcrossRecordingKeyRetry() {
+    void savingSaunaReconcilesRoutinesAndRatesOnceAcrossRecordingKeyRetry() {
         User user = new User(); user.setId(7L);
         LocalDate date = LocalDate.of(2026, 8, 20);
         String key = "f04f3d14-c6a7-4e8a-a896-1fd1f1f812f1";
@@ -167,9 +170,9 @@ class WorkoutServiceTest {
         org.junit.jupiter.api.Assertions.assertSame(saved, service.create(user, request));
 
         verify(repository).save(any(Workout.class));
-        verify(assessmentRepository).deleteByUserAndWorkoutDate(user, date);
+        verify(assessments).refresh(user, date);
         verify(routineAutomationService).reconcile(user);
-        org.mockito.Mockito.verifyNoMoreInteractions(assessmentRepository, routineAutomationService);
+        org.mockito.Mockito.verifyNoMoreInteractions(assessments, routineAutomationService);
     }
 
     @Test
@@ -320,7 +323,7 @@ class WorkoutServiceTest {
 
         service.update(user, 9L, request);
 
-        verify(assessmentRepository).deleteByUserAndWorkoutDate(user, workout.getWorkoutDate());
+        verify(assessments).refresh(user, workout.getWorkoutDate());
     }
 
     @Test

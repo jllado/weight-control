@@ -18,12 +18,7 @@
           <Column header="Training day" headerStyle="width: 240px" bodyStyle="vertical-align: top">
             <template #body="day">
               <strong>{{ day.data.workoutDateFormat }}</strong>
-              <div class="assessment-cell p-mt-2">
-                <button v-if="day.data.assessment" class="assessment-summary" type="button" @click="showAssessment(day.data)">
-                  Goal {{ day.data.assessment.goalAlignmentScore }} · Demand {{ day.data.assessment.estimatedTrainingDemandScore }}
-                </button>
-                <CompactAction aria-label="Rate day" icon="chatgpt-icon" :pt="{icon: {'aria-hidden': true}}" @click="assessWithCoach(day.data)" />
-              </div>
+              <div v-if="day.data.assessment" class="p-mt-2"><WorkoutAssessment :assessment="day.data.assessment" :date="day.data.workoutDateFormat" compact /></div>
             </template>
           </Column>
           <Column header="Sessions">
@@ -56,12 +51,7 @@
           <div v-else-if="!diary_error && workouts.length === 0" class="mobile-diary-message">No workouts recorded.</div>
           <section v-for="day in workouts" :key="day.workoutDate" class="mobile-diary-day">
             <strong>{{ day.workoutDateFormat }}</strong>
-            <div class="assessment-cell p-my-2">
-              <button v-if="day.assessment" class="assessment-summary" type="button" @click="showAssessment(day)">
-                Goal {{ day.assessment.goalAlignmentScore }} · Demand {{ day.assessment.estimatedTrainingDemandScore }}
-              </button>
-              <CompactAction aria-label="Rate day" icon="chatgpt-icon" :pt="{icon: {'aria-hidden': true}}" @click="assessWithCoach(day)" />
-            </div>
+            <div v-if="day.assessment" class="p-my-2"><WorkoutAssessment :assessment="day.assessment" :date="day.workoutDateFormat" compact /></div>
           <article v-for="workout in day.sessions" :key="workout.id" class="mobile-diary-workout">
             <button
                 class="mobile-diary-summary"
@@ -138,22 +128,6 @@
 
     <WorkoutForm v-if="display_workout_modal" :workout="selected_workout" @onSave="saveWorkout" @onClose="closeWorkoutModal" v-model:show="display_workout_modal" />
 
-    <Dialog appendTo="body" header="Training day assessment" v-model:visible="display_assessment_modal" :modal="true" :style="{width: 'min(640px, 96vw)'}">
-      <div v-if="selected_assessment_workout" class="assessment-details">
-        <p><strong>Training day:</strong> {{ selected_assessment_workout.workoutDateFormat }}</p>
-        <p><strong>Goal:</strong> {{ selected_assessment_workout.assessment.goalSnapshot }}</p>
-        <p><strong>Goal alignment:</strong> {{ selected_assessment_workout.assessment.goalAlignmentScore }}/10</p>
-        <p><strong>Estimated training demand:</strong> {{ selected_assessment_workout.assessment.estimatedTrainingDemandScore }}/10</p>
-        <p><strong>Rationale:</strong> {{ selected_assessment_workout.assessment.rationale }}</p>
-        <p><strong>Strength:</strong> {{ selected_assessment_workout.assessment.strength }}</p>
-        <p><strong>Improvement:</strong> {{ selected_assessment_workout.assessment.improvement }}</p>
-        <p><strong>Next workout:</strong> {{ selected_assessment_workout.assessment.nextWorkoutAction }}</p>
-      </div>
-      <template #footer>
-        <div class="action-group"><Button label="Close" icon="pi pi-times" class="p-button-secondary" @click="closeAssessment" />
-      </div></template>
-    </Dialog>
-
     <Dialog id="exercise-form" appendTo="body" :header="exercise_form.exerciseType === ExerciseType.TRAINING ? 'Exercise' : exerciseTypeLabel(exercise_form.exerciseType)" v-model:visible="display_exercise_modal" :closeOnEscape="false" :closable="false" :modal="true" :style="{width: 'min(640px, 96vw)'}">
     <SaveFields :saving="exercise_saving">
       <br>
@@ -227,11 +201,10 @@ import exerciseService from '../services/WorkoutExerciseService';
 import WorkoutForm from "@/components/WorkoutForm.vue";
 import WorkoutExercise, { ExerciseTrackingMode, ExerciseType, exerciseTypeLabel, trackingModeLabel, primaryMuscleGroupOptions } from "@/model/WorkoutExercise";
 import WorkoutRecordBadges from "@/components/WorkoutRecordBadges.vue";
-import dayjs from 'dayjs';
-import {buildWorkoutAssessmentPrompt, openCoach} from '@/services/CoachService';
+import WorkoutAssessment from './WorkoutAssessment.vue';
 
 export default {
-  components: {GuidedWorkoutResume, TrainingBalance, ScrollableTabView, WorkoutTiming, WeeklyWorkoutPlan, StretchingSetList, WorkoutForm, WorkoutRecordBadges, ExercisePicture, ExerciseCatalogTable, Tag},
+  components: {WorkoutAssessment, GuidedWorkoutResume, TrainingBalance, ScrollableTabView, WorkoutTiming, WeeklyWorkoutPlan, StretchingSetList, WorkoutForm, WorkoutRecordBadges, ExercisePicture, ExerciseCatalogTable, Tag},
   data() {
     return {
       active_tab: workoutTabIndex(this.$route.query.tab),
@@ -258,9 +231,7 @@ export default {
       exercise_saving: false,
       display_workout_modal: false,
       display_exercise_modal: false,
-      display_assessment_modal: false,
       selected_workout: null,
-      selected_assessment_workout: null,
       exercise_form: buildEmptyExerciseForm(),
       exercise_picture_file: null,
       exercise_picture_preview: null,
@@ -417,27 +388,6 @@ export default {
     async saveWorkout() {
       this.balance_revision++;
       await this.loadDiaryPage({page: this.selected_workout ? this.diary_page : 0});
-    },
-    showAssessment(workout) {
-      this.selected_assessment_workout = workout;
-      this.display_assessment_modal = true;
-    },
-    closeAssessment() {
-      this.display_assessment_modal = false;
-      this.selected_assessment_workout = null;
-    },
-    assessWithCoach(workout) {
-      const prompt = buildWorkoutAssessmentPrompt(dayjs(workout.workoutDate).format('YYYY-MM-DD'));
-      const copyPrompt = navigator.clipboard.writeText(prompt);
-      openCoach();
-      copyPrompt
-          .then(() => this.$toast.add({
-            severity: 'info',
-            summary: 'Assessment prompt copied',
-            detail: 'Paste it into ChatGPT to continue.',
-            life: 5000
-          }))
-          .catch(error => this.handleError(error));
     },
     closeWorkoutModal() {
       this.display_workout_modal = false;
@@ -603,26 +553,6 @@ function buildEmptyExerciseForm() {
 .diary-workout-segment {
   color: #475569;
   font-size: 0.85rem;
-}
-.assessment-cell {
-  align-items: flex-start;
-  align-items: flex-start;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.assessment-summary {
-  background: none;
-  border: 0;
-  color: #2563eb;
-  cursor: pointer;
-  font: inherit;
-  font-weight: 600;
-  padding: 0;
-  text-align: left;
-}
-.assessment-details p {
-  margin: 0 0 0.75rem;
 }
 .diary-mobile {
   display: none;

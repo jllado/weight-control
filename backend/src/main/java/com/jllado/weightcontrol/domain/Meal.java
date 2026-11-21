@@ -65,6 +65,9 @@ public class Meal {
     @Column
     private Integer rating;
 
+    @Column(name = "rating_explanation", columnDefinition = "text")
+    private String ratingExplanation;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private MealSource source;

@@ -88,7 +88,7 @@ Both retained the supplied time/duration, labeled saved nutrient estimates, and 
 
 ## Reusable dish and logged-food acceptance
 
-Coach saves a reusable dish through `createHealthEntry(DISH_RECIPE)` and edits an owned saved dish only after `getHealthEntries(DISH_RECIPE)` returns its full recipe and ID. A confirmed replacement preserves unchanged ingredient snapshots, fruit flags, order and serving yield; a fresh `getHealthEntries(DISH_RECIPE)` must match the exact proposal. Existing logged meals remain identical. Consumed foods use `createMeal` or a full `updateMeal` after `getMeals`, preserving sibling items, date, type, time, duration, source, rating and notes; a fresh `getMeals` must match the confirmed meal. Failed or unconfirmed writes never report success.
+Coach saves a reusable dish through `createHealthEntry(DISH_RECIPE)` and edits an owned saved dish only after `getHealthEntries(DISH_RECIPE)` returns its full recipe and ID. A confirmed replacement preserves unchanged ingredient snapshots, fruit flags, order and serving yield; a fresh `getHealthEntries(DISH_RECIPE)` must match the exact proposal. Existing logged meals remain identical. Consumed foods use `createMeal` or a full `updateMeal` after `getMeals`, preserving sibling items, date, type, time, duration, source and notes; a fresh `getMeals` must match the confirmed meal. Failed or unconfirmed writes never report success.
 
 After deployment and exact private GPT publication, use four fresh read-only intent-routing probes: a reusable dish proposal, a consumed meal-food proposal, a saved dish edit proposal, and a logged meal-food edit proposal. Inspect the actual effective model and power and the Action trace; require zero write Actions. Candidate backend tests and the Dishes/Meals refresh journey cover confirmed persistence. Production confirmed writes may deliver irreversible push notifications, so follow the [live acceptance policy](#live-acceptance-policy) before any such test.
 
@@ -96,7 +96,7 @@ After deployment and exact private GPT publication, use four fresh read-only int
 
 Coach can create or replace a completed workout through the existing typed health-entry Actions with `entryType=WORKOUT`. A create sends the full `workout` and a new UUID `recordingKey`; an exact retry of that key and payload returns the existing workout without repeating achievements, routine changes or notifications, while a changed payload or a key from an app recording conflicts. An edit first reads `getHealthEntries(WORKOUT)` for an inclusive range of at most 90 days, then sends the full owned workout, its ID and its current integer `updateToken`; its original recording key remains fixed. Normal app edits advance that token. A stale token returns 409 before the workout, assessment or side effects change. For a completed-log exercise ID, call `getActivePlan(WORKOUT, exerciseQuery=<specific name>)`; this returns at most 20 matching exercises without the large weekly plan, and a broad query asks for refinement. Omit `exerciseQuery` for plan edits to retain the full plan and token. The read-only assessment context does not supply exercise IDs.
 
-The proposal must include every recorded set or interval, exact seconds, explicit skips, session timing and notes, immutable planned snapshots, and any sibling sessions left untouched. `startTime` is local `HH:mm`; optional `endTime` is a complete ISO-8601 date-time with `Z` or an offset, never a bare clock time such as `13:11`. Omit `endTime` when only local clock time is known; do not infer an instant from duration, and preserve a saved endTime exactly on edit. For sauna, ask for actual ordered positive round minutes and never substitute planned round targets; elapsed duration must cover the actual rounds. Show the complete proposed record and the consequence that saving an edit removes the date's assessment, then obtain immediate confirmation. A successful write requires a fresh `getHealthEntries(WORKOUT)` readback before claiming success; reassess separately if the user wants a new assessment. Workout-plan changes still use `updateActivePlan(WORKOUT)` and remain separate from completed logs.
+The proposal must include every recorded set or interval, exact seconds, explicit skips, session timing and notes, immutable planned snapshots, and any sibling sessions left untouched. `startTime` is local `HH:mm`; optional `endTime` is a complete ISO-8601 date-time with `Z` or an offset, never a bare clock time such as `13:11`. Omit `endTime` when only local clock time is known; do not infer an instant from duration, and preserve a saved endTime exactly on edit. For sauna, ask for actual ordered positive round minutes and never substitute planned round targets; elapsed duration must cover the actual rounds. Show the complete proposed record, explain that saving recalculates the day’s assessment, and obtain immediate confirmation. A successful write requires a fresh `getHealthEntries(WORKOUT)` readback before claiming success; read the stored result with getWorkoutAssessmentContext. Workout-plan changes still use `updateActivePlan(WORKOUT)` and remain separate from completed logs.
 
 Candidate acceptance should cover a sauna-only create with actual and planned rounds differing, a full mixed-session edit preserving segments and siblings, exact same-key replay, divergent key conflict, a normal-app edit staling a Coach token, owner/range bounds, and assessment invalidation. After deployment and private GPT publication, use fresh read-only intent-routing conversations; confirmed production writes follow the [live acceptance policy](#live-acceptance-policy).
 
@@ -169,7 +169,7 @@ The existing production warning has two above-goal windows (2,517 then 2,598.57 
 "Start my coaching session"→"What would you like to work on today?";no Actions
 Meals:DISHES+FOODS(query/food)→refs;fail→say;hasMore→refine;preview≠absence;templates≠intake;recipe→DISH_RECIPE;log→meal;edit:full GET+marker3
 addToCatalog:uncertain=false;true iff proven absent+reusable(short English name)
-Pre-proposal:Code Interpreter:validate prepared-meal.json:ALL 11 nutrients/refs/sources/flags per MealWrite,not totals only. File→summary/JSON/save. Keep refs;nulls:ONE search/food→estimate,no opt-in. ω3:NEVER copy/apportion total→ALA/EPA+DHA. Show foods/qty,time,totals,rating,assumptions/catalog;confirm→write→GET. Material change→reconfirm. Ask only identity/qty/conflict/indefensible basis. Metadata-only:null OK.
+Pre-proposal:Code Interpreter:validate prepared-meal.json:ALL 11 nutrients/refs/sources/flags per MealWrite,not totals only. File→summary/JSON/save. Keep refs;nulls:ONE search/food→estimate,no opt-in. ω3:NEVER copy/apportion total→ALA/EPA+DHA. Show foods/qty,time,totals,assumptions/catalog;confirm→write→GET. Material change→reconfirm. Ask only identity/qty/conflict/indefensible basis. Metadata-only:null OK.
 Fruit:new/changed clear=true even catalog=false;same omit→inherit;else false
 Recipes:qty×servings÷yield HALF_UP3;sum kcal int/macros2dp;catalog round/no convert;est/reset refs;confirm expanded;recipe-only MANUAL;keep repeats/catalog
 Meal:exact local start;default30m duration;no image inference;fast:end→next start≥8h,complete/ordered/nonoverlap/past. Foods needed;MANUAL text/GPT_IMAGE_ESTIMATE image;no image data/refs/dedup/forced totals
@@ -188,16 +188,16 @@ kcal:raw complete7d means ending1d apart,same goal;shortStatus:direction+gap;imp
 Warning:ONLY name,Triggered(createdAt),Last X days,Current/Goal,1 nonnumeric status≤100c
 Cravings:header→Wait15m;no repeat/promise;PAUSED≠outcome;WIN/MISS may close/link once:DECISIONS;Waiting≠WIN;cancelled=unknown;STILL_WANT≠MISS;no timer control/monitor
 Assess kcal/groups/portions/variety/macros;infer names,flag ambiguity;calories≠balance;macrosComplete/notes/source≠full;estimates≠exact;agreed goals+training
-Ratings:PROFILE.planningWeeks.start–date+ACTIVE_PLAN;intake vs target/cap;new1–10+meal/context reason;existing:requested score+improvement;exact meal+rating/all edits→confirm→createMeal(rating)/updateMeal(RATING,rating) each,confirmed:true→GET;report partial;fail:stop,no rollback
+Ratings:meal/workout saves calculate scores;omit rating inputs. Read getMeals/getWorkoutAssessmentContext. With ratingExplanation or automatic:true,explain saved evidence;getRatingRules for current rules. Legacy:report stored score/rationale or unrated. Never edit to generate a score.
 Timing:getMeals+TRAINING;logged times/durations
 Advice:7d+PROFILE,NUTRITION,TRAINING,HEALTH_CONSTRAINTS,ACTIVE_PLAN;fit training/bedtime
 Calorie:PROFILE/NUTRITION goal=saved plan else weekday default;week avg/max;intake≠goal;no auto-balance/restrictive compensation;Left=target−meals
 NUTRITION:vitD default=Reference only≠deficiency;personal goal compare. ω3:each EPA+DHA/ALA min;both met=met,either proven short=below,else unknown;never sum/infer or reward ↑total. Means:complete/full coverage;minimum partial proves met. Salt g:default<5 or personal;partial≥limit=miss,else unknown;sodium mg×.0025 once. Protein min,dated fat/carb caps;endDateComplete=end;all food sources.
 TRAINING.days:all sessions;getWorkoutAssessmentContext(date)+prior14d;plan:sessionKey↔plannedSessionKey1:1,no retro;targets vs sets/metrics/skips/sauna:planned/changed/partial/skipped/unrecorded;extras≠replacement;save/duration≠completion;manual/unmatched unsure;gaps≠failure;coverage;duration≠exercise time/load/recovery;warm-up/stretch≠load;legacy cardio ok;unsure→ask;unclear:no scores/examples/rejections
 Plan:cardio/rest valid;no daily strength;dated misses;fit≠demand/effort;sparse=unknown. ↑measured load/reps/sets/duration/frequency→ack+ask unstated feel/pain/recovery;stable/↓:numbers only,no speculation/questions/advice;alone≠symptom;positive tolerance→positive;edits→field limits
-Assessment:no goal→create/confirm;1–10,reason≤25w,3 texts≤15w;"Save this assessment?"→yes→saveWorkoutAssessment(exact tokens);stale→reload;no log edits/medical advice;no record=no save
+Assessment:read saved day alignment and demand separately. Use rationale, dated plan and prior comparisons. No recorded day→no assessment. Keep reflection scoring separate.
 WORKOUT_PLAN:getActivePlan(WORKOUT)→confirm→updateActivePlan(WORKOUT),saunaSchemaVersion=1;keep all;offer if tolerance/goals/constraints fit;notes+dated before/after/why;GET→cite;archive app
-WORKOUT:getHealthEntries(WORKOUT,≤90d);getActivePlan(WORKOUT,exerciseQuery);create UUID;edit full/token;sauna actual>0≠plan;assessment loss→exact confirm→write→GET;409 GET/reconfirm;endTime ISO Z/offset/omit
+WORKOUT:getHealthEntries(WORKOUT,≤90d);getActivePlan(WORKOUT,exerciseQuery);create UUID;edit full/token;sauna actual>0≠plan;exact confirm→write→GET;409 GET/reconfirm;endTime ISO Z/offset/omit
 stretchingUnit:SECONDS(legacy)=durationSeconds;BREATHS=breaths>0(inhale+exhale);no time/reps/demand conversion;catalog SECONDS
 Photos:metadata→needed sides;say transfer
 DAILY:overview→eligible complete date→context→catalog→getHealthContext(NUTRITION,detailedStart–date);omit follow-up. DAILY/WEEKLY:TRAINING plan week+prior14d to date;dated plans
@@ -271,17 +271,17 @@ Keep distance, workout energy and strength volume separate. No Actions, privacy 
 
 Use fresh read-only conversations after application deployment and private GPT publication; never write workout, assessment or plan records for these scenarios. Compare all recorded date sessions with AVAILABLE `weeklyPlan.day`, matching canonical keys one-to-one and consuming each planned occurrence once. These keys include name, target/segment multiplicity, units (legacy omitted/null means SECONDS), cardio metric, superset membership and ordered sauna rounds; they preserve immutable recording snapshots and omit internal IDs. Key equality is not completion evidence.
 
-| Scenario | Expected conclusion before rating |
+| Scenario | Expected explanation of the saved rating |
 | --- | --- |
 | Every required set/metric and sauna round recorded | Completed as planned; elapsed duration or Save alone never proves completion. |
 | Changed weight/reps/time, explicit skip or missing required set | Distinguish changed completion from partial/skipped work; compare each required target, including breaths versus seconds and supersets. |
 | Extra exercise or wrong session | Extra/unplanned work cannot substitute for a missing planned occurrence. |
 | Two repeated, unnamed or identical planned sessions and one record | Consume the record once; remaining occurrence is unrecorded, not proven failed. |
 | Sauna-only/mixed session, rest or cardio day | Respect ordered rounds, planned recovery and no daily-strength requirement; sauna is not training load. |
-| Manual recording or unmatched/ambiguous snapshot | State uncertain provenance; if it affects the rating, ask and wait for clarification before any score, including provisional scores. |
+| Manual recording or unmatched/ambiguous snapshot | Identify missing evidence and explain how the stored calculation treated it. |
 | No applicable plan, same-day create/update/archive, multiple candidates or later edit | Only a version known at Madrid midnight and covering the entire date supplies the day; partial-day evidence is ambiguous, later edits unavailable. Never reconstruct an earlier intention. |
-| Weekly plan or workout changes after context retrieval | Save rejects stale tokens; reload and reassess before exact confirmation. |
-| No saved workout on the date | Discuss uncertainty without calling the saved-assessment endpoint or fabricating a workout. |
+| Weekly plan or workout changes after context retrieval | A workout edit recalculates its day. Read back that saved result. An independent plan change preserves historical results. |
+| No saved workout on the date | Report that the date has no recorded workout. |
 
 Preserve progression guidance: measured increases prompt a tolerance question unless already answered; stable or lower numbers remain numeric only, with no speculative symptoms or qualitative gains. Application identity, exact published schema/instruction equality, and fresh conversation results are separate delivery evidence.
 
@@ -361,13 +361,11 @@ Propose a save only when the measurement date and all three required values are 
 
 After application deployment, separately publish the private GPT schema/instructions and run these scenarios in fresh conversations. Keep hypothetical scenarios read-only; any necessary create/read-back test follows the [live acceptance policy](#live-acceptance-policy). Record publication and conversation evidence separately from repository validation.
 
-## Meal rating acceptance
+## Automatic meal and workout ratings
 
-Ratings use one integer 1–10 scale for manual and Coach writes. Existing 1–5 scores migrate proportionally (4/5 becomes 8/10), while unrated meals remain unrated. The Calories status panel shows the selected date’s stored average and rated-meal count.
+The app and Coach use the same backend calculation on a meal or workout create or edit. Read the saved meal with `getMeals` or the whole training day with `getWorkoutAssessmentContext`. Explain its stored evidence and consult `getRatingRules` for the current rules. When an old record has a score without an explanation, show only what was saved. An unrated entry remains unrated until a normal edit. Daily and weekly reflections retain their own scoring and confirmation workflow.
 
-For an existing meal rating request, retrieve meals from the start of the selected planning week through that date, plus PROFILE and the active plan. Use returned storage order when same-day meal times are equal or absent. Compare each selected-date meal with recorded intake, its weekday target, and the dated planning-week average cap. For a single-meal request, propose its score and one improvement; for a request to rate all meals, include every meal on the selected date, even already-rated meals, with one score and improvement per meal. Show the complete proposal, then ask whether to save all proposed ratings. Make no write until one immediate exact confirmation covers every meal and score. Then call `updateMeal(target=RATING)` separately for each meal with `rating` and `confirmed:true`; change ratings only. Read back with `getMeals`, identify saved and unsaved ratings, and stop at the first failed write; do not roll back successes or claim full success. Validate through integration tests and read-only/hypothetical live conversations; necessary live writes follow the [live acceptance policy](#live-acceptance-policy).
-
-When logging a new Coach meal, propose its 1–10 score with a brief reason using the proposed meal, planning-week-to-date meal evidence, PROFILE and ACTIVE_PLAN. Show the exact meal and score together and require immediate confirmation. Include the confirmed score in the same `createMeal` payload; read back the saved meal and its score. Do not use `updateMeal(target=RATING)` for a meal that is still being created.
+See the [meal scoring rules](meal-rating-rules.md) and [workout scoring rules](workout-rating-rules.md). Verify identical app and Coach saves, changed and legacy entries, data cutoffs, missing evidence and multi-session days in the backend suite. Use read-only production requests to confirm rules and saved values.
 
 ## Cutover and acceptance
 
@@ -382,7 +380,7 @@ Run the checks relevant to each configuration change under the [live acceptance 
 5. Ask for 30-day training volume and verify only catalog and TRAINING context are retrieved unless another domain is needed.
 6. Record physiotherapist-prescribed bird dogs and side planks, confirm the exact constraint, then ask whether to remove them and verify the guidance is surfaced rather than casually overridden.
 7. Create or replace an active plan, confirm the complete proposal, and verify a later follow-up remains consistent with it.
-8. Assess a stored workout, verify no write occurs before confirmation, save the exact proposal, view it in the workout diary, edit the workout, verify the assessment is deleted, and confirm a reassessment.
+8. Read a saved workout assessment and its rules. On a confirmed workout edit, verify the updated day assessment in the diary.
 9. Ask what to eat for dinner and verify the Coach retrieves the seven-day PROFILE, NUTRITION, TRAINING, HEALTH_CONSTRAINTS, and ACTIVE_PLAN context before answering; verify its meal range accounts for logged foods, portions, variety, protein/carbohydrates/fat, today’s weekday target, the weekly guardrail, and incomplete macro evidence.
 10. Test a follow-up that changes topic and verify the GPT retrieves only the newly relevant context.
 11. Compare front photos from two stored dates, then compare one side view and verify only the requested sets and sides are retrieved through temporary URLs.

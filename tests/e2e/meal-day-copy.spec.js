@@ -16,7 +16,7 @@ function food(name = longName, overrides = {}) {
 }
 function meal(id, date, mealType, overrides = {}) {
     return {id, date, mealType, mealSequence: 1, calories: 333, proteinGrams: 17.17, carbohydrateGrams: 20.02, fatGrams: null,
-        mealTime: '08:05:27', durationMinutes: 20, notes: 'Original notes', rating: 7, source: 'GPT_IMAGE_ESTIMATE', dishes: [food()], ...overrides};
+        mealTime: '08:05:27', durationMinutes: 20, notes: 'Original notes', rating: 7, ratingExplanation: 'The original meal score.', source: 'GPT_IMAGE_ESTIMATE', dishes: [food()], ...overrides};
 }
 function sourceMeals() {
     const legacy = food('Legacy lentils', {vitaminDMicrograms: null, omega3Milligrams: null, magnesiumMilligrams: null, nutrientSource: null,
@@ -28,8 +28,8 @@ function sourceMeals() {
         meal(4, sourceDate, 'SNACK', {mealSequence: 5, calories: 150, mealTime: '17:00:00', durationMinutes: 5, dishes: [food('Almonds')]})];
 }
 function snapshot(entry) {
-    const {id, date, rating, source, ...copy} = entry; // Persisted identity and evaluation are deliberately excluded.
-    void id; void date; void rating; void source;
+    const {id, date, rating, ratingExplanation, source, ...copy} = entry; // Persisted identity and evaluation are deliberately excluded.
+    void id; void date; void rating; void ratingExplanation; void source;
     copy.dishes = entry.dishes.map(dish => { const {id, ...copy} = dish; void id; return copy; });
     return copy;
 }
@@ -48,7 +48,7 @@ async function openCopy(page, entries = sourceMeals(), route = `/meals/new?from=
             if (state.hold) await state.hold;
             if (state.error) return route.fulfill({status: 400, json: {message: 'Target date must be empty before copying meals'}});
             const body = request.postDataJSON();
-            const result = body.meals.map((entry, index) => ({...entry, date: body.date, id: 100 + index, source: 'MANUAL', rating: null, dishes: entry.dishes.map((dish, index) => ({...dish, id: 1000 + index}))}));
+            const result = body.meals.map((entry, index) => ({...entry, date: body.date, id: 100 + index, source: 'MANUAL', rating: 8, ratingExplanation: 'The score for the copied date.', dishes: entry.dishes.map((dish, index) => ({...dish, id: 1000 + index}))}));
             state.meals.push(...result);
             if (state.loseResponse) return route.abort('failed');
             return json({result, recordAchievements: []});
@@ -133,6 +133,11 @@ test('day copy preserves every snapshot through no-op and descriptive local edit
     await expect(page.locator('.meal-entry')).toHaveCount(4);
     await page.reload();
     await expect(page.locator('.meal-entry')).toHaveCount(4);
+    await page.getByRole('button', {name: 'Breakfast rating details: 8/10'}).click();
+    const rating = page.getByRole('dialog', {name: 'Meal rating'});
+    await expect(rating).toContainText('The score for the copied date.');
+    await expect(rating).not.toContainText('The original meal score.');
+    await page.keyboard.press('Escape');
     await expect(page.locator('.dashboard-date-value')).toHaveText('20/08/2026');
     expect(state.dashboardDates.every(date => date === targetDate)).toBe(true);
     expect(state.errors).toEqual([]);
@@ -265,7 +270,7 @@ test.describe('Preload titles for saved salad foods', () => {
             await expect(page.locator('.meal-dish-summary strong')).toHaveText(foods[1].dishes.map(dish => dish.name));
             const save = page.waitForRequest(req => new URL(req.url()).pathname === '/api/meals' && req.method() === 'POST');
             await page.route('**/api/meals', route => route.request().method() === 'POST'
-                ? route.fulfill({json: {result: {...foods[1], date: targetDate, id: 100, rating: null}, recordAchievements: []}}) : route.fallback());
+                ? route.fulfill({json: {result: {...foods[1], date: targetDate, id: 100, rating: 8, ratingExplanation: 'The score for the copied date.'}, recordAchievements: []}}) : route.fallback());
             await page.locator('#meal-form').getByRole('button', {name: 'Save', exact: true}).click();
             expect((await save).postDataJSON().dishes).toEqual(snapshot(foods[1]).dishes.map(dish => ({...dish, nutrientSchemaVersion: 3})));
             expect(state.meals).toEqual(foods);

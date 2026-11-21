@@ -55,14 +55,16 @@ public class WorkoutService {
     private final UserRepository userRepository;
     private final RoutineAutomationService routineAutomationService;
     private final ObjectMapper objectMapper;
+    private final WorkoutAssessmentService assessments;
 
-    public WorkoutService(WorkoutRepository repository, ExerciseService exerciseService, WorkoutAssessmentRepository assessmentRepository, UserRepository userRepository, RoutineAutomationService routineAutomationService, ObjectMapper objectMapper) {
+    public WorkoutService(WorkoutRepository repository, ExerciseService exerciseService, WorkoutAssessmentRepository assessmentRepository, UserRepository userRepository, RoutineAutomationService routineAutomationService, ObjectMapper objectMapper, WorkoutAssessmentService assessments) {
         this.repository = repository;
         this.exerciseService = exerciseService;
         this.assessmentRepository = assessmentRepository;
         this.userRepository = userRepository;
         this.routineAutomationService = routineAutomationService;
         this.objectMapper = objectMapper;
+        this.assessments = assessments;
     }
 
     public List<Workout> findAll(User user) {
@@ -150,7 +152,6 @@ public class WorkoutService {
             }
         }
         validateRequest(request);
-        assessmentRepository.deleteByUserAndWorkoutDate(user, request.workoutDate());
         Workout workout = new Workout();
         workout.setUser(user);
         workout.setRecordingKey(request.recordingKey());
@@ -158,6 +159,7 @@ public class WorkoutService {
         apply(workout, request);
         Workout saved = repository.save(workout);
         routineAutomationService.reconcile(user);
+        assessments.refresh(user, request.workoutDate());
         return new CoachCreateResult(saved, true);
     }
 
@@ -177,8 +179,7 @@ public class WorkoutService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "The workout changed. Reload it and review your changes before saving again.");
         if (updateToken != null && !Objects.equals(request.recordingKey(), workout.getRecordingKey()))
             throw new BadRequestException("The recording key cannot change");
-        assessmentRepository.deleteByUserAndWorkoutDate(user, workout.getWorkoutDate());
-        if (!workout.getWorkoutDate().equals(request.workoutDate())) assessmentRepository.deleteByUserAndWorkoutDate(user, request.workoutDate());
+        LocalDate previousDate = workout.getWorkoutDate();
         workout.setWorkoutDate(request.workoutDate());
         workout.setNote(blankToNull(request.note()));
         applyPlanSnapshot(workout, request);
@@ -191,6 +192,8 @@ public class WorkoutService {
         workout.setUpdatedAt(Instant.now());
         Workout saved = repository.save(workout);
         routineAutomationService.reconcile(user);
+        if (!previousDate.equals(request.workoutDate())) assessments.refresh(user, previousDate);
+        assessments.refresh(user, request.workoutDate());
         return saved;
     }
 
@@ -206,8 +209,8 @@ public class WorkoutService {
     public void delete(User user, Long id) {
         userRepository.findByIdForUpdate(user.getId()).orElseThrow();
         Workout workout = requireOwned(user, id);
-        assessmentRepository.deleteByUserAndWorkoutDate(user, workout.getWorkoutDate());
         repository.delete(workout);
+        assessments.refresh(user, workout.getWorkoutDate());
         routineAutomationService.reconcile(user);
     }
 

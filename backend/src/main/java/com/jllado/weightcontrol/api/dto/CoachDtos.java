@@ -49,6 +49,8 @@ public final class CoachDtos {
     private CoachDtos() {
     }
 
+    public record RatingRulesResponse(String meal, String workout) {}
+
     public record CoachCatalogResponse(
         String timezone,
         OffsetDateTime currentLocalDateTime,

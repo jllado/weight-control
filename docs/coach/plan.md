@@ -763,3 +763,9 @@ Meal preflight uses enabled Code Interpreter with Decimal/HALF_UP scaling and su
 Food, recipe and meal contracts add salt grams with independent consumed/reference values, source and estimate flag. Version 3 replacements protect known salt from unaware clients; version 2 remains compatible for older nutrient fields. NUTRITION context and future weekly snapshots expose salt coverage and a WHO default limit strictly below 5 g/day or a personal override; partial below-limit evidence stays unknown and a known subtotal at/above the limit fails. Preserve historical snapshots and other nutrient semantics.
 
 Deploy the additive application migration and complete reviewed owner-wide salt enrichment before publishing the matching private GPT schema and eleven-nutrient instructions. Verify exact saved/live configuration, private authentication and a fresh no-save meal proposal with salt/source/reference scaling. Salt research and unit conversion happen before confirmation; no extra estimate-permission step is introduced.
+
+## Automatic ratings on recording
+
+The backend now calculates each meal’s score and explanation and one goal-alignment and training-demand assessment for each saved workout day. This supersedes the original manual proposal and assessment invalidation workflows above. App and Coach share the recording services. A dated save may replace its earlier assessment. Untouched records and reflection scores retain their historical values. The private GPT reads the stored evidence and the current rules through `getRatingRules`.
+
+See the [meal rating rules](meal-rating-rules.md) and [workout rating rules](workout-rating-rules.md).

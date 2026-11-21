@@ -69,7 +69,7 @@ class SaltNutritionTest {
     }
 
     @Test void defaultSaltTargetUsesWhoFiveGrams() {
-        var service = new NutrientTargetService(mock(UserRepository.class), mock(WeeklyCaloriePlanService.class));
+        var service = new NutrientTargetService(mock(UserRepository.class), mock(WeeklyCaloriePlanService.class), mock(com.jllado.weightcontrol.repository.MealRatingProfileHistory.class));
         var salt = mapper.valueToTree(service.resolve(new User(), LocalDate.of(2026, 10, 23))).path("salt");
         assertEquals(5, salt.path("value").asDouble());
         assertEquals(5, salt.path("referenceValue").asDouble());

@@ -57,6 +57,8 @@ import com.jllado.weightcontrol.service.FastingPeriodService;
 import com.jllado.weightcontrol.service.HealthDataContextService;
 import com.jllado.weightcontrol.service.HealthConstraintService;
 import com.jllado.weightcontrol.service.MealService;
+import com.jllado.weightcontrol.service.MealRatingService;
+import com.jllado.weightcontrol.service.WorkoutRatingRules;
 import com.jllado.weightcontrol.service.DishRecipeService;
 import com.jllado.weightcontrol.service.PersonalRecordMutationService;
 import com.jllado.weightcontrol.service.ProgressPhotoService;
@@ -270,10 +272,7 @@ public class ChatGptCoachActionController {
 
     @PutMapping(value = "/meals/{id}", params = "target=RATING")
     public MealResponse rateMeal(@PathVariable Long id, @Valid @RequestBody CoachMealRatingRequest request) {
-        var user = currentUserService.requireUser();
-        return actionNotifications.execute(user, "Meal rated", dashboardUrl("calories", mealService.findForUser(user, id).getMealDate()),
-            () -> MealResponse.from(mealService.rateConfirmed(user, id, request))
-        );
+        return MealResponse.from(mealService.rateConfirmed(currentUserService.requireUser(), id, request));
     }
 
     @PostMapping("/meals/{id}/delete")
@@ -336,10 +335,12 @@ public class ChatGptCoachActionController {
         @RequestParam(required = false) String sessionReference,
         @Valid @RequestBody SaveWorkoutAssessmentRequest request
     ) {
-        var user = currentUserService.requireUser();
-        return actionNotifications.execute(user, "Workout assessment saved", dashboardUrl("workout", workoutDate),
-            () -> workoutAssessmentService.save(user, workoutDate, sessionReference, request)
-        );
+        return workoutAssessmentService.save(currentUserService.requireUser(), workoutDate, sessionReference, request);
+    }
+
+    @GetMapping("/rating-rules")
+    public CoachDtos.RatingRulesResponse getRatingRules() {
+        return new CoachDtos.RatingRulesResponse(MealRatingService.RULES, WorkoutRatingRules.DESCRIPTION);
     }
 
     @GetMapping("/progress-photos")
