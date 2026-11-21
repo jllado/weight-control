@@ -28,7 +28,7 @@ class CoachWarningControllerTest {
         var current = mock(CurrentUserService.class);
         var user = new User();
         when(current.requireUser()).thenReturn(user);
-        var mvc = MockMvcBuilders.standaloneSetup(new ChatGptCoachWarningActionController(service, current), new CoachWarningController(service, current)).build();
+        var mvc = MockMvcBuilders.standaloneSetup(new ChatGptCoachWarningActionController(service, current), new CoachWarningController(service, current, mock(com.jllado.weightcontrol.service.OvernightHeartRateService.class))).build();
         String body = """
             {"requestKey":"569a7494-4e32-41d7-8ac5-b03103342261","type":"RECOVERY_STRAIN",
             "content":{"explanation":"Pattern","evidence":"Sep 1–7 compared with prior days","action":"Rest","reviewedDate":"2026-09-08","metricsReview":%s}}

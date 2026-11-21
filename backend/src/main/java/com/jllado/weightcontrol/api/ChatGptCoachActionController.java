@@ -434,15 +434,17 @@ public class ChatGptCoachActionController {
 
     @PostMapping("/sleeps")
     public SleepResponse createSleep(@Valid @RequestBody CoachSleepRequest request) {
-        return actionNotifications.execute(currentUserService.requireUser(), "Sleep saved", dashboardUrl("sleep", request.sleepDate()),
-            () -> SleepResponse.from(personalRecordMutationService.createSleep(currentUserService.requireUser(), request.sleep()).result())
+        var user = currentUserService.requireUser();
+        return actionNotifications.execute(user, "Sleep saved", dashboardUrl("sleep", request.sleepDate()),
+            () -> SleepResponse.from(personalRecordMutationService.createSleep(user, request.sleep()).result())
         );
     }
 
     @PutMapping("/sleeps/{id}")
     public SleepResponse updateSleep(@PathVariable Long id, @Valid @RequestBody CoachSleepRequest request) {
-        return actionNotifications.execute(currentUserService.requireUser(), "Sleep updated", dashboardUrl("sleep", request.sleepDate()),
-            () -> SleepResponse.from(personalRecordMutationService.updateSleep(currentUserService.requireUser(), id, request.sleep()).result())
+        var user = currentUserService.requireUser();
+        return actionNotifications.execute(user, "Sleep updated", dashboardUrl("sleep", request.sleepDate()),
+            () -> SleepResponse.from(personalRecordMutationService.updateSleep(user, id, request.sleep()).result())
         );
     }
 

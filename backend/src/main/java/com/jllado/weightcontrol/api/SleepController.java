@@ -1,10 +1,13 @@
 package com.jllado.weightcontrol.api;
 
+import com.jllado.weightcontrol.api.dto.SleepDtos.HeartRateLimitRequest;
+import com.jllado.weightcontrol.api.dto.SleepDtos.HeartRateLimitSetting;
 import com.jllado.weightcontrol.api.dto.SleepDtos.SleepRequest;
 import com.jllado.weightcontrol.api.dto.SleepDtos.SleepResponse;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.SleepService;
+import com.jllado.weightcontrol.service.OvernightHeartRateLimitService;
 import com.jllado.weightcontrol.service.PersonalRecordMutationService;
 import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.RecordMutationResponse;
 import jakarta.validation.Valid;
@@ -26,16 +29,30 @@ public class SleepController {
     private final CurrentUserService currentUserService;
     private final PersonalRecordMutationService mutationService;
 
-    public SleepController(SleepService sleepService, CurrentUserService currentUserService, PersonalRecordMutationService mutationService) {
+    private final OvernightHeartRateLimitService limits;
+
+    public SleepController(SleepService sleepService, CurrentUserService currentUserService, PersonalRecordMutationService mutationService,
+                           OvernightHeartRateLimitService limits) {
         this.sleepService = sleepService;
         this.currentUserService = currentUserService;
         this.mutationService = mutationService;
+        this.limits = limits;
     }
 
     @GetMapping
     public List<SleepResponse> all() {
         User user = currentUserService.requireUser();
         return sleepService.findAll(user).stream().map(SleepResponse::from).toList();
+    }
+
+    @GetMapping("/heart-rate-limit")
+    public HeartRateLimitSetting heartRateLimit() {
+        return limits.current(currentUserService.requireUser());
+    }
+
+    @PutMapping("/heart-rate-limit")
+    public HeartRateLimitSetting updateHeartRateLimit(@Valid @RequestBody HeartRateLimitRequest request) {
+        return limits.update(currentUserService.requireUser(), request.bpm());
     }
 
     @PostMapping
