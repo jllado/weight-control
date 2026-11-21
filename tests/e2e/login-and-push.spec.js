@@ -4733,6 +4733,116 @@ test('grouped navigation keeps destinations and utilities accessible on desktop 
     await expect(page).toHaveURL('/login');
 });
 
+async function expectNavigationSearchFits(page, menubar, width) {
+    await expect.poll(() => page.evaluate(() => ({
+        viewport: window.innerWidth,
+        content: document.documentElement.scrollWidth
+    }))).toEqual({viewport: width, content: width});
+    const controls = menubar.locator('input:visible, a:visible, button:visible');
+    for (const control of await controls.all()) {
+        await expect(control).toBeInViewport({ratio: 1});
+    }
+}
+
+test.describe('desktop navigation search', () => {
+    test.use({isMobile: false, hasTouch: false, deviceScaleFactor: 1});
+
+    for (const width of [1024, 1440]) {
+        test(`filters grouped destinations, clears, and navigates with the keyboard at ${width}px`, async ({page}, testInfo) => {
+            await page.setViewportSize({width, height: 900});
+            await mockAuthenticatedDashboard(page);
+            await openSpaRoute(page, '/');
+            const menubar = page.locator('.app-menubar');
+            const search = menubar.getByRole('combobox', {name: 'Search navigation'});
+            await expect(search).toBeVisible();
+            await expect(search).toHaveAttribute('placeholder', 'Go to…');
+            await expect(menubar.locator('.p-menubar-button')).toBeHidden();
+            await expect(menubar.getByText('Nutrition', {exact: true})).toBeHidden();
+
+            await search.fill('ION');
+            const results = menubar.getByRole('listbox');
+            const expected = [
+                ['Nutrition', 'Track', '/calories'],
+                ['Actions', 'Plan', '/actions'],
+                ['Medications', 'Plan', '/medications'],
+                ['Daily reflections', 'Review', '/reflections']
+            ];
+            await expect(results.getByRole('option')).toHaveCount(expected.length);
+            for (const [label, group, href] of expected) {
+                const option = results.getByRole('option', {name: new RegExp(label)});
+                await expect(option).toContainText(group);
+                await expect(option).toHaveAttribute('href', href);
+            }
+            await search.press('ArrowDown');
+            await expect(results.getByRole('option', {selected: true})).toContainText('Nutrition');
+            await expectNavigationSearchFits(page, menubar, width);
+            await page.screenshot({path: testInfo.outputPath(`navigation-search-${width}.png`), animations: 'disabled'});
+
+            await search.fill('unmatched destination');
+            await expect(menubar.getByText('No matching destinations.', {exact: true})).toBeVisible();
+            await expect(menubar.getByRole('option')).toHaveCount(0);
+            await menubar.getByRole('button', {name: 'Clear search'}).click();
+            await expect(search).toHaveValue('');
+            await expect(menubar.getByText('No matching destinations.', {exact: true})).toBeHidden();
+            for (const name of ['Track', 'Plan', 'Review']) {
+                await expect(menubar.getByRole('menuitem', {name, exact: true})).toBeVisible();
+            }
+
+            await search.fill('settings');
+            await expect(results.getByRole('option', {name: /Settings/})).toContainText('Account');
+            await search.press('Escape');
+            await expect(search).toHaveValue('');
+            await search.fill('pressure');
+            await expect(results.getByRole('option', {name: /Blood Pressure/})).toHaveAttribute('href', '/pressures');
+            await search.press('ArrowDown');
+            await page.keyboard.press('Enter');
+            await expect(page).toHaveURL('/pressures');
+            await expect(search).toHaveValue('');
+            await expect(results).toBeHidden();
+        });
+    }
+});
+
+test('mobile navigation search opens inside the hamburger and resets after touch selection', async ({page}, testInfo) => {
+    await page.setViewportSize({width: 390, height: 844});
+    await mockAuthenticatedDashboard(page);
+    await openSpaRoute(page, '/');
+    const menubar = page.locator('.app-menubar');
+    const toggle = menubar.locator('.p-menubar-button');
+    const search = menubar.getByRole('combobox', {name: 'Search navigation'});
+    const track = menubar.getByRole('menuitem', {name: 'Track', exact: true});
+    await expect(search).toBeHidden();
+    await toggle.tap();
+    await expect(track).toBeVisible();
+    await expect(search).toHaveAttribute('placeholder', 'Go to…');
+    await expect(menubar.getByText('Personal Records', {exact: true})).toBeHidden();
+
+    await search.fill('reflec');
+    const result = menubar.getByRole('option', {name: /Daily reflections/});
+    await expect(result).toContainText('Review');
+    await expect(result).toHaveAttribute('href', '/reflections');
+    await expectNavigationSearchFits(page, menubar, 390);
+    await page.screenshot({path: testInfo.outputPath('navigation-search-390.png'), animations: 'disabled'});
+    await result.tap();
+    await expect(page).toHaveURL('/reflections');
+    await expect(search).toBeHidden();
+    await expect(track).toBeHidden();
+
+    await toggle.tap();
+    await expect(search).toHaveValue('');
+    await expect(menubar.getByRole('option')).toHaveCount(0);
+    await toggle.tap();
+    await toggle.focus();
+    await toggle.press('Enter');
+    await expect(search).toBeFocused();
+    await search.fill('home');
+    await expect(menubar.getByRole('option', {name: /Home/})).toHaveAttribute('href', '/');
+    await search.press('Escape');
+    await expect(search).toHaveValue('');
+    await track.tap();
+    await expect(menubar.getByText('Progress Photos', {exact: true})).toBeVisible();
+});
+
 test('notification bell opens pending actions and dismisses them individually', async ({page}) => {
     const date = madridDate();
     const initialNotifications = [
