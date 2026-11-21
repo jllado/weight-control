@@ -144,7 +144,7 @@ This verifies the requested presentation and consent distinction, not hidden pay
 
 ## Planned exercise rest
 
-Plan exercise occurrences carry optional whole `restSeconds` independently in each session. Zero means no rest; absent/null selects the guided default (zero for warm-ups and stretching, otherwise the existing normal preference, initially 60 seconds). Explicit positive values override either default. Preserve these settings during full-plan replacements. Current guided-workout overrides remain local and do not change the saved plan. The additive Action schema supplies these field rules; the existing confirmation, full-plan preservation and readback instructions remain unchanged.
+Plan exercise occurrences carry optional whole `restSeconds` independently in each session. Zero means no rest; absent/null selects the guided default (zero for warm-ups and stretching, otherwise the existing normal preference, initially 60 seconds). Any positive rest duration offers a choice when another set remains. The countdown starts when the user selects Start rest. Preserve these settings during full-plan replacements. Current guided-workout overrides remain local and do not change the saved plan. The additive Action schema supplies these field rules; the existing confirmation, full-plan preservation and readback instructions remain unchanged.
 
 ## Minor first calorie breach acceptance
 
