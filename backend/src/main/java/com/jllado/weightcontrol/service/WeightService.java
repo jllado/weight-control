@@ -151,15 +151,15 @@ public class WeightService {
         return weightRepository.findFirstByUserAndMeasuredAtLessThanOrderByMeasuredAtDesc(user, weight.getMeasuredAt()).orElse(null);
     }
 
-    public WeightPerformanceWeek getPerformanceWeek(Weight weight) {
+    public WeightPerformanceWeek getPerformanceWeek(User user, Weight weight) {
         LocalDate measurementDate = DateTimes.toLocalDate(weight.getMeasuredAt());
-        var period = PlanningWeekService.period(weight.getUser(), measurementDate);
-        if (!period.end().equals(measurementDate)) period = PlanningWeekService.period(weight.getUser(), period.start().minusDays(1));
+        var period = PlanningWeekService.period(user, measurementDate);
+        if (!period.end().equals(measurementDate)) period = PlanningWeekService.period(user, period.start().minusDays(1));
         LocalDate endDate = period.end();
         if (measurementDate.isAfter(endDate.plusDays(2))) return null;
         LocalDate startDate = period.start();
         List<com.jllado.weightcontrol.domain.DailyStatus> statuses = dailyStatusRepository
-            .findByUserAndStatusDateBetweenOrderByStatusDateAsc(weight.getUser(), startDate, endDate);
+            .findByUserAndStatusDateBetweenOrderByStatusDateAsc(user, startDate, endDate);
         long completed = statuses.stream().mapToLong(com.jllado.weightcontrol.domain.DailyStatus::getRoutinesDone).sum();
         long opportunities = statuses.stream().mapToLong(com.jllado.weightcontrol.domain.DailyStatus::getTotalRoutines).sum();
         return new WeightPerformanceWeek(startDate, endDate, opportunities == 0 ? null : Numbers.percentage(completed, opportunities));

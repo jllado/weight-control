@@ -524,7 +524,7 @@ public class HealthDataContextService {
                 DateTimes.startOfDay(from),
                 DateTimes.startOfDay(to.plusDays(1))
             ).stream()
-            .map(this::toCoachBodyMeasurementData)
+            .map(weight -> toCoachBodyMeasurementData(user, weight))
             .toList();
         return new CoachDtos.BodyContext(measurements);
     }
@@ -750,7 +750,7 @@ public class HealthDataContextService {
             recentReflections,
             detailed(statuses, DailyStatus::getStatusDate, detailedStart).stream().map(this::toDailyStatusData).toList(),
             routines.stream().filter(routine -> routine.getCadence() == RoutineCadence.DAILY).map(routine -> toRoutineData(routine, checkins.get(routine), detailedStart)).toList(),
-            detailed(weights, weight -> DateTimes.toLocalDate(weight.getMeasuredAt()), detailedStart).stream().map(this::toWeightData).toList(),
+            detailed(weights, weight -> DateTimes.toLocalDate(weight.getMeasuredAt()), detailedStart).stream().map(weight -> toWeightData(user, weight)).toList(),
             detailed(bloodPressures, bloodPressure -> DateTimes.toLocalDate(bloodPressure.getMeasuredAt()), detailedStart).stream().map(this::toBloodPressureData).toList(),
             detailed(moods, Mood::getMoodDate, detailedStart).stream().map(this::toMoodData).toList(),
             detailed(sleeps, Sleep::getSleepDate, detailedStart).stream().map(this::toSleepData).toList(),
@@ -955,7 +955,7 @@ public class HealthDataContextService {
         );
     }
 
-    private WeightData toWeightData(Weight weight) {
+    private WeightData toWeightData(User user, Weight weight) {
         return new WeightData(
             DateTimes.toLocalDate(weight.getMeasuredAt()),
             weight.getWeight(),
@@ -964,11 +964,11 @@ public class HealthDataContextService {
             weight.getLostWeight(),
             weight.getLostFat(),
             weight.getLostMuscle(),
-            toPerformanceWeekData(weightService.getPerformanceWeek(weight))
+            toPerformanceWeekData(weightService.getPerformanceWeek(user, weight))
         );
     }
 
-    private CoachDtos.BodyMeasurementData toCoachBodyMeasurementData(Weight weight) {
+    private CoachDtos.BodyMeasurementData toCoachBodyMeasurementData(User user, Weight weight) {
         return new CoachDtos.BodyMeasurementData(
             DateTimes.toLocalDate(weight.getMeasuredAt()),
             weight.getWeight(),
@@ -979,7 +979,7 @@ public class HealthDataContextService {
             weight.getLostWeight(),
             weight.getLostFat(),
             weight.getLostMuscle(),
-            toCoachPerformanceWeekData(weightService.getPerformanceWeek(weight))
+            toCoachPerformanceWeekData(weightService.getPerformanceWeek(user, weight))
         );
     }
 

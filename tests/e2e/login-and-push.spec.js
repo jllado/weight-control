@@ -586,6 +586,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
     await page.route('**/api/**', async route => {
         const request = route.request();
         const path = new URL(request.url()).pathname;
+        if (path.startsWith('/api/weekly-calorie-plans/') && request.method() === 'GET') return route.fulfill({status: 204});
         if (path === '/api/dashboard/overall-progress') return route.fulfill({json: {status: null, score: null, currentStart: date, currentEnd: date, previousStart: date, previousEnd: date, contributions: []}});
         if (path === '/api/urge-pauses') return route.fulfill({json: {pause: null, serverNow: new Date().toISOString()}});
         if (path === '/api/auth/me') {
@@ -880,6 +881,7 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             }
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(selectedDashboard)});
         }
+        if (path.startsWith('/api/weekly-calorie-plans/') && request.method() === 'GET') return route.fulfill({status: 204});
         if (path === '/api/dashboard/overall-progress') {
             const progressDate = url.searchParams.get('selectedDate');
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(overallProgressResponse ?? {

@@ -595,7 +595,7 @@ class HealthDataContextServiceTest {
         weight.setFat(new BigDecimal("20.50"));
         weight.setMuscle(new BigDecimal("55.25"));
         weight.setPhotoFrontPath("/private/front.jpg");
-        when(weightService.getPerformanceWeek(weight)).thenReturn(new WeightPerformanceWeek(
+        when(weightService.getPerformanceWeek(user, weight)).thenReturn(new WeightPerformanceWeek(
             LocalDate.of(2026, 8, 8), LocalDate.of(2026, 8, 14), new BigDecimal("80.00")
         ));
         when(weightRepository.findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(
