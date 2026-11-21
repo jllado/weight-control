@@ -236,6 +236,7 @@
             <ul class="overall-progress-contributions">
               <li v-for="item in overall_progress.contributions" :key="item.metric">
                 <strong>{{ item.metric }}</strong> · {{ item.included ? `${item.weight}% weight, ${item.change.toFixed(1)} change` : 'Excluded' }}
+                <div v-if="item.metric === 'Overnight heart rate'">{{ item.explanation }}</div>
               </li>
             </ul>
           </details>
@@ -704,7 +705,7 @@
               <template #header>
                 <div class="table-header">
                   <strong>Sleep</strong>
-                  <CreateSleep :initial_date="daily_status.date" :sleep="get_sleep_for(daily_status.date)" fixed_date @onSave="load_all" />
+                  <CreateSleep :initial_date="daily_status.date" :sleep="get_sleep_for(daily_status.date)" fixed_date @onSave="refresh_after_sleep_save" />
                 </div>
               </template>
               <div class="p-grid">
@@ -3132,6 +3133,9 @@ export default {
     },
     async load_all_moods() {
       this.moods = await moodService.get_all_by(this.state.user.mail);
+    },
+    async refresh_after_sleep_save() {
+      await Promise.all([this.load_all(), this.$refs.coach_warnings.refreshAfterChange()]);
     },
     async load_all_sleeps() {
       this.sleeps = await sleepService.get_all();

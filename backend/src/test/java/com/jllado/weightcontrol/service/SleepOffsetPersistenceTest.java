@@ -25,6 +25,8 @@ class SleepOffsetPersistenceTest {
         @Bean @ServiceConnection MariaDBContainer<?> database() { return new MariaDBContainer<>("mariadb:11.8").withDatabaseName("sleep_offsets"); }
     }
     @Autowired SleepService sleeps;
+    @Autowired OvernightHeartRateService heartRates;
+    @Autowired PersonalRecordMutationService mutations;
     @Autowired UserRepository users;
     @Autowired JdbcTemplate jdbc;
     @Autowired com.fasterxml.jackson.databind.ObjectMapper mapper;
@@ -111,6 +113,33 @@ class SleepOffsetPersistenceTest {
         var coach = mapper.readValue(json.replace("\"averageHrv\":13", "\"averageHrv\":13,\"confirmed\":true"), com.jllado.weightcontrol.api.dto.SleepDtos.CoachSleepRequest.class);
         assertEquals(request.bedtimeStart(), coach.bedtimeStart());
         assertEquals(request.bedtimeEnd(), coach.bedtimeEnd());
+    }
+
+    @Test void automaticHeartRateWarningReplaysAppAndCoachSleepWritesForTheOwner() {
+        var owner = user();
+        var other = user();
+        var start = LocalDate.of(2025, 7, 1);
+        for (int i = 0; i < 7; i++) sleeps.create(owner, sleepWithRate(start.plusDays(i), 60));
+        var firstHigh = start.plusDays(7);
+        var secondHigh = firstHigh.plusDays(1);
+        mutations.createSleep(owner, sleepWithRate(firstHigh, 67));
+        var second = mutations.createSleep(owner, sleepWithRate(secondHigh, 68)).result();
+        assertTrue(heartRates.analysis(owner, firstHigh).reasons().isEmpty());
+        assertEquals("RECENT_ELEVATION", heartRates.analysis(owner, secondHigh).reasons().getFirst().code());
+        assertTrue(heartRates.analysis(other, secondHigh).reasons().isEmpty());
+        assertEquals(0, heartRates.analysis(other, secondHigh).fraction(start, secondHigh).assessable());
+        mutations.updateSleep(owner, second.getId(), sleepWithRate(secondHigh, 65));
+        assertTrue(heartRates.analysis(owner, secondHigh).reasons().isEmpty());
+        mutations.updateSleep(owner, second.getId(), sleepWithRate(secondHigh, 68));
+        assertEquals(2, heartRates.analysis(owner, secondHigh).fraction(start, secondHigh).elevated());
+        mutations.deleteSleep(owner, second.getId());
+        assertTrue(heartRates.analysis(owner, secondHigh).reasons().isEmpty());
+        assertEquals(1, heartRates.analysis(owner, secondHigh).fraction(start, secondHigh).elevated());
+    }
+
+    private SleepRequest sleepWithRate(LocalDate date, int rate) {
+        var end = date.atTime(7, 0).atOffset(java.time.ZoneOffset.UTC);
+        return new SleepRequest(date, end.minusHours(8), end, 25200, 3600, 5400, 16200, 3600, BigDecimal.valueOf(rate), 42);
     }
 
     private User user() { var user = new User(); user.setEmail(UUID.randomUUID() + "@example.com"); return users.save(user); }

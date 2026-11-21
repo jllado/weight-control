@@ -73,6 +73,7 @@
     <Button label="Cancel" class="p-button-secondary" :disabled="saving" @click="cancel" />
     </div>
   </Panel>
+  <OvernightHeartRateSettings />
   <PushNotificationSettings />
   <WeeklySummarySettings :today="today" />
   <NutrientTargetSettings />
@@ -85,13 +86,14 @@ import {madridInstant} from '../model/WorkoutTiming';
 import {userState} from '../state';
 import UserProfile, {calorieShortcutOptions, medicationOptions, typicalCaloriesDays, userFitnessLevelOptions, userSexOptions} from '../model/UserProfile';
 import userProfileService from '../services/UserProfileService';
+import OvernightHeartRateSettings from './OvernightHeartRateSettings.vue';
 import PushNotificationSettings from './PushNotificationSettings.vue';
 import WeeklySummarySettings from './WeeklySummarySettings.vue';
 import NutrientTargetSettings from './NutrientTargetSettings.vue';
 import {formatCalories} from '../services/CalorieFormatting';
 
 export default {
-  components: {PushNotificationSettings, WeeklySummarySettings, NutrientTargetSettings},
+  components: {OvernightHeartRateSettings, PushNotificationSettings, WeeklySummarySettings, NutrientTargetSettings},
   data() {
     return {
       profile: new UserProfile({takesMedication: false}),

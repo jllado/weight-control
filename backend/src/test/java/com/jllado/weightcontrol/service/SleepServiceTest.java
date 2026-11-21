@@ -9,6 +9,7 @@ import com.jllado.weightcontrol.api.dto.SleepDtos.SleepRequest;
 import com.jllado.weightcontrol.domain.Sleep;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.SleepRepository;
+import com.jllado.weightcontrol.repository.UserRepository;
 import com.jllado.weightcontrol.util.DateTimes;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -29,6 +30,9 @@ class SleepServiceTest {
 
     @Mock
     private RoutineAutomationService automationService;
+
+    @Mock private UserRepository users;
+    @Mock private OvernightHeartRateLimitService limits;
 
     @InjectMocks
     private SleepService service;
@@ -54,6 +58,7 @@ class SleepServiceTest {
         assertEquals(request.awakeTime(), sleepCaptor.getValue().getAwakeTime());
         assertEquals(request.averageHeartRate().setScale(2), sleepCaptor.getValue().getAverageHeartRate());
         assertEquals(request.averageHrv(), sleepCaptor.getValue().getAverageHrv());
+        verify(limits).initializeIfEligible(user);
         verify(automationService).reconcile(user);
     }
 
@@ -69,6 +74,7 @@ class SleepServiceTest {
         assertEquals(sleep, service.update(user, 10L, request));
 
         assertEquals(request.bedtimeEnd(), sleep.getBedtimeEnd());
+        verify(limits).initializeIfEligible(user);
         verify(automationService).reconcile(user);
     }
 

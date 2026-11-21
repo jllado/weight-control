@@ -135,6 +135,10 @@ Every new DAILY and WEEKLY reflection save carries `warningReview` with today's 
 2. Keep business rules in the service and HTTP mapping in existing DTO files.
 3. Add service tests and controller/DTO tests when the external contract changes.
 
+### Overnight heart rate
+
+Dashboard → current warnings combines the active overnight heart-rate reasons in one card. It uses recorded sleep dates, the latest 30 prior valid readings for a rolling median, effective-dated personal alert thresholds, and two 14-day means against the preceding 30-day mean. The warning and Overall progress replay owner-owned positive readings after app or Coach sleep changes. Settings holds the accepted threshold. Overall progress compares elevated/assessable nights across the two 30-day periods, counting overlaps once and preserving both fractions when evidence is sparse.
+
 ### Dashboard entry warnings
 
 The Calories tab and day-completion button must use the same `is_calorie_entry_missing()` method; any meal recorded for the selected date, including a zero-calorie meal or snack, clears the calorie warning.

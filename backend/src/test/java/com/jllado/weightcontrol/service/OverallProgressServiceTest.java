@@ -7,11 +7,16 @@ import static org.mockito.Mockito.*;
 import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.*;
+import com.jllado.weightcontrol.service.OvernightHeartRateAnalysis.Limit;
+import com.jllado.weightcontrol.service.OvernightHeartRateAnalysis.Night;
+import com.jllado.weightcontrol.util.DateTimes;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -22,7 +27,13 @@ class OverallProgressServiceTest {
     private final BloodPressureRepository pressures = mock(BloodPressureRepository.class);
     private final SleepRepository sleeps = mock(SleepRepository.class);
     private final WorkoutRepository workouts = mock(WorkoutRepository.class);
-    private final OverallProgressService service = new OverallProgressService(statuses, weights, pressures, sleeps, workouts);
+    private final OvernightHeartRateService heartRates = mock(OvernightHeartRateService.class);
+    private final OverallProgressService service = new OverallProgressService(statuses, weights, pressures, sleeps, workouts, heartRates);
+
+    @BeforeEach
+    void noHeartRateRecordsByDefault() {
+        when(heartRates.analysis(any(), any())).thenReturn(OvernightHeartRateAnalysis.evaluate(List.of(), List.of(), LocalDate.of(2026, 1, 1)));
+    }
 
     @Test
     void classifiesAllFiveStatesAtTheirInclusiveBoundaries() {
@@ -48,7 +59,7 @@ class OverallProgressServiceTest {
 
         assertThat(result.status()).isNull();
         assertThat(result.score()).isNull();
-        assertThat(result.contributions()).hasSize(6).allMatch(metric -> !metric.included());
+        assertThat(result.contributions()).hasSize(7).allMatch(metric -> !metric.included());
     }
 
     @Test
@@ -103,6 +114,73 @@ class OverallProgressServiceTest {
 
     @ParameterizedTest
     @CsvSource({
+        "7, 1, 7, 1, 0, 0", "20, 3, 20, 1, 10, 1", "20, 1, 20, 3, -10, -1",
+        "10, 2, 10, 0, 20, 2", "10, 0, 10, 2, -20, -2",
+        "10, 3, 10, 0, 30, 2", "10, 0, 10, 3, -30, -2",
+        "20, 3, 10, 1, 5, 0.5"
+    })
+    void scoresTheShareOfElevatedNightsAcrossCompletedThirtyDayPeriods(int previousTotal, int previousHigh,
+        int currentTotal, int currentHigh, String change, String score) {
+        LocalDate end = LocalDate.of(2026, 8, 30);
+        User user = new User();
+        stubHeartRateHistory(user, end, previousTotal, previousHigh, currentTotal, currentHigh);
+
+        var result = service.get(user, end);
+        var metric = result.contributions().stream().filter(c -> c.metric().equals("Overnight heart rate")).findFirst().orElseThrow();
+        assertThat(metric.included()).isTrue();
+        assertThat(metric.weight()).isEqualByComparingTo("5");
+        assertThat(metric.change()).isEqualByComparingTo(change);
+        assertThat(metric.normalizedContribution()).isEqualByComparingTo(score);
+        assertThat(result.score()).isEqualByComparingTo(score);
+        assertThat(metric.explanation()).contains(currentHigh + "/" + currentTotal + " in the current",
+            previousHigh + "/" + previousTotal + " in the previous");
+    }
+
+    @ParameterizedTest
+    @CsvSource({"6,7", "7,6", "0,0"})
+    void showsBothFractionsWhenEitherPeriodLacksSevenAssessableNights(int previousTotal, int currentTotal) {
+        LocalDate end = LocalDate.of(2026, 8, 30);
+        User user = new User();
+        stubHeartRateHistory(user, end, previousTotal, 0, currentTotal, 0);
+
+        var result = service.get(user, end);
+        var metric = result.contributions().stream().filter(c -> c.metric().equals("Overnight heart rate")).findFirst().orElseThrow();
+        assertThat(metric.included()).isFalse();
+        assertThat(metric.change()).isNull();
+        assertThat(metric.normalizedContribution()).isNull();
+        assertThat(metric.explanation()).contains("0/" + currentTotal + " in the current", "0/" + previousTotal + " in the previous",
+            "seven assessable nights");
+        assertThat(result.score()).isNull();
+    }
+
+    @Test
+    void futureSelectedDatesUseTheLastCompletedMadridDayForHeartRate() {
+        User user = new User();
+        LocalDate today = LocalDate.now(DateTimes.USER_ZONE);
+        var result = service.get(user, today.plusDays(4));
+        assertThat(result.currentEnd()).isEqualTo(today.minusDays(1));
+        verify(heartRates).analysis(user, result.currentEnd());
+    }
+
+    private void stubHeartRateHistory(User user, LocalDate end, int previousTotal, int previousHigh, int currentTotal, int currentHigh) {
+        var nights = new ArrayList<Night>();
+        nights.add(new Night(end.minusDays(60), BigDecimal.valueOf(80)));
+        nights.add(new Night(end.plusDays(1), BigDecimal.valueOf(80)));
+        addPeriod(nights, end.minusDays(59), previousTotal, previousHigh);
+        addPeriod(nights, end.minusDays(29), currentTotal, currentHigh);
+        var limit = new Limit(end.minusDays(60), BigDecimal.valueOf(70));
+        when(heartRates.analysis(user, end)).thenReturn(OvernightHeartRateAnalysis.evaluate(nights, List.of(limit), end));
+    }
+
+    private void addPeriod(List<Night> nights, LocalDate start, int total, int high) {
+        for (int index = 0; index < total; index++) {
+            LocalDate date = start.plusDays(index == total - 1 ? 29 : index);
+            nights.add(new Night(date, BigDecimal.valueOf(index < high ? 80 : 60)));
+        }
+    }
+
+    @ParameterizedTest
+    @CsvSource({
         "25199, 21600, false, -1", "25200, 21600, false, 0", "25201, 21600, false, 0",
         "32401, 21600, false, -1", "36000, 21600, false, -1",
         "25200, 21599, false, -1", "25200, 21601, false, 0",
@@ -127,10 +205,15 @@ class OverallProgressServiceTest {
             }).toList();
         });
 
-        var result = service.get(new User(), selectedDate);
+        User user = new User();
+        stubHeartRateHistory(user, selectedDate, 10, 1, 10, 0);
+        var result = service.get(user, selectedDate);
         var sleep = result.contributions().stream().filter(metric -> metric.metric().equals("Sleep quality")).findFirst().orElseThrow();
 
         assertThat(sleep.included()).isTrue();
+        assertThat(sleep.weight()).isEqualByComparingTo("10");
         assertThat(sleep.change()).isEqualByComparingTo(Integer.toString(expectedChange));
+        BigDecimal weightedScore = BigDecimal.valueOf(10L * expectedChange + 5).divide(BigDecimal.valueOf(15), 4, java.math.RoundingMode.HALF_UP);
+        assertThat(result.score()).isEqualByComparingTo(weightedScore);
     }
 }

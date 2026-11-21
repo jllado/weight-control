@@ -6,6 +6,7 @@ import com.jllado.weightcontrol.domain.Mood;
 import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.Weight;
 import com.jllado.weightcontrol.api.dto.FastingPeriodDtos.FastingPeriodResponse;
+import com.jllado.weightcontrol.service.OvernightHeartRateAnalysis;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
@@ -13,6 +14,9 @@ import java.time.LocalDate;
 import java.util.List;
 
 public final class DashboardDtos {
+
+    public record DashboardWarnings(List<CoachDtos.WarningResponse> active, boolean hasHistory,
+        List<OvernightHeartRateAnalysis.Reason> overnightHeartRateReasons) {}
 
     private DashboardDtos() {
     }

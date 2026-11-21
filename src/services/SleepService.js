@@ -24,6 +24,12 @@ function toSleep(data) {
 }
 
 export default {
+    getHeartRateLimit() {
+        return get('/sleeps/heart-rate-limit');
+    },
+    saveHeartRateLimit(bpm) {
+        return put('/sleeps/heart-rate-limit', {bpm});
+    },
     async get_all() {
         return (await get('/sleeps')).map(toSleep);
     },

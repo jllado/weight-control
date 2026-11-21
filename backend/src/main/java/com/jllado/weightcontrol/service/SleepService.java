@@ -4,6 +4,7 @@ import com.jllado.weightcontrol.api.dto.SleepDtos.SleepRequest;
 import com.jllado.weightcontrol.domain.Sleep;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.SleepRepository;
+import com.jllado.weightcontrol.repository.UserRepository;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
@@ -19,9 +20,15 @@ public class SleepService {
     private final SleepRepository repository;
     private final RoutineAutomationService routineAutomationService;
 
-    public SleepService(SleepRepository repository, RoutineAutomationService routineAutomationService) {
+    private final UserRepository users;
+    private final OvernightHeartRateLimitService limits;
+
+    public SleepService(SleepRepository repository, RoutineAutomationService routineAutomationService,
+                        UserRepository users, OvernightHeartRateLimitService limits) {
         this.repository = repository;
         this.routineAutomationService = routineAutomationService;
+        this.users = users;
+        this.limits = limits;
     }
 
     public List<Sleep> findAll(User user) {
@@ -34,6 +41,7 @@ public class SleepService {
 
     public Sleep create(User user, SleepRequest request) {
         validate(request);
+        users.findByIdForUpdate(user.getId());
         repository.findByUserAndSleepDate(user, request.sleepDate()).ifPresent(existing -> {
             throw new BadRequestException("Sleep entry already exists for this date");
         });
@@ -41,12 +49,14 @@ public class SleepService {
         sleep.setUser(user);
         apply(sleep, request);
         Sleep saved = repository.save(sleep);
+        limits.initializeIfEligible(user);
         routineAutomationService.reconcile(user);
         return saved;
     }
 
     public Sleep update(User user, Long id, SleepRequest request) {
         validate(request);
+        users.findByIdForUpdate(user.getId());
         Sleep sleep = requireOwned(user, id);
         repository.findByUserAndSleepDate(user, request.sleepDate())
             .filter(existing -> !existing.getId().equals(id))
@@ -55,11 +65,13 @@ public class SleepService {
             });
         apply(sleep, request);
         Sleep saved = repository.save(sleep);
+        limits.initializeIfEligible(user);
         routineAutomationService.reconcile(user);
         return saved;
     }
 
     public void delete(User user, Long id) {
+        users.findByIdForUpdate(user.getId());
         repository.delete(requireOwned(user, id));
         routineAutomationService.reconcile(user);
     }

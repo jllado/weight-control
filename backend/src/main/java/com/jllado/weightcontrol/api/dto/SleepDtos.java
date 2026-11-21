@@ -1,18 +1,28 @@
 package com.jllado.weightcontrol.api.dto;
 
 import com.jllado.weightcontrol.domain.Sleep;
+import com.jllado.weightcontrol.domain.OvernightHeartRateLimit;
 import com.jllado.weightcontrol.util.DateTimes;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.AssertTrue;
 
 public final class SleepDtos {
 
     private SleepDtos() {
+    }
+
+    public record HeartRateLimitRequest(@NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 4, fraction = 3) BigDecimal bpm) { }
+
+    public record HeartRateLimitSetting(LocalDate effectiveFrom, BigDecimal bpm) {
+        public static HeartRateLimitSetting from(OvernightHeartRateLimit limit) {
+            return new HeartRateLimitSetting(limit.getEffectiveFrom(), limit.getBpm());
+        }
     }
 
     public record SleepRequest(

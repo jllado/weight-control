@@ -424,6 +424,8 @@ Validation: focused Coach warning service/controller tests and MariaDB schema va
 
 Delivery: deploy the application before publishing the private GPT instructions and schema in Chrome. Keep the GPT private and existing bearer credentials unchanged. Verify its read Action against production; necessary live writes follow the [live acceptance policy](coach-gpt.md#live-acceptance-policy).
 
+The app recomputes overnight heart-rate alerts from saved sleep readings, including confirmed Coach sleep writes. Dashboard heart-rate reasons and the optional personal alert threshold are in-app features. The Coach warning review IDs, revisions and reflection write contract continue to refer to stored Coach warnings.
+
 ## Rolling warning metrics
 
 Every DAILY and WEEKLY reflection and explicit warning review uses current raw records for `metricsReview`; ordinary reads never resolve warnings. A review defines a stable 1–90-day window and 1–12 source-backed metrics with key, label, source, aggregation, unit, nullable value and inclusive bounds, covered days and goal basis. Changes to the window, definitions or goals require a supported `definitionChangeReason`; no invented scores or clinical targets. Keep exact dates internally and one meaningful `shortStatus` sentence of at most 120 characters.

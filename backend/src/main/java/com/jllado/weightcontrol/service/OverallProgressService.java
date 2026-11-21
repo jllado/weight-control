@@ -18,24 +18,29 @@ import org.springframework.stereotype.Service;
 public class OverallProgressService {
     private static final List<MetricSpec> SPECS = List.of(
         new MetricSpec("Routine completion", 30, 5), new MetricSpec("Body fat", 20, 1),
-        new MetricSpec("Blood pressure", 15, 1), new MetricSpec("Sleep quality", 15, 1),
-        new MetricSpec("Muscle mass", 10, .5), new MetricSpec("Workout performance", 10, 10)
+        new MetricSpec("Blood pressure", 15, 1), new MetricSpec("Sleep quality", 10, 1),
+        new MetricSpec("Muscle mass", 10, .5), new MetricSpec("Workout performance", 10, 10),
+        new MetricSpec("Overnight heart rate", 5, 10)
     );
+
+    private static final MetricResult INSUFFICIENT = new MetricResult(null, "Not enough observations in both comparison periods.");
 
     private final DailyStatusRepository statusRepository;
     private final WeightRepository weightRepository;
     private final BloodPressureRepository pressureRepository;
     private final SleepRepository sleepRepository;
     private final WorkoutRepository workoutRepository;
+    private final OvernightHeartRateService heartRateService;
 
     public OverallProgressService(DailyStatusRepository statusRepository, WeightRepository weightRepository,
                                   BloodPressureRepository pressureRepository, SleepRepository sleepRepository,
-                                  WorkoutRepository workoutRepository) {
+                                  WorkoutRepository workoutRepository, OvernightHeartRateService heartRateService) {
         this.statusRepository = statusRepository;
         this.weightRepository = weightRepository;
         this.pressureRepository = pressureRepository;
         this.sleepRepository = sleepRepository;
         this.workoutRepository = workoutRepository;
+        this.heartRateService = heartRateService;
     }
 
     public OverallProgressResponse get(User user, LocalDate selectedDate) {
@@ -51,6 +56,8 @@ public class OverallProgressService {
         add(contributions, SPECS.get(3), sleepChange(current.sleeps, previous.sleeps));
         add(contributions, SPECS.get(4), measurementChange(current.weights, previous.weights, Weight::getMuscle, false));
         add(contributions, SPECS.get(5), workoutChange(current.workouts, previous.workouts));
+        var heartRate = heartRateService.analysis(user, end);
+        add(contributions, SPECS.get(6), heartRateChange(heartRate.fraction(currentStart, end), heartRate.fraction(previousStart, previousEnd)));
         BigDecimal totalWeight = contributions.stream().filter(MetricContribution::included).map(MetricContribution::weight).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal score = totalWeight.signum() == 0 ? null : contributions.stream().filter(MetricContribution::included)
             .map(c -> c.normalizedContribution().multiply(c.weight())).reduce(BigDecimal.ZERO, BigDecimal::add)
@@ -77,31 +84,30 @@ public class OverallProgressService {
     }
 
     private void add(List<MetricContribution> out, MetricSpec spec, MetricResult result) {
-        boolean included = result != null;
+        boolean included = result.change != null;
         BigDecimal raw = included ? BigDecimal.valueOf(result.change) : null;
         BigDecimal normalized = included ? BigDecimal.valueOf(Math.max(-2, Math.min(2, result.change / spec.unit))) : null;
-        out.add(new MetricContribution(spec.name, included, BigDecimal.valueOf(spec.weight), raw, normalized,
-            included ? result.explanation : resultExplanation(spec.name)));
+        out.add(new MetricContribution(spec.name, included, BigDecimal.valueOf(spec.weight), raw, normalized, result.explanation));
     }
 
     private MetricResult routineChange(List<DailyStatus> current, List<DailyStatus> previous) {
-        if (current.size() < 7 || previous.size() < 7) return null;
+        if (current.size() < 7 || previous.size() < 7) return INSUFFICIENT;
         double a = current.stream().mapToDouble(s -> s.getRoutinesPercentage().doubleValue()).average().orElseThrow();
         double b = previous.stream().mapToDouble(s -> s.getRoutinesPercentage().doubleValue()).average().orElseThrow();
         return new MetricResult(a - b, "Average routine completion changed by " + round(a - b) + " percentage points.");
     }
 
     private MetricResult measurementChange(List<Weight> current, List<Weight> previous, Function<Weight, BigDecimal> value, boolean lowerIsBetter) {
-        if (distinctDates(current, Weight::getMeasuredAt) < 3 || distinctDates(previous, Weight::getMeasuredAt) < 3) return null;
+        if (distinctDates(current, Weight::getMeasuredAt) < 3 || distinctDates(previous, Weight::getMeasuredAt) < 3) return INSUFFICIENT;
         double change = average(current, value) - average(previous, value);
         return new MetricResult(lowerIsBetter ? -change : change, "Average " + (lowerIsBetter ? "body-fat percentage" : "muscle mass") + " changed by " + round(change) + (lowerIsBetter ? " percentage points." : " kg."));
     }
 
     private MetricResult pressureChange(List<BloodPressure> current, List<BloodPressure> previous) {
-        if (distinctDates(current, BloodPressure::getMeasuredAt) < 3 || distinctDates(previous, BloodPressure::getMeasuredAt) < 3) return null;
+        if (distinctDates(current, BloodPressure::getMeasuredAt) < 3 || distinctDates(previous, BloodPressure::getMeasuredAt) < 3) return INSUFFICIENT;
         int before = pressureStage(current), after = pressureStage(previous);
         // A lower stage is favorable; invert so favorable movement has a positive sign.
-        return new MetricResult(after - before, "Average blood-pressure stage moved " + (after < before ? "toward the favorable end" : after > before ? "toward the unfavorable end" : "not at all") + ".");
+        return new MetricResult((double) (after - before), "Average blood-pressure stage moved " + (after < before ? "toward the favorable end" : after > before ? "toward the unfavorable end" : "not at all") + ".");
     }
 
     private int pressureStage(List<BloodPressure> values) {
@@ -116,9 +122,20 @@ public class OverallProgressService {
 
     private MetricResult sleepChange(List<Sleep> current, List<Sleep> previous) {
         List<Sleep> validCurrent = SleepStatusCalculator.completeSleeps(current), validPrevious = SleepStatusCalculator.completeSleeps(previous);
-        if (validCurrent.stream().map(Sleep::getSleepDate).distinct().count() < 7 || validPrevious.stream().map(Sleep::getSleepDate).distinct().count() < 7) return null;
+        if (validCurrent.stream().map(Sleep::getSleepDate).distinct().count() < 7 || validPrevious.stream().map(Sleep::getSleepDate).distinct().count() < 7) return INSUFFICIENT;
         double change = SleepStatusCalculator.score(validCurrent) - SleepStatusCalculator.score(validPrevious);
         return new MetricResult(change, "Existing four-criterion sleep score changed by " + round(change) + " points.");
+    }
+
+    private MetricResult heartRateChange(OvernightHeartRateAnalysis.Fraction current, OvernightHeartRateAnalysis.Fraction previous) {
+        String fractions = "Of the assessable nights, %d/%d in the current 30 days and %d/%d in the previous 30 days were elevated."
+            .formatted(current.elevated(), current.assessable(), previous.elevated(), previous.assessable());
+        if (current.assessable() < 7 || previous.assessable() < 7) {
+            return new MetricResult(null, fractions + " Each period needs at least seven assessable nights.");
+        }
+        double change = 100.0 * (previous.elevated() * current.assessable() - current.elevated() * previous.assessable())
+            / (previous.assessable() * current.assessable());
+        return new MetricResult(change, fractions + " A smaller share improves the score.");
     }
 
     private MetricResult workoutChange(List<Workout> current, List<Workout> previous) {
@@ -130,7 +147,7 @@ public class OverallProgressService {
                 double after = e.getValue().values().stream().mapToDouble(Double::doubleValue).average().orElseThrow();
                 return before > 0 ? (after - before) * 100 / before : Double.NaN;
             }).filter(Double::isFinite).toList();
-        if (changes.isEmpty()) return null;
+        if (changes.isEmpty()) return INSUFFICIENT;
         double change = changes.stream().mapToDouble(Double::doubleValue).average().orElseThrow();
         return new MetricResult(change, "Comparable exercise daily bests changed by an average " + round(change) + " percent.");
     }
@@ -162,10 +179,9 @@ public class OverallProgressService {
 
     private <T> long distinctDates(List<T> values, Function<T, java.time.OffsetDateTime> date) { return values.stream().map(date).map(DateTimes::toLocalDate).distinct().count(); }
     private double average(List<Weight> values, Function<Weight, BigDecimal> field) { return values.stream().map(field).mapToDouble(BigDecimal::doubleValue).average().orElseThrow(); }
-    private String resultExplanation(String metric) { return "Not enough observations in both comparison periods."; }
     private double round(double n) { return Math.round(n * 10) / 10d; }
 
     private record Window(List<DailyStatus> statuses, List<Weight> weights, List<BloodPressure> pressures, List<Sleep> sleeps, List<Workout> workouts) {}
     private record MetricSpec(String name, int weight, double unit) {}
-    private record MetricResult(double change, String explanation) {}
+    private record MetricResult(Double change, String explanation) {}
 }

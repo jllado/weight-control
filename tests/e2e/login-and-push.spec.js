@@ -2718,7 +2718,8 @@ test('dashboard shows the overall improvement label and contribution details', a
             previousStart: '2026-07-02', previousEnd: '2026-07-31',
             contributions: [
                 {metric: 'Routine completion', included: true, weight: 30, change: 5, normalizedContribution: 1, explanation: 'Average routine completion changed by 5 points.'},
-                {metric: 'Body fat', included: false, weight: 20, change: null, normalizedContribution: null, explanation: 'Not enough observations in both comparison periods.'}
+                {metric: 'Body fat', included: false, weight: 20, change: null, normalizedContribution: null, explanation: 'Not enough observations in both comparison periods.'},
+                {metric: 'Overnight heart rate', included: true, weight: 5, change: 10, normalizedContribution: 1, explanation: 'Of the assessable nights, 1/10 in the current 30 days and 3/15 in the previous 30 days were elevated. A smaller share improves the score.'}
             ]
         }
     });
@@ -2782,6 +2783,9 @@ test('dashboard shows the overall improvement label and contribution details', a
         await expect(disclosure).not.toContainText('Average routine completion changed');
         await expect(overview.getByText(/30% weight, 5.0 change/)).toBeVisible();
         await expect(overview.getByText(/Body fat/)).toBeVisible();
+        const heartRate = disclosure.getByRole('listitem').filter({hasText: 'Overnight heart rate'});
+        await expect(heartRate).toContainText('5% weight');
+        await expect(heartRate).toContainText('1/10 in the current 30 days and 3/15 in the previous 30 days');
         await expect.poll(() => overview.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
         await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
         const disclosureBounds = await disclosure.boundingBox();
@@ -2818,11 +2822,22 @@ test('dashboard distinguishes insufficient overall progress data from a stable r
     await expect(progress.locator('.overall-progress-score')).toHaveCount(0);
     await expect(overview.locator('details')).toHaveCount(0);
     await page.unroute('**/api/dashboard/overall-progress?*');
-    let currentProgress;
+    let currentProgress = {
+        status: null, score: null, contributions: [{
+            metric: 'Overnight heart rate', included: false, weight: 5, change: null, normalizedContribution: null,
+            explanation: 'Of the assessable nights, 0/6 in the current 30 days and 1/7 in the previous 30 days were elevated. Each period needs at least seven assessable nights.'
+        }]
+    };
     await page.route('**/api/dashboard/overall-progress?*', route => route.fulfill({json: {
         ...currentProgress, currentStart: dashboard.anchorDate, currentEnd: dashboard.anchorDate,
-        previousStart: dashboard.anchorDate, previousEnd: dashboard.anchorDate, contributions: []
+        previousStart: dashboard.anchorDate, previousEnd: dashboard.anchorDate
     }}));
+    await page.reload();
+    await overview.locator('summary').click();
+    const sparseHeartRate = overview.getByRole('listitem').filter({hasText: 'Overnight heart rate'});
+    await expect(sparseHeartRate).toContainText('Excluded');
+    await expect(sparseHeartRate).toContainText('0/6 in the current 30 days and 1/7 in the previous 30 days');
+    await expect(sparseHeartRate).toContainText('seven assessable nights');
     for (const [status, score, label, icon] of [
         ['STABLE', -0.10, 'Stable', 'pi-minus'],
         ['STRONGLY_IMPROVING', 1.50, 'Strongly improving', 'pi-arrow-up'],
@@ -2830,7 +2845,7 @@ test('dashboard distinguishes insufficient overall progress data from a stable r
         ['SLIGHTLY_DECLINING', -0.45, 'Slightly declining', 'pi-arrow-down'],
         ['STRONGLY_DECLINING', -1.50, 'Strongly declining', 'pi-arrow-down']
     ]) {
-        currentProgress = {status, score};
+        currentProgress = {status, score, contributions: []};
         await page.reload();
         await expect(progress.getByText(label, {exact: true})).toBeVisible();
         await expect(progress.locator('.overall-progress-score')).toHaveText(score.toFixed(2));
@@ -8261,6 +8276,54 @@ test('warning dialog shows rolling goals with original Madrid dates, unknown cov
     await expect(indicator).toBeFocused();
     expect(warningRequests.every(request => request.method === 'GET' && request.path === '/api/coach-warnings')).toBe(true);
 });
+
+for (const width of [390, 1280]) {
+    test(`overnight heart rate combines three reasons in one dashboard warning at ${width}px`, async ({page}) => {
+        await page.setViewportSize({width, height: 900});
+        await mockAuthenticatedDashboard(page);
+        const night = (date, bpm) => ({date, bpm});
+        const recordedWeek = (start, bpm) => Array.from({length: 7}, (_, i) => {
+            const d = new Date(start + 'T12:00:00Z');
+            d.setUTCDate(d.getUTCDate() + i);
+            return night(d.toISOString().slice(0, 10), bpm);
+        });
+        const row = (label, from, through, bpm, readings, extra = {}) => ({label, from, through, bpm, readings, ...extra});
+        const recent = row('Prior-night median', '2026-08-11', '2026-08-11', 68, [night('2026-08-11', 68)],
+            {referenceBpm: 61, thresholdBpm: 66, referenceFrom: '2026-07-10', referenceThrough: '2026-08-10'});
+        const fixed = {...recent, label: 'Personal alert threshold', referenceBpm: null, thresholdBpm: 67.5, referenceFrom: '2026-07-01', referenceThrough: null};
+        let reasons = [
+            {code: 'RECENT_ELEVATION', label: 'Recent elevation', since: '2026-08-12', evidence: [recent, {...recent, from: '2026-08-12', through: '2026-08-12', bpm: 69, readings: [night('2026-08-12', 69)]}]},
+            {code: 'PERSONAL_LIMIT', label: 'Above personal alert threshold', since: '2026-08-12', evidence: [fixed, {...fixed, from: '2026-08-12', through: '2026-08-12', bpm: 69, readings: [night('2026-08-12', 69)]}]},
+            {code: 'SUSTAINED_RISE', label: 'Sustained rise', since: '2026-08-12', evidence: [
+                row('30-day reference mean', '2026-06-16', '2026-07-15', 60, recordedWeek('2026-06-16', 60)),
+                row('First 14-day mean', '2026-07-16', '2026-07-29', 63, recordedWeek('2026-07-16', 63), {thresholdBpm: 63}),
+                row('Second 14-day mean', '2026-07-30', '2026-08-12', 64, recordedWeek('2026-08-01', 64), {thresholdBpm: 63})
+            ]}
+        ];
+        await page.route('**/api/coach-warnings', route => route.fulfill({json: {active: [], hasHistory: false, overnightHeartRateReasons: reasons}}));
+        await openSpaRoute(page, '/');
+        const indicator = page.getByRole('button', {name: 'Current Coach warnings: 1 warning, Overnight heart rate', exact: true});
+        await indicator.click();
+        const card = page.getByRole('article', {name: 'Overnight heart rate warning'});
+        await expect(card.getByRole('heading', {name: 'Recent elevation'})).toBeVisible();
+        await expect(card).toContainText('Prior median 61 bpm (10/07/2026 – 10/08/2026)');
+        await expect(card).toContainText('Personal alert threshold 67.5 bpm, effective 01/07/2026');
+        await expect(card).toContainText('30/07/2026 – 12/08/2026 · 64 bpm');
+        await card.getByText('Nightly readings', {exact: true}).last().click();
+        await expect(card.getByText('01/08/2026 · 64 bpm', {exact: true})).toBeVisible();
+        expect(await card.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+        await page.screenshot({path: test.info().outputPath(`overnight-heart-rate-warning-${width}.png`)});
+        reasons = [reasons[2]];
+        await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+        await expect(card.getByRole('heading', {name: 'Recent elevation'})).toHaveCount(0);
+        await expect(card.getByRole('heading', {name: 'Sustained rise'})).toBeVisible();
+        reasons = [];
+        await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+        await expect(page.getByText('No active warnings.', {exact: true})).toBeVisible();
+        await page.getByRole('button', {name: 'Close', exact: true}).last().click();
+        await expect(indicator).toHaveCount(0);
+    });
+}
 
 test('improving calorie wording survives current and saved warning reloads without resolving the goal', async ({page}, testInfo) => {
     const warning = nutritionWarning();
