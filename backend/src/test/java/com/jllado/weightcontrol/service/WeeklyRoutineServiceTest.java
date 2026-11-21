@@ -24,7 +24,7 @@ class WeeklyRoutineServiceTest {
         assertEquals(RoutineCadence.DAILY, daily.getCadence());
         assertEquals(owner.getDashboardAnchorDate(), DateTimes.toLocalDate(daily.getStartDate()));
         Routine weekly = service.create(owner, request(null, List.of()));
-        assertEquals(RoutinePeriods.start(RoutineCadence.WEEKLY, LocalDate.now(DateTimes.USER_ZONE)), DateTimes.toLocalDate(weekly.getStartDate()));
+        assertEquals(RoutinePeriods.start(owner, RoutineCadence.WEEKLY, LocalDate.now(DateTimes.USER_ZONE)), DateTimes.toLocalDate(weekly.getStartDate()));
         weekly.setId(2L); when(repository.findById(2L)).thenReturn(Optional.of(weekly));
         service.update(owner, 2L, new RoutineRequest("Weekly", Set.of(RoutineType.MIND), null, true));
         assertEquals(RoutineCadence.WEEKLY, weekly.getCadence());
@@ -47,7 +47,7 @@ class WeeklyRoutineServiceTest {
     }
 
     @Test void summaryCountsDistinctConsecutiveWeeksAndKeepsActualLastDate() {
-        Routine weekly = new Routine(); weekly.setCadence(RoutineCadence.WEEKLY);
+        Routine weekly = new Routine(); weekly.setUser(new User()); weekly.setCadence(RoutineCadence.WEEKLY);
         var dates = List.of("2026-10-11", "2026-10-16", "2026-10-19", "2026-10-28");
         RoutineService.rebuildSummary(weekly, dates.stream().map(date -> checkin(weekly, LocalDate.parse(date))).toList());
         assertEquals(3, weekly.getCurrentStrike()); assertEquals(3, weekly.getBestStrike());

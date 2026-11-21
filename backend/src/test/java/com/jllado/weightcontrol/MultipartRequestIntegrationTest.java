@@ -27,6 +27,7 @@ import com.jllado.weightcontrol.service.WeightService;
 import com.jllado.weightcontrol.api.dto.WeightDtos.WeightRequest;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.LocalDate;
 import java.util.UUID;
 import java.nio.file.Path;
 import java.awt.image.BufferedImage;
@@ -56,6 +57,7 @@ class MultipartRequestIntegrationTest {
     @Autowired UserRepository users;
     @Autowired ExerciseRepository exercises;
     @Autowired WeightRepository weights;
+    @Autowired PlanningWeekChangeRepository planningWeekChanges;
     @Autowired WeightService weightService;
     @TempDir static Path storage;
     private User owner;
@@ -120,10 +122,15 @@ class MultipartRequestIntegrationTest {
 
     @Test
     void validProgressPhotoIsSavedAndRemainsOwnerScoped() throws Exception {
+        planningWeekChanges.saveAndFlush(new PlanningWeekChange(owner, LocalDate.parse("2026-10-27")));
         var weight = weightService.create(owner, new WeightRequest(OffsetDateTime.parse("2026-10-28T08:00:00Z"), new BigDecimal("75"), new BigDecimal("20"), new BigDecimal("55")));
         String path = "/api/weights/" + weight.getId() + "/photos/front";
         String picture = png();
-        assertThat(send("POST", path, MULTIPART, multipart(picture), true, "application/json").statusCode()).isEqualTo(200);
+        var uploaded = send("POST", path, MULTIPART, multipart(picture), true, "application/json");
+        assertThat(uploaded.statusCode()).isEqualTo(200);
+        var performance = json.readTree(uploaded.body()).path("performanceWeek");
+        assertThat(performance.path("startDate").asText()).isEqualTo("2026-10-24");
+        assertThat(performance.path("endDate").asText()).isEqualTo("2026-10-26");
         assertThat(weights.findById(weight.getId()).orElseThrow().getPhotoFrontPath()).isNotBlank();
         assertThat(send("GET", path, null, "", true, "*/*").statusCode()).isEqualTo(200);
         assertThat(send("POST", path, MULTIPART, multipart(picture), false, "application/json").statusCode()).isEqualTo(403);

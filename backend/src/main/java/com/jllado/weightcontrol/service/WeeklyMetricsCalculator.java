@@ -26,11 +26,11 @@ import com.jllado.weightcontrol.service.WeeklyMetrics.Progress;
 import com.jllado.weightcontrol.service.WeeklyMetrics.RoutineCompletion;
 import com.jllado.weightcontrol.service.WeeklyMetrics.Summary;
 import com.jllado.weightcontrol.service.WeeklyMetrics.WorkoutSummary;
+import com.jllado.weightcontrol.service.PlanningWeekService.Period;
 import com.jllado.weightcontrol.util.DateTimes;
 import com.jllado.weightcontrol.util.Numbers;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,6 +38,7 @@ import java.util.Set;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
@@ -46,29 +47,45 @@ public class WeeklyMetricsCalculator {
 
     private static final int YEAR_COMPARISON_WEEKS = 52;
 
+    public record ComparisonPeriods(boolean completeWeek, Period current, Period previous, Period yearAgo) { }
+
+    public static ComparisonPeriods comparisonPeriods(User user, LocalDate selectedDate) {
+        var current = PlanningWeekService.period(user, selectedDate);
+        var previous = PlanningWeekService.period(user, current.start().minusDays(1));
+        var yearAgo = PlanningWeekService.period(user, current.end().minusWeeks(YEAR_COMPARISON_WEEKS));
+        long elapsed = selectedDate.toEpochDay() - current.start().toEpochDay();
+        boolean closed = selectedDate.equals(current.end());
+        return new ComparisonPeriods(closed, new Period(current.start(), selectedDate),
+            comparableWindow(previous, closed, elapsed),
+            comparableWindow(yearAgo, closed, elapsed));
+    }
+
+    private static Period comparableWindow(Period period, boolean closed, long elapsed) {
+        LocalDate matchedEnd = period.start().plusDays(elapsed);
+        return closed || matchedEnd.isAfter(period.end()) ? period : new Period(period.start(), matchedEnd);
+    }
+
     public Progress progress(User user, LocalDate selectedDate, Input input) {
-        LocalDate currentStart = DateTimes.startOfDashboardWeek(selectedDate);
-        return new Progress(
-            selectedDate.getDayOfWeek() == DayOfWeek.FRIDAY,
-            summarize(user, currentStart, selectedDate, input),
-            summarize(user, currentStart.minusWeeks(1), selectedDate.minusWeeks(1), input),
-            summarize(user, currentStart.minusWeeks(YEAR_COMPARISON_WEEKS), selectedDate.minusWeeks(YEAR_COMPARISON_WEEKS), input)
-        );
+        var periods = comparisonPeriods(user, selectedDate);
+        return new Progress(periods.completeWeek(),
+            summarize(periods.current().start(), periods.current().end(), input),
+            summarize(periods.previous().start(), periods.previous().end(), input),
+            summarize(periods.yearAgo().start(), periods.yearAgo().end(), input));
     }
 
     public List<Summary> baselineWeeks(User user, LocalDate contextStart, LocalDate baselineEnd, Input input) {
         List<Summary> summaries = new ArrayList<>();
         LocalDate periodStart = contextStart;
         while (!periodStart.isAfter(baselineEnd)) {
-            LocalDate dashboardWeekEnd = DateTimes.startOfDashboardWeek(periodStart).plusDays(6);
+            LocalDate dashboardWeekEnd = PlanningWeekService.period(user, periodStart).end();
             LocalDate periodEnd = dashboardWeekEnd.isAfter(baselineEnd) ? baselineEnd : dashboardWeekEnd;
-            summaries.add(summarize(user, periodStart, periodEnd, input));
+            summaries.add(summarize(periodStart, periodEnd, input));
             periodStart = periodEnd.plusDays(1);
         }
         return summaries;
     }
 
-    public Summary summarize(User user, LocalDate start, LocalDate end, Input input) {
+    private Summary summarize(LocalDate start, LocalDate end, Input input) {
         List<DailyStatus> statuses = inRange(input.statuses(), DailyStatus::getStatusDate, start, end);
         List<Weight> weights = inRange(input.weights(), weight -> DateTimes.toLocalDate(weight.getMeasuredAt()), start, end);
         List<BloodPressure> bloodPressures = inRange(input.bloodPressures(), bloodPressure -> DateTimes.toLocalDate(bloodPressure.getMeasuredAt()), start, end);
@@ -90,7 +107,7 @@ public class WeeklyMetricsCalculator {
             averageMood(moods),
             (int) moods.stream().map(Mood::getMoodDate).distinct().count(),
             averageSleep(sleeps),
-            summarizeCalories(user, start, end, calories),
+            summarizeCalories(start, end, calories, input.calorieTarget()),
             summarizeWorkouts(workouts),
             counts(sicknesses, sickness -> sickness.getType().name()),
             counts(sicknesses, sickness -> sickness.getSeverity().name()),
@@ -184,8 +201,9 @@ public class WeeklyMetricsCalculator {
         return averageDecimal(dailyAverages);
     }
 
-    private CalorieSummary summarizeCalories(User user, LocalDate start, LocalDate end, List<CalorieService.DailyCalories> calories) {
-        int targetTotal = start.datesUntil(end.plusDays(1)).mapToInt(date -> targetCalories(user, date.getDayOfWeek())).sum();
+    private CalorieSummary summarizeCalories(LocalDate start, LocalDate end, List<CalorieService.DailyCalories> calories,
+        ToIntFunction<LocalDate> calorieTarget) {
+        long targetTotal = start.datesUntil(end.plusDays(1)).mapToLong(calorieTarget::applyAsInt).sum();
         int total = calories.stream().mapToInt(CalorieService.DailyCalories::calories).sum();
         BigDecimal average = calories.isEmpty() ? null : BigDecimal.valueOf(total)
             .divide(BigDecimal.valueOf(calories.size()), 2, RoundingMode.HALF_UP);
@@ -198,18 +216,6 @@ public class WeeklyMetricsCalculator {
             calories.size(), total, average, targetAverage, average == null ? null : average.subtract(targetAverage),
             averageDecimal(protein), protein.size(), averageDecimal(carbohydrates), carbohydrates.size(), averageDecimal(fat), fat.size()
         );
-    }
-
-    private int targetCalories(User user, DayOfWeek day) {
-        return switch (day) {
-            case SATURDAY -> user.getTypicalCaloriesSaturday();
-            case SUNDAY -> user.getTypicalCaloriesSunday();
-            case MONDAY -> user.getTypicalCaloriesMonday();
-            case TUESDAY -> user.getTypicalCaloriesTuesday();
-            case WEDNESDAY -> user.getTypicalCaloriesWednesday();
-            case THURSDAY -> user.getTypicalCaloriesThursday();
-            case FRIDAY -> user.getTypicalCaloriesFriday();
-        };
     }
 
     public WorkoutSummary summarizeWorkouts(List<Workout> workouts) {
@@ -317,7 +323,8 @@ public class WeeklyMetricsCalculator {
         List<Workout> workouts,
         List<Sickness> sicknesses,
         List<DecisionOutcome> decisions,
-        List<RoutineCheckin> routineCheckins
+        List<RoutineCheckin> routineCheckins,
+        ToIntFunction<LocalDate> calorieTarget
     ) {
     }
 }

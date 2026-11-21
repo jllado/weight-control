@@ -143,10 +143,10 @@ final class DerivedPersonalRecordCalculator {
         if (completed == null || first == null) {
             return;
         }
-        LocalDate weekStart = DateTimes.startOfDashboardWeek(first);
-        while (!weekStart.plusDays(6).isAfter(completed)) {
-            addPeriod(observations, sources, dates, weekStart, weekStart.plusDays(6), "Weekly", "WEEKLY");
-            weekStart = weekStart.plusWeeks(1);
+        var week = PlanningWeekService.period(sources.user(), first);
+        while (!week.end().isAfter(completed)) {
+            addPeriod(observations, sources, dates, week.start(), week.end(), "Weekly", "WEEKLY");
+            week = PlanningWeekService.period(sources.user(), week.end().plusDays(1));
         }
         YearMonth month = YearMonth.from(first);
         YearMonth lastMonth = YearMonth.from(completed);
@@ -198,13 +198,13 @@ final class DerivedPersonalRecordCalculator {
             Map.of("mood", item -> decimal(item.getValue())), Map.of("mood", PersonalRecordCatalogMetric.MOOD));
         addAverages(observations, sources.sleeps(), Sleep::getSleepDate, start, end, subjectType, label, PersonalRecordSourceType.SLEEP,
             sleepValues(), sleepMetrics());
-        addNutritionPeriod(observations, sources.user(), sources.meals(), start, end, subjectType, label);
+        addNutritionPeriod(observations, sources, start, end, subjectType, label);
         addWorkoutPeriod(observations, sources.workouts(), start, end, subjectType, label);
         addDashboardPeriod(observations, sources.dailyStatuses(), start, end, subjectType, label);
     }
 
-    private static void addNutritionPeriod(List<DerivedObservation> observations, User user, List<Meal> meals, LocalDate start, LocalDate end, String type, String label) {
-        List<Meal> values = inRange(meals, Meal::getMealDate, start, end);
+    private static void addNutritionPeriod(List<DerivedObservation> observations, Sources sources, LocalDate start, LocalDate end, String type, String label) {
+        List<Meal> values = inRange(sources.meals(), Meal::getMealDate, start, end);
         if (values.isEmpty()) {
             return;
         }
@@ -212,8 +212,11 @@ final class DerivedPersonalRecordCalculator {
         Source source = derivedSource(values.stream().map(meal -> new SourceReference(PersonalRecordSourceType.MEAL, meal.getId())).collect(java.util.stream.Collectors.toSet()));
         BigDecimal averageCalories = average(byDate.values().stream().map(day -> day.stream().mapToInt(Meal::getCalories).sum()).map(DerivedPersonalRecordCalculator::decimal).toList());
         add(observations, PersonalRecordCatalogMetric.DAILY_CALORIES, null, subject(type, subjectId("daily calories"), label + " average daily calories"), averageCalories, end, source);
-        if (user != null) {
-            BigDecimal targetAverage = average(start.datesUntil(end.plusDays(1)).map(date -> decimal(targetCalories(user, date))).toList());
+        if (!sources.calorieTargets().isEmpty()) {
+            var targets = type.equals("WEEKLY")
+                ? byDate.keySet().stream().map(sources.calorieTargets()::get)
+                : start.datesUntil(end.plusDays(1)).map(date -> WeeklyCaloriePlanService.profileTarget(sources.user(), date.getDayOfWeek()));
+            BigDecimal targetAverage = average(targets.map(DerivedPersonalRecordCalculator::decimal).toList());
             add(observations, PersonalRecordCatalogMetric.TARGET_DIFFERENCE_KCAL, null, subject(type, subjectId("calorie target difference"), label + " calorie target difference"), averageCalories.subtract(targetAverage), end, source);
         }
         addCompleteMacroPeriod(observations, byDate, Meal::getProteinGrams, PersonalRecordCatalogMetric.DAILY_PROTEIN, "protein", type, label, end, source);
@@ -400,18 +403,6 @@ final class DerivedPersonalRecordCalculator {
 
     private static LocalDate completedDate(Sources sources) {
         return sources.user() == null ? null : sources.user().getLastCompletedDashboardDate();
-    }
-
-    private static int targetCalories(User user, LocalDate date) {
-        return switch (date.getDayOfWeek()) {
-            case SATURDAY -> user.getTypicalCaloriesSaturday();
-            case SUNDAY -> user.getTypicalCaloriesSunday();
-            case MONDAY -> user.getTypicalCaloriesMonday();
-            case TUESDAY -> user.getTypicalCaloriesTuesday();
-            case WEDNESDAY -> user.getTypicalCaloriesWednesday();
-            case THURSDAY -> user.getTypicalCaloriesThursday();
-            case FRIDAY -> user.getTypicalCaloriesFriday();
-        };
     }
 
     private static LocalDate firstEvidenceDate(Sources sources) {

@@ -13,13 +13,19 @@ import org.springframework.stereotype.Service;
 public class UserProfileService {
 
     private final UserRepository userRepository;
+    private final PlanningWeekService planningWeeks;
 
-    public UserProfileService(UserRepository userRepository) {
+    public UserProfileService(UserRepository userRepository, PlanningWeekService planningWeeks) {
         this.userRepository = userRepository;
+        this.planningWeeks = planningWeeks;
     }
 
-    public User update(User user, UserProfileRequest request) {
+    public User update(User authenticatedUser, UserProfileRequest request) {
         validate(request);
+        User user = userRepository.findByIdForUpdate(authenticatedUser.getId()).orElseThrow();
+        if (request.firstDayOfPlanningWeek() != null) {
+            planningWeeks.schedule(user, request.firstDayOfPlanningWeek(), LocalDate.now(DateTimes.USER_ZONE), request.expectedPlanningWeekEffectiveDate());
+        }
         user.setBirthDate(request.birthDate());
         user.setHeightCm(request.heightCm());
         if (request.inShapeBodyFatLimit() != null) user.setInShapeBodyFatLimit(request.inShapeBodyFatLimit());
@@ -38,7 +44,7 @@ public class UserProfileService {
         user.setCalorieShortcutFlexible(request.calorieShortcuts().flexible());
         user.setCalorieShortcutOffPlan(request.calorieShortcuts().offPlan());
         user.setCalorieShortcutBinge(request.calorieShortcuts().binge());
-        return userRepository.save(user);
+        return user;
     }
 
     private void validate(UserProfileRequest request) {

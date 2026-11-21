@@ -1,16 +1,8 @@
-import dayjs from 'dayjs';
 import {get, put} from './api';
 import {getTypicalCaloriesForDate} from '../model/WeekMetricThresholds';
 
-export function weekStartForDate(date) {
-    return dayjs(date).subtract((dayjs(date).day() + 1) % 7, 'day').format('YYYY-MM-DD');
-}
-
 export function resolveEffectiveCalorieTarget(date, profile, savedPlan) {
-    if (savedPlan && savedPlan.weekStart === weekStartForDate(date)) {
-        return savedPlan.days.find(day => day.date === date)?.calories ?? null;
-    }
-    return getTypicalCaloriesForDate(profile, date);
+    return savedPlan?.days.find(day => day.date === date)?.calories ?? getTypicalCaloriesForDate(profile, date);
 }
 
 export default {

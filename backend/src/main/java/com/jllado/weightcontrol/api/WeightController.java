@@ -38,7 +38,7 @@ public class WeightController {
             weight.getPhotoFrontPath() == null ? null : "/api/weights/" + weight.getId() + "/photos/front",
             weight.getPhotoLeftPath() == null ? null : "/api/weights/" + weight.getId() + "/photos/left",
             weight.getPhotoRightPath() == null ? null : "/api/weights/" + weight.getId() + "/photos/right",
-            weightService.getPerformanceWeek(weight)
+            weightService.getPerformanceWeek(user, weight)
         )).toList();
     }
 
@@ -46,7 +46,7 @@ public class WeightController {
     public RecordMutationResponse<WeightResponse> create(@Valid @RequestBody WeightRequest request) {
         User user = currentUserService.requireUser();
         var mutation = mutationService.createWeight(user, request);
-        return new RecordMutationResponse<>(WeightResponse.from(mutation.result(), null, null, null, weightService.getPerformanceWeek(mutation.result())), mutation.achievements());
+        return new RecordMutationResponse<>(WeightResponse.from(mutation.result(), null, null, null, weightService.getPerformanceWeek(user, mutation.result())), mutation.achievements());
     }
 
     @PutMapping("/{id}")
@@ -59,7 +59,7 @@ public class WeightController {
             weight.getPhotoFrontPath() == null ? null : "/api/weights/" + weight.getId() + "/photos/front",
             weight.getPhotoLeftPath() == null ? null : "/api/weights/" + weight.getId() + "/photos/left",
             weight.getPhotoRightPath() == null ? null : "/api/weights/" + weight.getId() + "/photos/right",
-            weightService.getPerformanceWeek(weight)
+            weightService.getPerformanceWeek(user, weight)
         ), mutation.achievements());
     }
 
@@ -78,7 +78,7 @@ public class WeightController {
             weight.getPhotoFrontPath() == null ? null : "/api/weights/" + weight.getId() + "/photos/front",
             weight.getPhotoLeftPath() == null ? null : "/api/weights/" + weight.getId() + "/photos/left",
             weight.getPhotoRightPath() == null ? null : "/api/weights/" + weight.getId() + "/photos/right",
-            weightService.getPerformanceWeek(weight)
+            weightService.getPerformanceWeek(user, weight)
         );
     }
 

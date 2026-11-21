@@ -1,5 +1,6 @@
 package com.jllado.weightcontrol.api.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot;
 import jakarta.validation.constraints.NotNull;
 import java.time.DayOfWeek;
@@ -44,6 +45,19 @@ public final class WeeklySummaryDtos {
         long totalElements,
         int totalPages
     ) {
+        @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+        public LocalDate latestEligiblePeriodEnd() { return latestEligibleFriday; }
+    }
+
+    public interface ReportPeriod {
+        LocalDate periodStart();
+        LocalDate fridayDate();
+
+        @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+        default LocalDate periodEnd() { return fridayDate(); }
+
+        @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+        default boolean transition() { return periodEnd().isBefore(periodStart().plusDays(6)); }
     }
 
     public record WeeklySummaryListItem(
@@ -51,7 +65,7 @@ public final class WeeklySummaryDtos {
         LocalDate fridayDate,
         Instant createdAt,
         boolean reflectionSaved
-    ) {
+    ) implements ReportPeriod {
     }
 
     public record WeeklySummaryPreviewResponse(
@@ -60,7 +74,7 @@ public final class WeeklySummaryDtos {
         boolean canCreate,
         boolean alreadySaved,
         WeeklySummarySnapshot snapshot
-    ) {
+    ) implements ReportPeriod {
     }
 
     public record WeeklySummaryDetailResponse(
@@ -70,7 +84,7 @@ public final class WeeklySummaryDtos {
         WeeklySummarySnapshot snapshot,
         WeeklyReflectionDtos.WeeklyReflectionResponse reflection,
         com.jllado.weightcontrol.service.WeeklySummaryPresentationMapper.Presentation presentation
-    ) {
+    ) implements ReportPeriod {
         public WeeklySummaryDetailResponse(LocalDate periodStart, LocalDate fridayDate, Instant createdAt,
             WeeklySummarySnapshot snapshot, WeeklyReflectionDtos.WeeklyReflectionResponse reflection) {
             this(periodStart, fridayDate, createdAt, snapshot, reflection, null);

@@ -51,7 +51,7 @@ class WeeklyMetricsCalculatorTest {
 
     private WeeklyMetrics.AverageSleep sleepAverage(LocalDate end, List<Sleep> sleeps) {
         return calculator.progress(user(), end, new WeeklyMetricsCalculator.Input(
-            List.of(), List.of(), List.of(), List.of(), sleeps, List.of(), List.of(), List.of(), List.of(), List.of()
+            List.of(), List.of(), List.of(), List.of(), sleeps, List.of(), List.of(), List.of(), List.of(), List.of(), targetDate -> 2000
         )).currentPeriod().sleep();
     }
 
@@ -78,7 +78,7 @@ class WeeklyMetricsCalculatorTest {
             List.of(),
             List.of(),
             List.of(),
-            List.of()
+            List.of(), targetDate -> 2000
         );
 
         WeeklyMetrics.Summary summary = calculator.progress(user, end, input).currentPeriod();
@@ -129,7 +129,7 @@ class WeeklyMetricsCalculatorTest {
         noOpportunities.setRoutinesPercentage(BigDecimal.ZERO);
         noOpportunities.setWeightPercentage(BigDecimal.ZERO);
         WeeklyMetrics.Summary summary = calculator.progress(user, end, new WeeklyMetricsCalculator.Input(
-            List.of(eligible, noOpportunities), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of()
+            List.of(eligible, noOpportunities), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), targetDate -> 2000
         )).currentPeriod();
 
         assertEquals(new BigDecimal("50.00"), summary.dashboard().routinesPercentage());
@@ -152,7 +152,7 @@ class WeeklyMetricsCalculatorTest {
         sleep.setAverageHrv(42);
 
         WeeklyMetrics.AverageSleep average = calculator.progress(user, end, new WeeklyMetricsCalculator.Input(
-            List.of(), List.of(), List.of(), List.of(), List.of(sleep), List.of(), List.of(), List.of(), List.of(), List.of()
+            List.of(), List.of(), List.of(), List.of(), List.of(sleep), List.of(), List.of(), List.of(), List.of(), List.of(), targetDate -> 2000
         )).currentPeriod().sleep();
 
         assertEquals(0, new BigDecimal("5400").compareTo(average.deepSleepSeconds()));
@@ -211,7 +211,7 @@ class WeeklyMetricsCalculatorTest {
             workout(end.plusDays(1), line(ExerciseType.TRAINING, ExerciseTrackingMode.REPS, 12, false)),
             workout(end.minusDays(371), line(ExerciseType.TRAINING, ExerciseTrackingMode.REPS, 12, false)));
         JsonNode progress = new ObjectMapper().findAndRegisterModules().valueToTree(calculator.progress(user(), end,
-            new WeeklyMetricsCalculator.Input(List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), workouts, List.of(), List.of(), List.of())));
+            new WeeklyMetricsCalculator.Input(List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), workouts, List.of(), List.of(), List.of(), targetDate -> 2000)));
 
         assertEquals(1, progress.at("/currentPeriod/workouts/strengthSessionCount").asInt(-1));
         assertEquals(1, progress.at("/currentPeriod/workouts/cardioSessionCount").asInt(-1));
@@ -244,7 +244,7 @@ class WeeklyMetricsCalculatorTest {
     }
 
     private WeeklyMetricsCalculator.Input emptyInput() {
-        return new WeeklyMetricsCalculator.Input(List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
+        return new WeeklyMetricsCalculator.Input(List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), targetDate -> 2000);
     }
 
     private List<DailyStatus> statuses(LocalDate start, int[][] values) {

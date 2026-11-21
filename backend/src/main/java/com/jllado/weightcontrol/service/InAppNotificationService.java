@@ -560,11 +560,11 @@ public class InAppNotificationService {
                 LocalDate date = notification.getReminderDate();
                 LocalDate end = date;
                 if (routine.getCadence() == RoutineCadence.WEEKLY) {
-                    LocalDate friday = RoutinePeriods.end(RoutineCadence.WEEKLY, date);
-                    end = friday.isBefore(cutoff) ? friday : cutoff;
+                    LocalDate periodEnd = RoutinePeriods.end(routine.getUser(), RoutineCadence.WEEKLY, date);
+                    end = periodEnd.isBefore(cutoff) ? periodEnd : cutoff;
                 }
                 yield !routineCheckinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
-                    routine, DateTimes.startOfDay(RoutinePeriods.start(routine.getCadence(), date)), DateTimes.startOfDay(end.plusDays(1)));
+                    routine, DateTimes.startOfDay(RoutinePeriods.start(routine.getUser(), routine.getCadence(), date)), DateTimes.startOfDay(end.plusDays(1)));
             }
             case MEDICATION -> true;
             case MOOD -> !moodRepository.existsByUserAndMoodDateAndPeriod(
@@ -579,13 +579,13 @@ public class InAppNotificationService {
             );
             case WEIGHT -> !weightRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(
                 notification.getUser(),
-                DateTimes.startOfDay(RoutinePeriods.start(RoutineCadence.WEEKLY, notification.getReminderDate())),
-                DateTimes.startOfDay(RoutinePeriods.nextStart(RoutineCadence.WEEKLY, notification.getReminderDate()))
+                DateTimes.startOfDay(RoutinePeriods.start(notification.getUser(), RoutineCadence.WEEKLY, notification.getReminderDate())),
+                DateTimes.startOfDay(RoutinePeriods.nextStart(notification.getUser(), RoutineCadence.WEEKLY, notification.getReminderDate()))
             ) && !hasLegacyMeasurementRoutineCompletion(notification, RoutineAutomaticTrigger.WEIGHT_MEASUREMENT);
             case BLOOD_PRESSURE -> !bloodPressureRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(
                 notification.getUser(),
-                DateTimes.startOfDay(RoutinePeriods.start(RoutineCadence.WEEKLY, notification.getReminderDate())),
-                DateTimes.startOfDay(RoutinePeriods.nextStart(RoutineCadence.WEEKLY, notification.getReminderDate()))
+                DateTimes.startOfDay(RoutinePeriods.start(notification.getUser(), RoutineCadence.WEEKLY, notification.getReminderDate())),
+                DateTimes.startOfDay(RoutinePeriods.nextStart(notification.getUser(), RoutineCadence.WEEKLY, notification.getReminderDate()))
             ) && !hasLegacyMeasurementRoutineCompletion(notification, RoutineAutomaticTrigger.BLOOD_PRESSURE_MEASUREMENT);
             case PERSONAL_RECORD, APP_UPDATE, GPT_ACTION, URGE_PAUSE, WEEKLY_SUMMARY -> true;
         };
@@ -594,8 +594,8 @@ public class InAppNotificationService {
     private boolean hasLegacyMeasurementRoutineCompletion(InAppNotification notification, RoutineAutomaticTrigger trigger) {
         return routineCheckinRepository.existsByRoutineUserAndRoutineAutomaticTriggerAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
             notification.getUser(), trigger,
-            DateTimes.startOfDay(RoutinePeriods.start(RoutineCadence.WEEKLY, notification.getReminderDate())),
-            DateTimes.startOfDay(RoutinePeriods.nextStart(RoutineCadence.WEEKLY, notification.getReminderDate())));
+            DateTimes.startOfDay(RoutinePeriods.start(notification.getUser(), RoutineCadence.WEEKLY, notification.getReminderDate())),
+            DateTimes.startOfDay(RoutinePeriods.nextStart(notification.getUser(), RoutineCadence.WEEKLY, notification.getReminderDate())));
     }
 
     private String routineKey(Long reminderId, LocalDate date) {

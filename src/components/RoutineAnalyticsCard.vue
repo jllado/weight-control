@@ -27,7 +27,7 @@
 
     <section class="routine-heatmap-section" :aria-label="routine.isWeekly() ? 'Weekly completion heatmap' : 'Daily completion heatmap'">
       <div class="routine-section-header">
-        <strong>{{ routine.isWeekly() ? 'Weekly completion (Saturday–Friday)' : 'Daily completion' }}</strong>
+        <strong>{{ routine.isWeekly() ? 'Weekly completion' : 'Daily completion' }}</strong>
         <span>{{ heatmap_range }}</span>
       </div>
       <div class="routine-heatmap-scroll">
@@ -76,6 +76,7 @@
 
 <script>
 import dayjs from 'dayjs';
+import {planningWeek, madridDate} from '../model/PlanningWeek';
 
 export default {
   name: 'RoutineAnalyticsCard',
@@ -87,7 +88,7 @@ export default {
   },
   data() {
     return {
-      today: dayjs().startOf('day')
+      today: this.routine.isWeekly() ? dayjs(madridDate()) : dayjs().startOf('day')
     };
   },
   computed: {
@@ -95,13 +96,13 @@ export default {
       return this.today.subtract(11, 'month').startOf('month');
     },
     grid_start() {
-      return this.window_start.subtract((this.window_start.day() + (this.routine.isWeekly() ? 1 : 6)) % 7, 'day');
+      return this.routine.isWeekly() ? dayjs(planningWeek(this.window_start).start) : this.window_start.subtract((this.window_start.day() + 6) % 7, 'day');
     },
     grid_end() {
-      return this.today.add(6 - ((this.today.day() + (this.routine.isWeekly() ? 1 : 6)) % 7), 'day');
+      return this.routine.isWeekly() ? dayjs(planningWeek(this.today).end) : this.today.add(6 - ((this.today.day() + 6) % 7), 'day');
     },
     heatmap_week_count() {
-      return this.grid_end.diff(this.grid_start, 'week') + 1;
+      return this.routine.isWeekly() ? this.heatmap_days.length : this.grid_end.diff(this.grid_start, 'week') + 1;
     },
     heatmap_grid_style() {
       return {'--heatmap-weeks': this.heatmap_week_count};
@@ -124,11 +125,17 @@ export default {
       return counts;
     },
     heatmap_months() {
+      const columnFor = date => {
+        if (!this.routine.isWeekly()) return Math.floor(date.diff(this.grid_start, 'day') / 7) + 1;
+        const start = planningWeek(date).start;
+        const index = this.heatmap_days.findIndex(cell => cell.key === start);
+        return index < 0 ? this.heatmap_week_count + 1 : index + 1;
+      };
       let month = this.window_start;
       let months = [];
       while (!month.isAfter(this.today, 'month')) {
-        const column = Math.floor(month.diff(this.grid_start, 'day') / 7) + 1;
-        const next_column = Math.min(Math.floor(month.add(1, 'month').diff(this.grid_start, 'day') / 7) + 1, this.heatmap_week_count + 1);
+        const column = columnFor(month);
+        const next_column = Math.min(columnFor(month.add(1, 'month')), this.heatmap_week_count + 1);
         months.push({
           key: month.format('YYYY-MM'),
           label: month.format('MMM'),
@@ -142,14 +149,15 @@ export default {
       let date = this.grid_start;
       let days = [];
       while (!date.isAfter(this.grid_end, 'day')) {
-        const status = this.get_day_status(date);
+        const week = this.routine.isWeekly() ? planningWeek(date) : null;
+        const status = this.get_day_status(date, week);
         days.push({
           key: date.format('YYYY-MM-DD'),
           status,
           today: date.isSame(this.today, 'day'),
-          label: status === 'outside' ? '' : `${date.format('D MMMM YYYY')}${this.routine.isWeekly() ? ' – ' + date.add(6, 'day').format('D MMMM YYYY') : ''}: ${this.format_day_status(status)}`
+          label: status === 'outside' ? '' : `${date.format('D MMMM YYYY')}${week ? ' – ' + dayjs(week.end).format('D MMMM YYYY') + (week.transition ? ' (short transition)' : '') : ''}: ${this.format_day_status(status)}`
         });
-        date = date.add(this.routine.isWeekly() ? 7 : 1, 'day');
+        date = (week ? dayjs(week.end) : date).add(1, 'day');
       }
       return days;
     },
@@ -237,12 +245,12 @@ export default {
     }
   },
   methods: {
-    get_day_status(date) {
-      if (this.routine.isWeekly()) {
-        if (date.add(6, 'day').isBefore(this.window_start, 'day')) return 'outside';
-        if (date.isBefore(this.routine_start, 'day')) return 'inactive';
+    get_day_status(date, week) {
+      if (week) {
+        if (dayjs(week.end).isBefore(this.window_start, 'day')) return 'outside';
+        if (dayjs(week.end).isBefore(this.routine_start, 'day')) return 'inactive';
         if (this.routine.completedWeeks(this.today.toDate()).has(date.format('YYYY-MM-DD'))) return 'completed';
-        return date.add(6, 'day').isBefore(this.today, 'day') ? 'missed' : 'pending';
+        return dayjs(week.end).isBefore(this.today, 'day') ? 'missed' : 'pending';
       }
       if (date.isBefore(this.window_start, 'day') || date.isAfter(this.today, 'day')) {
         return 'outside';

@@ -8,6 +8,16 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class WeeklyWorkoutTargetServiceTest {
+    @Test void resolvedTargetsUseTheShortPreviousReportAndAllSevenCurrentDates() {
+        var user = new User();
+        var monday = LocalDate.parse("2026-11-23");
+        user.getPlanningWeekChanges().add(new PlanningWeekChange(user, monday));
+        var repository = org.mockito.Mockito.mock(com.jllado.weightcontrol.repository.WorkoutPlanRepository.class);
+        var snapshot = new WeeklyWorkoutTargetService(repository).capture(user, monday.plusDays(6));
+        assertEquals(monday.datesUntil(monday.plusWeeks(1)).toList(), snapshot.current().days().stream().map(WeeklyWorkoutTargets.Day::date).toList());
+        assertEquals(List.of(monday.minusDays(2), monday.minusDays(1)), snapshot.previous().days().stream().map(WeeklyWorkoutTargets.Day::date).toList());
+    }
+
     @Test void mixedSessionsCountIndependentlyAndOnlyTrainingCardioContributesDuration() {
         var mixed = new AssessmentPlannedSessionData("Mixed", null, "key", List.of(
             target(ExerciseType.TRAINING, ExerciseTrackingMode.REPS, null),

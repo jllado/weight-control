@@ -6,8 +6,9 @@ function toProfile(data) {
     return new UserProfile(data);
 }
 
-function toPayload(profile) {
+function toPayload(profile, planningChange) {
     return {
+        ...planningChange,
         birthDate: profile.birthDate ? dayjs(profile.birthDate).format('YYYY-MM-DD') : null,
         heightCm: profile.heightCm,
         inShapeBodyFatLimit: profile.inShapeBodyFatLimit,
@@ -24,7 +25,7 @@ export default {
     async get() {
         return toProfile(await get('/profile'));
     },
-    async save(profile) {
-        return toProfile(await put('/profile', toPayload(profile)));
+    async save(profile, planningChange) {
+        return toProfile(await put('/profile', toPayload(profile, planningChange)));
     }
 }

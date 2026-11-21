@@ -1,6 +1,6 @@
 const {test, expect} = require('@playwright/test');
 const {mockBackPainHome} = require('../fixtures/back-pain-chart.cjs');
-const {dashboard} = require('../fixtures/dashboard.cjs');
+const {dashboard, profile} = require('../fixtures/dashboard.cjs');
 
 test.use({timezoneId: 'Europe/Madrid'});
 const routine = (id, name, cadence, times = []) => ({id, name, cadence, startDate: '2026-07-04T00:00:00+02:00',
@@ -137,4 +137,36 @@ test('daily aggregate All chart keeps its daily history range when weekly histor
     await page.evaluate(async url => {window.testChart = (await import(url)).default;}, `/assets/${module}`);
     const canvas = charts.getByRole('tabpanel', {name: 'Routines', exact: true}).locator('canvas').first();
     await expect.poll(() => canvas.evaluate(el => window.testChart.getChart(el)?.data.labels[0])).toBe('Jul-2026');
+});
+
+test('planning week closes the short calorie plan and routine on their actual dates', async ({page}) => {
+    await mockBackPainHome(page);
+    await page.route('**/api/profile', route => route.fulfill({json: {...profile, planningWeekChanges: [{effectiveDate: '2026-08-13', firstDay: 'THURSDAY'}]}}));
+    const writes = [];
+    await page.route('**/api/weekly-calorie-plans/*', route => {
+        if (route.request().method() === 'GET') return route.fulfill({status: 204});
+        const body = route.request().postDataJSON();
+        writes.push(body);
+        return route.fulfill({json: {...body, revision: 1}});
+    });
+    await page.route('**/api/routines', route => route.fulfill({json: [routine(2, 'Weekly review', 'WEEKLY', ['2026-08-10T08:00:00+02:00'])]}));
+    await page.goto('/?tab=routines&date=2026-08-12');
+    const score = page.locator('.week-status');
+    await expect(score).toContainText('Short transition · Sat 8 Aug 2026 – Wed 12 Aug 2026');
+    await page.getByRole('tab', {name: 'Weekly', exact: true}).click();
+    await expect(page.getByRole('button', {name: 'Undo Weekly review', exact: true})).toBeVisible();
+    await score.getByRole('button', {name: 'Edit planned calories'}).click();
+    const editor = page.getByRole('dialog', {name: 'Planned calories'});
+    await expect(editor.getByRole('spinbutton')).toHaveCount(5);
+    await expect(editor.getByLabel('Wednesday, 12/08/2026')).toHaveValue('1853');
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(editor).toBeHidden();
+    expect(writes[0].days.map(day => day.date)).toEqual(['2026-08-08', '2026-08-09', '2026-08-10', '2026-08-11', '2026-08-12']);
+    await page.route(url => url.pathname === '/api/dashboard' && url.searchParams.get('selectedDate') === '2026-08-13',
+        route => route.fulfill({json: {...dashboard, anchorDate: '2026-08-13', dailyStatus: {...dashboard.dailyStatus, date: '2026-08-13'}}}));
+    await page.goto('/?tab=routines&date=2026-08-13');
+    await expect(score).toContainText('Planning week · Thu 13 Aug 2026 – Wed 19 Aug 2026');
+    await expect(score.locator('.week-status-cell').nth(1)).toHaveText('Thursday');
+    await page.getByRole('tab', {name: 'Weekly', exact: true}).click();
+    await expect(page.getByRole('button', {name: 'Complete Weekly review', exact: true})).toBeVisible();
 });

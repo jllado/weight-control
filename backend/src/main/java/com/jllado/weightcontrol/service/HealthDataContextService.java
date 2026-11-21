@@ -73,7 +73,6 @@ public class HealthDataContextService {
     static final int DEFAULT_RECORDS_PAGE_SIZE = 25;
     static final int MAX_RECORDS_PAGE_SIZE = 50;
     private static final int REFLECTION_DETAILED_DAYS = 30;
-    private static final int YEAR_COMPARISON_WEEKS = 52;
 
     private final DashboardReflectionRepository reflectionRepository;
     private final DailyStatusRepository dailyStatusRepository;
@@ -491,7 +490,7 @@ public class HealthDataContextService {
         String foodQuery
     ) {
         return switch (domain) {
-            case PROFILE -> toProfileData(user, currentDate, from, to);
+            case PROFILE -> toProfileData(user, currentDate, from, to, weeklyCaloriePlanService.effectiveTargets(user, from, to));
             case BODY -> bodyContext(user, from, to);
             case VITALS -> vitalsContext(user, from, to);
             case NUTRITION -> nutritionContext(user, from, to);
@@ -525,7 +524,7 @@ public class HealthDataContextService {
                 DateTimes.startOfDay(from),
                 DateTimes.startOfDay(to.plusDays(1))
             ).stream()
-            .map(this::toCoachBodyMeasurementData)
+            .map(weight -> toCoachBodyMeasurementData(user, weight))
             .toList();
         return new CoachDtos.BodyContext(measurements);
     }
@@ -571,15 +570,18 @@ public class HealthDataContextService {
             nutrientTargetService.resolve(user, to),
             weeklyCaloriePlanService.effectiveTargets(user, from, to).stream()
                 .map(target -> new PlannedCalorieTargetData(target.date(), target.calories(), target.weeklyAverageMaximum())).toList(),
-            user.getWeeklyAverageCalorieMaximum()
+            user.getWeeklyAverageCalorieMaximum(), planningPeriods(user, from, to)
         );
     }
 
-    private ProfileData toProfileData(User user, LocalDate selectedDate, LocalDate from, LocalDate to) {
-        ProfileData profile = toProfileData(user, selectedDate);
-        return new ProfileData(profile.age(), profile.heightCm(), profile.sex(), profile.fitnessLevel(), profile.takesMedication(),
-            profile.weeklyAverageCalorieMaximum(), profile.typicalCaloriesByWeekday(), weeklyCaloriePlanService.effectiveTargets(user, from, to).stream()
-                .map(target -> new PlannedCalorieTargetData(target.date(), target.calories(), target.weeklyAverageMaximum())).toList());
+    private List<PlanningPeriodData> planningPeriods(User user, LocalDate from, LocalDate to) {
+        var periods = new java.util.ArrayList<PlanningPeriodData>();
+        for (LocalDate date = from; !date.isAfter(to); ) {
+            var period = PlanningWeekService.period(user, date);
+            periods.add(new PlanningPeriodData(period.start(), period.end(), period.transition()));
+            date = period.end().plusDays(1);
+        }
+        return periods;
     }
 
     private CoachDtos.TrainingContext trainingContext(User user, LocalDate from, LocalDate to) {
@@ -694,7 +696,7 @@ public class HealthDataContextService {
         LocalDate contextStart = selectedDate.minusDays(REFLECTION_CONTEXT_DAYS - 1L);
         LocalDate detailedStart = selectedDate.minusDays(REFLECTION_DETAILED_DAYS - 1L);
         LocalDate baselineEnd = detailedStart.minusDays(1);
-        LocalDate dataStart = DateTimes.startOfDashboardWeek(selectedDate).minusWeeks(YEAR_COMPARISON_WEEKS);
+        LocalDate dataStart = WeeklyMetricsCalculator.comparisonPeriods(user, selectedDate).yearAgo().start();
         OffsetDateTime dataStartTime = DateTimes.startOfDay(dataStart);
         OffsetDateTime selectedEndExclusive = DateTimes.startOfDay(selectedDate.plusDays(1));
 
@@ -719,6 +721,7 @@ public class HealthDataContextService {
             routine -> routineCheckinRepository.findByRoutineAndCheckedAtBetweenOrderByCheckedAtAsc(routine, dataStartTime, selectedEndExclusive)
         ));
         List<RoutineCheckin> routineCheckins = checkins.entrySet().stream().filter(entry -> entry.getKey().getCadence() == RoutineCadence.DAILY).flatMap(entry -> entry.getValue().stream()).toList();
+        var datedTargets = weeklyCaloriePlanService.effectiveTargets(user, dataStart, selectedDate);
         WeeklyMetricsCalculator.Input weeklyMetricsInput = new WeeklyMetricsCalculator.Input(
             statuses,
             weights,
@@ -729,7 +732,8 @@ public class HealthDataContextService {
             workouts,
             sicknesses,
             decisions,
-            routineCheckins
+            routineCheckins,
+            WeeklyCaloriePlanService.caloriesByDate(datedTargets)::get
         );
 
         return new ReflectionContext(
@@ -737,7 +741,7 @@ public class HealthDataContextService {
             contextStart,
             detailedStart,
             baselineEnd,
-            toProfileData(user, selectedDate, contextStart, selectedDate),
+            toProfileData(user, selectedDate, selectedDate, selectedDate, datedTargets),
             new DataSemantics(true),
             coachingPlanRepository.findByUser(user)
                 .filter(plan -> !plan.getStartDate().isAfter(selectedDate))
@@ -746,7 +750,7 @@ public class HealthDataContextService {
             recentReflections,
             detailed(statuses, DailyStatus::getStatusDate, detailedStart).stream().map(this::toDailyStatusData).toList(),
             routines.stream().filter(routine -> routine.getCadence() == RoutineCadence.DAILY).map(routine -> toRoutineData(routine, checkins.get(routine), detailedStart)).toList(),
-            detailed(weights, weight -> DateTimes.toLocalDate(weight.getMeasuredAt()), detailedStart).stream().map(this::toWeightData).toList(),
+            detailed(weights, weight -> DateTimes.toLocalDate(weight.getMeasuredAt()), detailedStart).stream().map(weight -> toWeightData(user, weight)).toList(),
             detailed(bloodPressures, bloodPressure -> DateTimes.toLocalDate(bloodPressure.getMeasuredAt()), detailedStart).stream().map(this::toBloodPressureData).toList(),
             detailed(moods, Mood::getMoodDate, detailedStart).stream().map(this::toMoodData).toList(),
             detailed(sleeps, Sleep::getSleepDate, detailedStart).stream().map(this::toSleepData).toList(),
@@ -878,7 +882,8 @@ public class HealthDataContextService {
         );
     }
 
-    private ProfileData toProfileData(User user, LocalDate selectedDate) {
+    private ProfileData toProfileData(User user, LocalDate selectedDate, LocalDate from, LocalDate to,
+        List<WeeklyCaloriePlanService.EffectiveCalorieTarget> datedTargets) {
         Integer age = user.getBirthDate() == null ? null : Period.between(user.getBirthDate(), selectedDate).getYears();
         return new ProfileData(
             age,
@@ -896,7 +901,9 @@ public class HealthDataContextService {
                 "THURSDAY", user.getTypicalCaloriesThursday(),
                 "FRIDAY", user.getTypicalCaloriesFriday()
             ),
-            List.of()
+            datedTargets.stream().filter(target -> !target.date().isBefore(from))
+                .map(target -> new PlannedCalorieTargetData(target.date(), target.calories(), target.weeklyAverageMaximum())).toList(),
+            planningPeriods(user, from, to)
         );
     }
 
@@ -948,7 +955,7 @@ public class HealthDataContextService {
         );
     }
 
-    private WeightData toWeightData(Weight weight) {
+    private WeightData toWeightData(User user, Weight weight) {
         return new WeightData(
             DateTimes.toLocalDate(weight.getMeasuredAt()),
             weight.getWeight(),
@@ -957,11 +964,11 @@ public class HealthDataContextService {
             weight.getLostWeight(),
             weight.getLostFat(),
             weight.getLostMuscle(),
-            toPerformanceWeekData(weightService.getPerformanceWeek(weight))
+            toPerformanceWeekData(weightService.getPerformanceWeek(user, weight))
         );
     }
 
-    private CoachDtos.BodyMeasurementData toCoachBodyMeasurementData(Weight weight) {
+    private CoachDtos.BodyMeasurementData toCoachBodyMeasurementData(User user, Weight weight) {
         return new CoachDtos.BodyMeasurementData(
             DateTimes.toLocalDate(weight.getMeasuredAt()),
             weight.getWeight(),
@@ -972,7 +979,7 @@ public class HealthDataContextService {
             weight.getLostWeight(),
             weight.getLostFat(),
             weight.getLostMuscle(),
-            toCoachPerformanceWeekData(weightService.getPerformanceWeek(weight))
+            toCoachPerformanceWeekData(weightService.getPerformanceWeek(user, weight))
         );
     }
 
@@ -1107,7 +1114,7 @@ public class HealthDataContextService {
         List<LocalDate> checkinDates = routineCheckinRepository
             .findByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThanOrderByCheckedAtAsc(
                 routine,
-                DateTimes.startOfDay(RoutinePeriods.start(routine.getCadence(), from)),
+                DateTimes.startOfDay(RoutinePeriods.start(routine.getUser(), routine.getCadence(), from)),
                 DateTimes.startOfDay(to.plusDays(1))
             ).stream()
             .map(checkin -> DateTimes.toLocalDate(checkin.getCheckedAt()))
@@ -1119,7 +1126,7 @@ public class HealthDataContextService {
             DateTimes.toLocalDate(routine.getStartDate()),
             routine.getTypes().stream().map(Enum::name).toList(),
             checkinDates,
-            routine.getCadence() == RoutineCadence.WEEKLY ? checkinDates.stream().map(date -> RoutinePeriods.start(RoutineCadence.WEEKLY, date)).distinct().sorted().toList() : List.of()
+            routine.getCadence() == RoutineCadence.WEEKLY ? checkinDates.stream().map(date -> RoutinePeriods.start(routine.getUser(), RoutineCadence.WEEKLY, date)).distinct().sorted().toList() : List.of()
         );
     }
 

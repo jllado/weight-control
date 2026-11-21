@@ -1,6 +1,5 @@
 package com.jllado.weightcontrol.api.dto;
 
-import com.jllado.weightcontrol.domain.WeeklyCaloriePlan;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -22,15 +21,10 @@ public final class WeeklyCaloriePlanDtos {
     public record WeeklyCaloriePlanRequest(
         @NotNull LocalDate weekStart,
         Long revision,
-        @NotNull @Size(min = 7, max = 7) List<@Valid DayPlanRequest> days
+        @NotNull @Size(min = 1, max = 7) List<@NotNull @Valid DayPlanRequest> days
     ) { }
 
     public record DayPlanResponse(LocalDate date, int calories) { }
 
-    public record WeeklyCaloriePlanResponse(LocalDate weekStart, Long revision, List<DayPlanResponse> days) {
-        public static WeeklyCaloriePlanResponse from(WeeklyCaloriePlan plan) {
-            return new WeeklyCaloriePlanResponse(plan.getWeekStart(), plan.getRevision(), java.util.stream.IntStream.range(0, 7)
-                .mapToObj(index -> new DayPlanResponse(plan.getWeekStart().plusDays(index), plan.getCalories().get(index))).toList());
-        }
-    }
+    public record WeeklyCaloriePlanResponse(LocalDate weekStart, Long revision, List<DayPlanResponse> days) { }
 }

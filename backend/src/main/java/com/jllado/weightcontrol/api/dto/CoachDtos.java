@@ -141,9 +141,9 @@ public final class CoachDtos {
      */
     public record NutritionContext(List<NutritionDailyTotalData> dailyTotals, NutritionDtos.NutrientTargetsResponse targets,
         List<com.jllado.weightcontrol.api.dto.HealthDataContextDtos.PlannedCalorieTargetData> plannedCalorieTargets,
-        int weeklyAverageCalorieMaximum) {
-        public NutritionContext(List<NutritionDailyTotalData> dailyTotals) { this(dailyTotals, null, List.of(), 0); }
-        public NutritionContext(List<NutritionDailyTotalData> dailyTotals, NutritionDtos.NutrientTargetsResponse targets) { this(dailyTotals, targets, List.of(), 0); }
+        int weeklyAverageCalorieMaximum, List<HealthDataContextDtos.PlanningPeriodData> planningWeeks) {
+        public NutritionContext(List<NutritionDailyTotalData> dailyTotals) { this(dailyTotals, null, List.of(), 0, List.of()); }
+        public NutritionContext(List<NutritionDailyTotalData> dailyTotals, NutritionDtos.NutrientTargetsResponse targets) { this(dailyTotals, targets, List.of(), 0, List.of()); }
     }
 
     public record NutritionDailyTotalData(

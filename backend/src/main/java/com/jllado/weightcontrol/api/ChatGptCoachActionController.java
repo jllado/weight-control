@@ -359,24 +359,27 @@ public class ChatGptCoachActionController {
     public List<WeightResponse> getWeights(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
                                             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         healthDataContextService.validateCoachDateRange(from, to);
-        return weightService.findBetween(currentUserService.requireUser(), from, to).stream()
-            .map(weight -> WeightResponse.from(weight, null, null, null, weightService.getPerformanceWeek(weight)))
+        var user = currentUserService.requireUser();
+        return weightService.findBetween(user, from, to).stream()
+            .map(weight -> WeightResponse.from(weight, null, null, null, weightService.getPerformanceWeek(user, weight)))
             .toList();
     }
 
     @PostMapping("/weights")
     public WeightResponse createWeight(@Valid @RequestBody CoachWeightRequest request) {
-        return actionNotifications.execute(currentUserService.requireUser(), "Weight saved", dashboardUrl("body", DateTimes.toLocalDate(request.date()), "weight"), () -> {
-            var result = personalRecordMutationService.createWeight(currentUserService.requireUser(), request.weightRequest()).result();
-            return WeightResponse.from(result, null, null, null, weightService.getPerformanceWeek(result));
+        var user = currentUserService.requireUser();
+        return actionNotifications.execute(user, "Weight saved", dashboardUrl("body", DateTimes.toLocalDate(request.date()), "weight"), () -> {
+            var result = personalRecordMutationService.createWeight(user, request.weightRequest()).result();
+            return WeightResponse.from(result, null, null, null, weightService.getPerformanceWeek(user, result));
         });
     }
 
     @PutMapping("/weights/{id}")
     public WeightResponse updateWeight(@PathVariable Long id, @Valid @RequestBody CoachWeightRequest request) {
-        return actionNotifications.execute(currentUserService.requireUser(), "Weight updated", dashboardUrl("body", DateTimes.toLocalDate(request.date()), "weight"), () -> {
-            var result = personalRecordMutationService.updateWeight(currentUserService.requireUser(), id, request.weightRequest()).result();
-            return WeightResponse.from(result, null, null, null, weightService.getPerformanceWeek(result));
+        var user = currentUserService.requireUser();
+        return actionNotifications.execute(user, "Weight updated", dashboardUrl("body", DateTimes.toLocalDate(request.date()), "weight"), () -> {
+            var result = personalRecordMutationService.updateWeight(user, id, request.weightRequest()).result();
+            return WeightResponse.from(result, null, null, null, weightService.getPerformanceWeek(user, result));
         });
     }
 
@@ -519,7 +522,7 @@ public class ChatGptCoachActionController {
         }
         var user = currentUserService.requireUser();
         return switch (type) {
-            case WEIGHT -> weightService.findBetween(user, from, to).stream().map(entry -> new CoachHealthEntryResponse(type, WeightResponse.from(entry, null, null, null, weightService.getPerformanceWeek(entry)))).toList();
+            case WEIGHT -> weightService.findBetween(user, from, to).stream().map(entry -> new CoachHealthEntryResponse(type, WeightResponse.from(entry, null, null, null, weightService.getPerformanceWeek(user, entry)))).toList();
             case BLOOD_PRESSURE -> bloodPressureService.findBetween(user, from, to).stream().map(entry -> new CoachHealthEntryResponse(type, BloodPressureResponse.from(entry))).toList();
             case MOOD -> moodService.findBetween(user, from, to).stream().map(entry -> new CoachHealthEntryResponse(type, MoodResponse.from(entry))).toList();
             case SLEEP -> sleepService.findBetween(user, from, to).stream().map(entry -> new CoachHealthEntryResponse(type, SleepResponse.from(entry))).toList();

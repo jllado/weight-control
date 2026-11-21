@@ -65,7 +65,7 @@ class WeeklyReflectionServiceTest {
         var summaries = mock(SavedWeeklySummaryRepository.class);
         var summaryService = mock(WeeklySummaryService.class);
         LocalDate today = LocalDate.parse(todayValue);
-        when(summaryService.latestCompletedWeekEnd(today)).thenCallRealMethod();
+        when(summaryService.latestCompletedWeekEnd(user, today)).thenCallRealMethod();
         var service = new WeeklyReflectionService(summaries, mock(WeeklyReflectionRepository.class), summaryService, properties(), mock(jakarta.persistence.EntityManager.class), jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator(), mock(DailyWarningReviewService.class));
 
         try (var dates = mockStatic(LocalDate.class, CALLS_REAL_METHODS)) {

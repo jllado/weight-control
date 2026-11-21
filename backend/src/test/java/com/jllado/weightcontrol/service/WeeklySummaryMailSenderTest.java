@@ -402,7 +402,7 @@ class WeeklySummaryMailSenderTest {
             statuses.add(status(end.minusDays(6).plusDays(index), 3));
             statuses.add(status(end.minusWeeks(1).minusDays(6).plusDays(index), 2));
         }
-        return new WeeklyMetricsCalculator.Input(statuses, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
+        return new WeeklyMetricsCalculator.Input(statuses, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), targetDate -> 2000);
     }
 
     private WeeklySummaryMeasurements emptyMeasurements() {

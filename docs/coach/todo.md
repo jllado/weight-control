@@ -1,5 +1,8 @@
 # Weight Control Coach TODO
 
+Planning-week configuration applies to PROFILE/NUTRITION, routine evidence, TRAINING comparisons and reflections. Use the returned periods and report closing date, including short transitions. Dated calorie goals, rolling warning windows and saved reports retain their own dates.
+
+
 This checklist implements [the Weight Control Coach architecture](plan.md) in dependency order.
 
 Complete and validate one group before starting the next, and keep the existing reflection workflow operational after every group.

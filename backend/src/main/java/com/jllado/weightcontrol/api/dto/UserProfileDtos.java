@@ -10,7 +10,9 @@ import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.Digits;
 import java.math.BigDecimal;
 import jakarta.validation.constraints.NotNull;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.util.List;
 
 public final class UserProfileDtos {
 
@@ -26,7 +28,9 @@ public final class UserProfileDtos {
         @NotNull @Min(0) Integer weeklyAverageCalorieMaximum,
         @NotNull @Valid TypicalCaloriesPerDayRequest typicalCaloriesPerDay,
         @NotNull @Valid CalorieShortcutsRequest calorieShortcuts,
-        @DecimalMin("0.0") @DecimalMax("100.0") @Digits(integer = 3, fraction = 2) BigDecimal inShapeBodyFatLimit
+        @DecimalMin("0.0") @DecimalMax("100.0") @Digits(integer = 3, fraction = 2) BigDecimal inShapeBodyFatLimit,
+        DayOfWeek firstDayOfPlanningWeek,
+        LocalDate expectedPlanningWeekEffectiveDate
     ) {
     }
 
@@ -58,7 +62,8 @@ public final class UserProfileDtos {
         int weeklyAverageCalorieMaximum,
         TypicalCaloriesPerDayResponse typicalCaloriesPerDay,
         CalorieShortcutsResponse calorieShortcuts,
-        BigDecimal inShapeBodyFatLimit
+        BigDecimal inShapeBodyFatLimit,
+        List<PlanningWeekChangeResponse> planningWeekChanges
     ) {
         public static UserProfileResponse from(User user) {
             return new UserProfileResponse(
@@ -83,10 +88,16 @@ public final class UserProfileDtos {
                     user.getCalorieShortcutOffPlan(),
                     user.getCalorieShortcutBinge()
                 ),
-                user.getInShapeBodyFatLimit()
+                user.getInShapeBodyFatLimit(),
+                user.getPlanningWeekChanges().stream().map(change -> {
+                    LocalDate date = change.getEffectiveDate();
+                    return new PlanningWeekChangeResponse(date, date.getDayOfWeek());
+                }).toList()
             );
         }
     }
+
+    public record PlanningWeekChangeResponse(LocalDate effectiveDate, DayOfWeek firstDay) { }
 
     public record TypicalCaloriesPerDayResponse(
         int saturday,

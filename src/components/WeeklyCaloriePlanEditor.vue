@@ -1,5 +1,6 @@
 <template>
   <Dialog :visible="visible" header="Planned calories" modal appendTo="body" :style="{width: '38rem'}" :breakpoints="{'640px': '96vw'}" @update:visible="$emit('update:visible', $event)">
+    <p>{{ periodLabel(dates[0], dates.at(-1)) }}</p>
     <p>Changing one day leaves the others as they are.</p>
     <p v-if="loading" role="status">Loading this week's plan…</p>
     <p v-if="loadError" role="alert">{{ loadError }} <Button label="Retry" class="p-button-text" @click="load" /></p>
@@ -32,6 +33,7 @@ import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
 import InputNumber from 'primevue/inputnumber';
 import weeklyCaloriePlanService from '@/services/WeeklyCaloriePlanService';
+import {periodLabel} from '@/model/PlanningWeek';
 import {formatCalories} from '@/services/CalorieFormatting';
 
 export default {
@@ -50,11 +52,11 @@ export default {
   },
   computed: {
     average() {
-      if (this.values.length !== 7 || this.values.some(value => !Number.isInteger(value) || value < 0)) return null;
-      return this.values.reduce((sum, value) => sum + value, 0) / 7;
+      if (this.values.length !== this.dates.length || this.values.some(value => !Number.isInteger(value) || value < 0)) return null;
+      return this.values.reduce((sum, value) => sum + value, 0) / this.dates.length;
     },
     maximumDifference() {
-      if (this.average === null) return 'Complete all seven daily targets.';
+      if (this.average === null) return 'Complete all daily targets.';
       const difference = this.weeklyMaximum - this.average;
       if (difference > 0) return `${formatCalories(difference)} kcal/day below`;
       if (difference < 0) return `${formatCalories(Math.abs(difference))} kcal/day above`;
@@ -64,7 +66,7 @@ export default {
   async mounted() { await this.load(); },
   methods: {
     formatDate(date) { return dayjs(`${date}T12:00:00`).format('dddd, DD/MM/YYYY'); },
-    formatCalories,
+    formatCalories, periodLabel,
     async load() {
       this.loading = true;
       this.loadError = '';
@@ -72,7 +74,7 @@ export default {
         const saved = await weeklyCaloriePlanService.get(this.dates[0]);
         if (saved) {
           this.revision = saved.revision;
-          this.values = saved.days.map(day => day.calories);
+          this.values = this.dates.map(date => saved.days.find(day => day.date === date).calories);
         }
       } catch (error) {
         this.loadError = `Could not load this week's saved plan. ${error.message}`;
@@ -88,7 +90,7 @@ export default {
     async save() {
       this.validationError = '';
       this.saveError = '';
-      if (this.values.length !== 7 || this.values.some(value => !Number.isInteger(value) || value < 0 || value > 2147483647)) {
+      if (this.values.length !== this.dates.length || this.values.some(value => !Number.isInteger(value) || value < 0 || value > 2147483647)) {
         this.validationError = 'Enter a whole number of calories from 0 to 2,147,483,647 for each day.';
         return;
       }

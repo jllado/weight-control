@@ -2,7 +2,7 @@ package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.jllado.weightcontrol.api.dto.UserProfileDtos.CalorieShortcutsRequest;
@@ -29,6 +29,9 @@ class UserProfileServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private PlanningWeekService planningWeeks;
+
     @InjectMocks
     private UserProfileService service;
 
@@ -44,9 +47,9 @@ class UserProfileServiceTest {
             2500,
             new TypicalCaloriesPerDayRequest(2983, 2983, 1853, 1853, 1853, 1853, 1122),
             new CalorieShortcutsRequest(1850, 3000, 4000, 5000),
-            new java.math.BigDecimal("18.25")
+            new java.math.BigDecimal("18.25"), null, null
         );
-        when(userRepository.save(user)).thenReturn(user);
+        when(userRepository.findByIdForUpdate(user.getId())).thenReturn(java.util.Optional.of(user));
 
         User updated = service.update(user, request);
 
@@ -71,7 +74,7 @@ class UserProfileServiceTest {
         assertEquals(5000, updated.getCalorieShortcutBinge());
         assertEquals(2500, UserProfileResponse.from(updated).weeklyAverageCalorieMaximum());
         assertEquals(1850, UserProfileResponse.from(updated).calorieShortcuts().onPlan());
-        verify(userRepository).save(user);
+        verifyNoInteractions(planningWeeks);
     }
 
     @Test
@@ -86,7 +89,7 @@ class UserProfileServiceTest {
             2500,
             new TypicalCaloriesPerDayRequest(2983, 2983, 1853, 1853, 1853, 1853, 1122),
             new CalorieShortcutsRequest(1850, 3000, 4000, 5000),
-            null
+            null, null, null
         );
 
         assertThrows(BadRequestException.class, () -> service.update(user, request));
@@ -102,12 +105,12 @@ class UserProfileServiceTest {
         User user = new User(); user.setInShapeBodyFatLimit(new java.math.BigDecimal("18.25"));
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules();
         var body = mapper.valueToTree(requestWithLimit(null));
-        ((com.fasterxml.jackson.databind.node.ObjectNode) body).remove("inShapeBodyFatLimit");
+        ((com.fasterxml.jackson.databind.node.ObjectNode) body).remove(java.util.List.of("inShapeBodyFatLimit", "firstDayOfPlanningWeek", "expectedPlanningWeekEffectiveDate"));
         var request = mapper.treeToValue(body, UserProfileRequest.class);
-        when(userRepository.save(user)).thenReturn(user);
+        when(userRepository.findByIdForUpdate(user.getId())).thenReturn(java.util.Optional.of(user));
 
         assertEquals(new java.math.BigDecimal("18.25"), service.update(user, request).getInShapeBodyFatLimit());
-        verify(userRepository).save(user);
+        verifyNoInteractions(planningWeeks);
     }
 
     @ParameterizedTest
@@ -121,7 +124,7 @@ class UserProfileServiceTest {
     private UserProfileRequest requestWithLimit(java.math.BigDecimal limit) {
         return new UserProfileRequest(LocalDate.of(1979,4,28),175,UserSex.MALE,UserFitnessLevel.ACTIVE,false,2500,
             new TypicalCaloriesPerDayRequest(2983,2983,1853,1853,1853,1853,1122),
-            new CalorieShortcutsRequest(1850,3000,4000,5000),limit);
+            new CalorieShortcutsRequest(1850,3000,4000,5000),limit,null,null);
     }
 
 }

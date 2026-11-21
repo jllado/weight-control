@@ -326,7 +326,7 @@ test('weekly summary warns before a missing-outcome save and stays usable at tar
     await page.goto('/');
     await expect(page.getByRole('heading', {name: 'Weekly summaries'})).toBeVisible();
     await expect(page.getByText('No weight measurement was recorded Friday, Saturday, or Sunday.')).toBeVisible();
-    await expect(page.getByText('Available from Saturday. Saving fixes the summary; later measurements won’t be included.')).toBeVisible();
+    await expect(page.getByText('Available from Saturday 15 Aug 2026. Saving captures the measurements available now.')).toBeVisible();
     await expect(page.getByRole('button', {name: 'Create weekly summary'})).toBeEnabled();
 
     for (const width of [320, 376, 390, 640, 760, 761, 1280]) {
@@ -508,6 +508,10 @@ test('weekly archive opens standalone summaries, copies selected evidence window
             episodesBySeverity: {MILD: 1, MODERATE: 1}, episodesByRegion: {LOWER: 2}, episodesBySide: {LEFT: 1, CENTER: 1}
         }}};
     });
+    const transition = summaries[0];
+    Object.assign(transition, {periodStart: '2026-09-19', fridayDate: '2026-09-20', transition: true});
+    Object.assign(transition.snapshot, {periodStart: transition.periodStart, fridayDate: transition.fridayDate, periodEnd: transition.fridayDate, followUpStart: transition.fridayDate, followUpEnd: '2026-09-22'});
+    Object.assign(transition.snapshot.progress.currentPeriod, {startDate: transition.periodStart, endDate: transition.fridayDate});
     const byDate = new Map(summaries.map(summary => [summary.fridayDate, summary]));
     await page.route('**/weekly-summaries**', async route => {
         const response = await route.fetch({url: new URL('/', route.request().url()).href});
@@ -533,7 +537,7 @@ test('weekly archive opens standalone summaries, copies selected evidence window
             return json({
                 latestEligibleFriday: summaries[0].fridayDate,
                 actionConfigured: true,
-                items: summaries.slice(actualPage * size, actualPage * size + size).map(({periodStart, fridayDate, createdAt}) => ({periodStart, fridayDate, createdAt, reflectionSaved: false})),
+                items: summaries.slice(actualPage * size, actualPage * size + size).map(({periodStart, fridayDate, transition, createdAt}) => ({periodStart, fridayDate, transition, createdAt, reflectionSaved: false})),
                 page: actualPage, size, totalElements: summaries.length, totalPages: Math.ceil(summaries.length / size)
             });
         }
@@ -553,8 +557,9 @@ test('weekly archive opens standalone summaries, copies selected evidence window
         await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
             .toContain(`summary ending ${summary.fridayDate} (${summary.periodStart} to ${summary.fridayDate})`);
         const prompt = await page.evaluate(() => navigator.clipboard.readText());
-        expect(prompt).toContain(`Friday–Sunday window ${summary.fridayDate} to ${shiftDate(summary.fridayDate, 2)}`);
-        expect(prompt).toMatch(/Saturday–Friday average.*period dates and reading count/);
+        expect(prompt).toContain(`${summary.transition ? 'Sunday–Tuesday' : 'Friday–Sunday'} window ${summary.fridayDate} to ${shiftDate(summary.fridayDate, 2)}`);
+        expect(prompt).toContain(summary.transition ? 'Saturday–Sunday average' : 'Saturday–Friday average');
+        expect(prompt).toContain('full period dates and reading count');
         expect(prompt).toMatch(/outcomes as readings with their measured dates/);
         expect(prompt).toContain('review every current Coach warning using today');
         expect(prompt).toContain('rolling window, current metric and goal');
@@ -595,6 +600,7 @@ test('weekly archive opens standalone summaries, copies selected evidence window
     await archive.getByRole('button', {name: new RegExp(dateLabel(summaries[0].fridayDate))}).click();
     await expect(page).toHaveURL(new RegExp(`/weekly-summaries/${summaries[0].fridayDate}$`));
     await expect(detail.locator('details[open]')).toHaveCount(0);
+    await expect(detail).toContainText('Short transition summary');
     const latestPrompt = await copySelectedPrompt(summaries[0]);
     expect(latestPrompt).not.toContain(oldest.fridayDate);
     await page.goto(`/weekly-summaries?date=${oldest.fridayDate}`);

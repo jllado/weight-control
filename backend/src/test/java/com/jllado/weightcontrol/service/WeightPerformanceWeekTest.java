@@ -37,7 +37,7 @@ class WeightPerformanceWeekTest {
         when(dailyStatusRepository.findByUserAndStatusDateBetweenOrderByStatusDateAsc(user, LocalDate.of(2026, 8, 8), LocalDate.of(2026, 8, 14)))
             .thenReturn(List.of(status(8, 10), status(7, 10)));
 
-        WeightPerformanceWeek week = service.getPerformanceWeek(weight);
+        WeightPerformanceWeek week = service.getPerformanceWeek(user, weight);
 
         assertEquals(LocalDate.of(2026, 8, 8), week.startDate());
         assertEquals(LocalDate.of(2026, 8, 14), week.endDate());
@@ -51,7 +51,7 @@ class WeightPerformanceWeekTest {
         when(dailyStatusRepository.findByUserAndStatusDateBetweenOrderByStatusDateAsc(user, LocalDate.of(2026, 8, 8), LocalDate.of(2026, 8, 14)))
             .thenReturn(List.of(status(1, 1)));
 
-        WeightPerformanceWeek week = service.getPerformanceWeek(weight);
+        WeightPerformanceWeek week = service.getPerformanceWeek(user, weight);
 
         assertEquals(LocalDate.of(2026, 8, 8), week.startDate());
         assertEquals(LocalDate.of(2026, 8, 14), week.endDate());
@@ -59,7 +59,8 @@ class WeightPerformanceWeekTest {
 
     @Test
     void doesNotLinkMidweekWeight() {
-        assertNull(service.getPerformanceWeek(weight(new User(), LocalDate.of(2026, 8, 12))));
+        User user = new User();
+        assertNull(service.getPerformanceWeek(user, weight(user, LocalDate.of(2026, 8, 12))));
     }
 
     private Weight weight(User user, LocalDate date) {

@@ -214,8 +214,8 @@ class InAppNotificationServiceTest {
         when(repository.findByIdAndUser(62L, user)).thenReturn(Optional.empty());
         when(weightRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(
             user,
-            DateTimes.startOfDay(com.jllado.weightcontrol.util.RoutinePeriods.start(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY, date)),
-            DateTimes.startOfDay(com.jllado.weightcontrol.util.RoutinePeriods.nextStart(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY, date))
+            DateTimes.startOfDay(com.jllado.weightcontrol.util.RoutinePeriods.start(user, com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY, date)),
+            DateTimes.startOfDay(com.jllado.weightcontrol.util.RoutinePeriods.nextStart(user, com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY, date))
         )).thenReturn(true);
 
         assertThrows(BadRequestException.class, () -> service.snooze(user, 60L, 15, now));
@@ -525,8 +525,8 @@ class InAppNotificationServiceTest {
         when(moodRepository.existsByUserAndMoodDateAndPeriod(user, date, MoodPeriod.MIDDAY)).thenReturn(true);
         when(weightRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(
             user,
-            DateTimes.startOfDay(com.jllado.weightcontrol.util.RoutinePeriods.start(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY, date)),
-            DateTimes.startOfDay(com.jllado.weightcontrol.util.RoutinePeriods.nextStart(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY, date))
+            DateTimes.startOfDay(com.jllado.weightcontrol.util.RoutinePeriods.start(user, com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY, date)),
+            DateTimes.startOfDay(com.jllado.weightcontrol.util.RoutinePeriods.nextStart(user, com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY, date))
         )).thenReturn(true);
 
         List<InAppNotification> pending = service.findPending(user, now);
@@ -540,8 +540,8 @@ class InAppNotificationServiceTest {
         verify(backPainEpisodeRepository).existsByUserAndEpisodeDateAndPeriod(user, date, MoodPeriod.MIDDAY);
         verify(bloodPressureRepository).existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(
             user,
-            DateTimes.startOfDay(com.jllado.weightcontrol.util.RoutinePeriods.start(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY, date)),
-            DateTimes.startOfDay(com.jllado.weightcontrol.util.RoutinePeriods.nextStart(com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY, date))
+            DateTimes.startOfDay(com.jllado.weightcontrol.util.RoutinePeriods.start(user, com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY, date)),
+            DateTimes.startOfDay(com.jllado.weightcontrol.util.RoutinePeriods.nextStart(user, com.jllado.weightcontrol.domain.RoutineCadence.WEEKLY, date))
         );
     }
 

@@ -20,8 +20,9 @@ public class TrainingBalanceService {
     public TrainingBalanceService(WorkoutRepository workouts) { this.workouts = workouts; }
 
     public TrainingBalanceResponse week(User user, LocalDate date) {
-        var start = DateTimes.startOfDashboardWeek(date);
-        var end = start.plusDays(6);
+        var period = PlanningWeekService.period(user, date);
+        var start = period.start();
+        var end = period.end();
         var counts = new EnumMap<PrimaryMuscleGroup, BigDecimal>(PrimaryMuscleGroup.class);
         long totalSets = 0;
         for (var workout : workouts.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, start, end)) {

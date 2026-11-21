@@ -20,24 +20,24 @@ import org.springframework.stereotype.Service;
 @Service
 public class WeeklyNutritionSnapshotService {
     private final NutritionService nutrition;
-    private final WeeklyCaloriePlanService plans;
     private final NutrientTargetService targets;
-    public WeeklyNutritionSnapshotService(NutritionService nutrition, WeeklyCaloriePlanService plans, NutrientTargetService targets) {
-        this.nutrition = nutrition; this.plans = plans; this.targets = targets;
+    public WeeklyNutritionSnapshotService(NutritionService nutrition, NutrientTargetService targets) {
+        this.nutrition = nutrition; this.targets = targets;
     }
 
-    public WeeklyNutritionSnapshot capture(User user, LocalDate friday) {
+    public WeeklyNutritionSnapshot capture(User user, WeeklyMetricsCalculator.ComparisonPeriods periods, Map<LocalDate, Integer> calorieTargets) {
         var capturedTargets = targets.resolve(user, LocalDate.now(DateTimes.USER_ZONE));
         return new WeeklyNutritionSnapshot(Instant.now(), "Current targets captured when saved", capturedTargets,
-            period(user, friday, capturedTargets), period(user, friday.minusWeeks(1), capturedTargets),
-            period(user, friday.minusWeeks(52), capturedTargets));
+            period(user, periods.current(), capturedTargets, calorieTargets), period(user, periods.previous(), capturedTargets, calorieTargets),
+            period(user, periods.yearAgo(), capturedTargets, calorieTargets));
     }
 
-    private Period period(User user, LocalDate end, NutrientTargetsResponse capturedTargets) {
-        LocalDate start = end.minusDays(6);
-        var days = nutrition.findBetween(user, start, end);
-        var datedTargets = plans.effectiveTargets(user, start, end).stream()
-            .map(target -> new DatedTarget(target.date(), targets.macroTargetsUnrounded(user, target.calories()), user.getMacroFatTargetPercentage())).toList();
+    private Period period(User user, PlanningWeekService.Period window, NutrientTargetsResponse capturedTargets, Map<LocalDate, Integer> calorieTargets) {
+        LocalDate start = window.start();
+        LocalDate end = window.end();
+        var days = nutrition.findBetween(user, start, end, calorieTargets);
+        var datedTargets = start.datesUntil(end.plusDays(1))
+            .map(date -> new DatedTarget(date, targets.macroTargetsUnrounded(user, calorieTargets.get(date)), user.getMacroFatTargetPercentage())).toList();
         Map<LocalDate, DatedTarget> byDate = datedTargets.stream().collect(Collectors.toMap(DatedTarget::date, Function.identity()));
         List<Measure> measures = new ArrayList<>();
         measures.add(macro("protein", "Protein", days, DailyNutritionSummary::proteinGrams, byDate, MacroTargetsResponse::protein));

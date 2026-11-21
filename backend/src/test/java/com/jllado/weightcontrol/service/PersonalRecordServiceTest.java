@@ -48,13 +48,16 @@ class PersonalRecordServiceTest {
     @Mock
     private LipidPanelService lipidPanelService;
 
+    @Mock private MealService mealService;
+    @Mock private WeeklyCaloriePlanService caloriePlans;
+
     private PersonalRecordService service;
     private User user;
 
     @BeforeEach
     void setUp() {
         service = new PersonalRecordService(repository, eventRepository, settingRepository, new PersonalRecordCalculator(), weightService, workoutService,
-            bloodPressureService, lipidPanelService, mock(MoodService.class), mock(SleepService.class), mock(MealService.class),
+            bloodPressureService, lipidPanelService, mock(MoodService.class), mock(SleepService.class), mealService, caloriePlans,
             mock(FastingPeriodService.class), routineService, mock(DailyStatusRepository.class), userRepository);
         user = new User();
         user.setId(1L);
@@ -195,6 +198,63 @@ class PersonalRecordServiceTest {
         event.setSourceType(metric.getDomain() == PersonalRecordDomain.WORKOUT ? PersonalRecordSourceType.WORKOUT : PersonalRecordSourceType.WEIGHT);
         event.setSourceId(sourceId);
         return event;
+    }
+
+    @Test
+    void completedPlanEditUsesRecordedTargetsForWeeksAndFullPeriodProfileTargetsForMonthsAndRollingRecords() {
+        LocalDate saturday = LocalDate.parse("2026-08-01");
+        LocalDate monday = saturday.plusDays(2);
+        user.setLastCompletedDashboardDate(LocalDate.parse("2026-08-31"));
+        user.getPlanningWeekChanges().add(new PlanningWeekChange(user, monday));
+        user.setTypicalCaloriesSaturday(2000);
+        user.setTypicalCaloriesSunday(3400);
+        user.setTypicalCaloriesMonday(2000);
+        user.setTypicalCaloriesTuesday(2000);
+        user.setTypicalCaloriesWednesday(2000);
+        user.setTypicalCaloriesThursday(2000);
+        user.setTypicalCaloriesFriday(2000);
+        var setting = new PersonalRecordSetting();
+        setting.setMetric(PersonalRecordCatalogMetric.TARGET_DIFFERENCE_KCAL);
+        setting.setMode(PersonalRecordMode.BOTH);
+        when(settingRepository.findByUser(user)).thenReturn(List.of(setting));
+        when(mealService.findAll(user)).thenReturn(List.of(
+            meal(1L, saturday, 0), meal(2L, monday, 500), meal(3L, monday, 1600),
+            meal(4L, monday.plusDays(1), 2300), meal(5L, monday.plusMonths(1), 9000)
+        ));
+        when(caloriePlans.effectiveTargets(user, saturday, monday.plusDays(1))).thenReturn(List.of(
+            new WeeklyCaloriePlanService.EffectiveCalorieTarget(saturday, 1800, 0),
+            new WeeklyCaloriePlanService.EffectiveCalorieTarget(saturday.plusDays(1), 4000, 0),
+            new WeeklyCaloriePlanService.EffectiveCalorieTarget(monday, 2000, 0),
+            new WeeklyCaloriePlanService.EffectiveCalorieTarget(monday.plusDays(1), 2200, 0)
+        ));
+
+        service.refreshCalorieTargetRecords(new WeeklyCaloriePlanService.CaloriePlanSaved(user, saturday));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<PersonalRecordSnapshot>> snapshots = ArgumentCaptor.forClass(List.class);
+        verify(repository).saveAll(snapshots.capture());
+        var differences = snapshots.getValue().stream()
+            .filter(record -> record.getMetric().getCatalogMetric() == PersonalRecordCatalogMetric.TARGET_DIFFERENCE_KCAL).toList();
+        assertTrue(differences.stream().anyMatch(record -> record.getSubjectType().equals("WEEKLY")
+            && record.getRecordDate().equals(saturday.plusDays(1)) && record.getValue().intValueExact() == -1800));
+        assertTrue(differences.stream().anyMatch(record -> record.getSubjectType().equals("WEEKLY")
+            && record.getRecordDate().equals(monday.plusDays(6)) && record.getValue().intValueExact() == 100));
+        // Three recorded dates average 1,466.67 kcal. August has five Sundays and the 30 days ending August 4 have four.
+        assertTrue(differences.stream().anyMatch(record -> record.getSubjectType().equals("MONTHLY")
+            && record.getRecordDate().equals(user.getLastCompletedDashboardDate()) && record.getValue().compareTo(new BigDecimal("-759.14")) == 0));
+        assertTrue(differences.stream().anyMatch(record -> record.getSubjectType().equals("ROLLING_30")
+            && record.getRecordDate().equals(monday.plusDays(1)) && record.getValue().compareTo(new BigDecimal("-720.00")) == 0));
+        verify(caloriePlans).effectiveTargets(user, saturday, monday.plusDays(1));
+    }
+
+    private Meal meal(Long id, LocalDate date, int calories) {
+        var meal = new Meal();
+        meal.setId(id);
+        meal.setMealType(MealType.DINNER);
+        meal.setMealSequence(id.intValue());
+        meal.setMealDate(date);
+        meal.setCalories(calories);
+        return meal;
     }
 
     @Test

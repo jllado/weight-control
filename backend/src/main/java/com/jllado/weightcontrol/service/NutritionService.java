@@ -38,6 +38,11 @@ public class NutritionService {
         return aggregate(user, repository.findByUserAndMealDateBetweenOrderByMealDateAscIdAsc(user, from, to));
     }
 
+    List<DailyNutritionSummary> findBetween(User user, LocalDate from, LocalDate to, Map<LocalDate, Integer> calorieTargets) {
+        validateRange(from, to);
+        return aggregate(user, repository.findByUserAndMealDateBetweenOrderByMealDateAscIdAsc(user, from, to), calorieTargets);
+    }
+
     private void validateRange(LocalDate from, LocalDate to) {
         if (from.isAfter(to) || to.isAfter(LocalDate.now(com.jllado.weightcontrol.util.DateTimes.USER_ZONE)) || ChronoUnit.DAYS.between(from, to) >= 90) {
             throw new BadRequestException("Nutrition summaries require a past date range of at most 90 days");
@@ -46,13 +51,14 @@ public class NutritionService {
 
     private List<DailyNutritionSummary> aggregate(User user, List<Meal> meals) {
         if (meals.isEmpty()) return List.of();
+        LocalDate first = meals.stream().map(Meal::getMealDate).min(LocalDate::compareTo).orElseThrow();
+        LocalDate last = meals.stream().map(Meal::getMealDate).max(LocalDate::compareTo).orElseThrow();
+        return aggregate(user, meals, WeeklyCaloriePlanService.caloriesByDate(caloriePlans.effectiveTargets(user, first, last)));
+    }
+
+    private List<DailyNutritionSummary> aggregate(User user, List<Meal> meals, Map<LocalDate, Integer> calorieTargets) {
         Map<LocalDate, List<Meal>> mealsByDate = new LinkedHashMap<>();
         meals.forEach(meal -> mealsByDate.computeIfAbsent(meal.getMealDate(), ignored -> new java.util.ArrayList<>()).add(meal));
-        LocalDate first = mealsByDate.keySet().stream().min(LocalDate::compareTo).orElseThrow();
-        LocalDate last = mealsByDate.keySet().stream().max(LocalDate::compareTo).orElseThrow();
-        Map<LocalDate, Integer> calorieTargets = caloriePlans.effectiveTargets(user, first, last).stream()
-            .collect(java.util.stream.Collectors.toMap(WeeklyCaloriePlanService.EffectiveCalorieTarget::date,
-                WeeklyCaloriePlanService.EffectiveCalorieTarget::calories));
         return mealsByDate.entrySet().stream().map(entry -> summarize(user, entry.getKey(), entry.getValue(),
             targetService.macroTargets(user, calorieTargets.get(entry.getKey())))).toList();
     }

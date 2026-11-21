@@ -289,7 +289,7 @@ public class PushNotificationService {
     private boolean isCompleted(Routine routine, LocalDate date) {
         return checkinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
             routine,
-            DateTimes.startOfDay(RoutinePeriods.start(routine.getCadence(), date)),
+            DateTimes.startOfDay(RoutinePeriods.start(routine.getUser(), routine.getCadence(), date)),
             DateTimes.startOfDay(date.plusDays(1))
         );
     }

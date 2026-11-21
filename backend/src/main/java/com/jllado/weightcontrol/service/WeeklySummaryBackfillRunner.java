@@ -65,11 +65,11 @@ public class WeeklySummaryBackfillRunner implements ApplicationRunner {
             System.out.println("Weekly summary backfill skipped: no underlying recorded data.");
             return;
         }
-        LocalDate firstFriday = DateTimes.startOfDashboardWeek(earliestDate.get()).plusDays(6);
-        LocalDate latestFriday = summaryService.latestClosedOutcomeWeekEnd(LocalDate.now(DateTimes.USER_ZONE));
+        LocalDate firstFriday = PlanningWeekService.period(owner, earliestDate.get()).end();
+        LocalDate latestFriday = summaryService.latestClosedOutcomeWeekEnd(owner, LocalDate.now(DateTimes.USER_ZONE));
         int created = 0;
         int skipped = 0;
-        for (LocalDate friday = firstFriday; !friday.isAfter(latestFriday); friday = friday.plusWeeks(1)) {
+        for (LocalDate friday = firstFriday; !friday.isAfter(latestFriday); friday = PlanningWeekService.period(owner, friday.plusDays(1)).end()) {
             boolean exists = summaryRepository.existsByUserAndFridayDate(owner, friday);
             if (mode.equals("apply")) {
                 WeeklySummaryService.CreationResult result = summaryService.createForFridayIfMissing(owner, friday, LocalDate.now(DateTimes.USER_ZONE));

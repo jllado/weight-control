@@ -2,7 +2,7 @@
   <p v-if="refreshing" role="status">Refreshing dashboard…</p>
   <p v-if="refresh_error" role="alert">{{ refresh_error }} <Button label="Retry" class="p-button-text" @click="load_all" /></p>
   <DecisionOutcomeForm v-if="decision_entry" :entry="decision_entry" @onClose="decision_entry = null" @onSave="decision_outcome_saved" />
-  <WeeklyCaloriePlanEditor v-if="weekly_calorie_editor_visible" v-model:visible="weekly_calorie_editor_visible" :dates="get_selected_week_dates()" :initialValues="get_selected_week_dates().map(date => get_baseline_calories_for_date(date))" :defaultValues="get_selected_week_dates().map(date => get_profile_calorie_default(date))" :weeklyMaximum="state.user.profile.weeklyAverageCalorieMaximum" @saved="on_weekly_calorie_plan_saved" />
+  <WeeklyCaloriePlanEditor v-if="weekly_calorie_editor_visible" v-model:visible="weekly_calorie_editor_visible" :dates="selectedWeekDates" :initialValues="selectedWeekDates.map(date => get_baseline_calories_for_date(date))" :defaultValues="selectedWeekDates.map(date => get_profile_calorie_default(date))" :weeklyMaximum="state.user.profile.weeklyAverageCalorieMaximum" @saved="on_weekly_calorie_plan_saved" />
   <loading v-model:active="this.state.loading" :can-cancel="false" :is-full-page="true" />
   <Dialog appendTo="body" header="Routine reminder" v-model:visible="routine_reminder_visible" :closeOnEscape="false" :closable="false" :modal="true" class="routine-reminder-dialog">
     <div v-if="notification_reschedule_type === 'routine'" class="notification-reschedule-form">
@@ -212,7 +212,7 @@
                 <span class="performance-score-value" :class="this.get_routine_status_color(this.get_performance_score())" :aria-label="`Performance Score ${this.get_performance_score()} out of 100`">
                   {{ this.get_performance_score() }}<span class="performance-score-scale">/100</span>
                 </span>
-                <span v-if="this.get_performance_score_trend() !== 0" class="performance-score-trend" :class="this.get_performance_score_trend_class()" :aria-label="`Compared with the same day last week: ${this.format_performance_score_trend()}`">
+                <span v-if="this.get_performance_score_trend() !== 0" class="performance-score-trend" :class="this.get_performance_score_trend_class()" :aria-label="`Compared with ${performanceComparisonDate}: ${this.format_performance_score_trend()}`">
                   {{ this.format_performance_score_trend() }}
                 </span>
               </div>
@@ -242,246 +242,121 @@
         </section>
         <DashboardActions :date="action_date()" />
         <Panel header="Week Score" class="week-status">
+          <p>{{ periodLabel(selectedWeek.start, selectedWeek.end) }}<br />Previous: {{ periodLabel(previousWeek.start, previousWeek.end) }}</p>
           <div class="p-grid p-mt-1" style="min-width: 1000px" >
             <div class="p-col-1" ></div>
             <div class="p-col-1 week-status-cell" style="border: thin solid gray;"></div>
-            <div class="p-col-1 week-status-cell">Saturday</div>
-            <div class="p-col-1 week-status-cell">Sunday</div>
-            <div class="p-col-1 week-status-cell">Monday</div>
-            <div class="p-col-1 week-status-cell">Tuesday</div>
-            <div class="p-col-1 week-status-cell">Wednesday</div>
-            <div class="p-col-1 week-status-cell">Thursday</div>
-            <div class="p-col-1 week-status-cell">Friday</div>
+            <div v-for="column in weekColumns" :key="column.day" class="p-col-1 week-status-cell">{{ column.label }}</div>
             <div class="p-col-1 week-status-cell">Total</div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1" ></div>
             <div class="p-col-1 week-status-cell">Routines</div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.saturday" :class="this.get_routine_status_color(this.week_status.saturday.routines_percentage)">{{ this.week_status.saturday.routines_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.sunday" :class="this.get_routine_status_color(this.week_status.sunday.routines_percentage)">{{ this.week_status.sunday.routines_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.monday" :class="this.get_routine_status_color(this.week_status.monday.routines_percentage)">{{ this.week_status.monday.routines_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.tuesday" :class="this.get_routine_status_color(this.week_status.tuesday.routines_percentage)">{{ this.week_status.tuesday.routines_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.wednesday" :class="this.get_routine_status_color(this.week_status.wednesday.routines_percentage)">{{ this.week_status.wednesday.routines_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.thursday" :class="this.get_routine_status_color(this.week_status.thursday.routines_percentage)">{{ this.week_status.thursday.routines_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.friday" :class="this.get_routine_status_color(this.week_status.friday.routines_percentage)">{{ this.week_status.friday.routines_percentage }}</span></div>
+            <div v-for="column in weekColumns" :key="column.day" :title="column.currentDate" class="p-col-1 week-status-cell"><span v-if="week_status[column.day]" :class="this.get_routine_status_color(week_status[column.day].routines_percentage)">{{ week_status[column.day].routines_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_routine_status_color(this.get_completed_routine_week_percentage_total(this.week_status, 'routines_percentage'))">{{ this.format_completed_routine_week_percentage_total(this.week_status, 'routines_percentage') }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1" ></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.saturday" :class="this.get_routine_status_color(this.week_ago_status.saturday.routines_percentage)">{{ this.week_ago_status.saturday.routines_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.sunday" :class="this.get_routine_status_color(this.week_ago_status.sunday.routines_percentage)">{{ this.week_ago_status.sunday.routines_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.monday" :class="this.get_routine_status_color(this.week_ago_status.monday.routines_percentage)">{{ this.week_ago_status.monday.routines_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.tuesday" :class="this.get_routine_status_color(this.week_ago_status.tuesday.routines_percentage)">{{ this.week_ago_status.tuesday.routines_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.wednesday" :class="this.get_routine_status_color(this.week_ago_status.wednesday.routines_percentage)">{{ this.week_ago_status.wednesday.routines_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.thursday" :class="this.get_routine_status_color(this.week_ago_status.thursday.routines_percentage)">{{ this.week_ago_status.thursday.routines_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.friday" :class="this.get_routine_status_color(this.week_ago_status.friday.routines_percentage)">{{ this.week_ago_status.friday.routines_percentage }}</span></div>
+            <div v-for="column in weekColumns" :key="column.day" :title="column.previousDate" class="p-col-1 week-status-cell week-ago-cell"><span v-if="week_ago_status[column.day]" :class="this.get_routine_status_color(week_ago_status[column.day].routines_percentage)">{{ week_ago_status[column.day].routines_percentage }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_routine_status_color(this.get_completed_routine_week_percentage_total(this.week_ago_status, 'routines_percentage'))">{{ this.format_completed_routine_week_percentage_total(this.week_ago_status, 'routines_percentage') }}</span></div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1" ></div>
             <div class="p-col-1 week-status-cell">Weight</div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.saturday" :class="this.get_routine_status_color(this.week_status.saturday.weight_percentage)">{{ this.week_status.saturday.weight_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.sunday" :class="this.get_routine_status_color(this.week_status.sunday.weight_percentage)">{{ this.week_status.sunday.weight_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.monday" :class="this.get_routine_status_color(this.week_status.monday.weight_percentage)">{{ this.week_status.monday.weight_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.tuesday" :class="this.get_routine_status_color(this.week_status.tuesday.weight_percentage)">{{ this.week_status.tuesday.weight_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.wednesday" :class="this.get_routine_status_color(this.week_status.wednesday.weight_percentage)">{{ this.week_status.wednesday.weight_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.thursday" :class="this.get_routine_status_color(this.week_status.thursday.weight_percentage)">{{ this.week_status.thursday.weight_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.friday" :class="this.get_routine_status_color(this.week_status.friday.weight_percentage)">{{ this.week_status.friday.weight_percentage }}</span></div>
+            <div v-for="column in weekColumns" :key="column.day" :title="column.currentDate" class="p-col-1 week-status-cell"><span v-if="week_status[column.day]" :class="this.get_routine_status_color(week_status[column.day].weight_percentage)">{{ week_status[column.day].weight_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_routine_status_color(this.get_completed_routine_week_percentage_total(this.week_status, 'weight_percentage'))">{{ this.format_completed_routine_week_percentage_total(this.week_status, 'weight_percentage') }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1" ></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.saturday" :class="this.get_routine_status_color(this.week_ago_status.saturday.weight_percentage)">{{ this.week_ago_status.saturday.weight_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.sunday" :class="this.get_routine_status_color(this.week_ago_status.sunday.weight_percentage)">{{ this.week_ago_status.sunday.weight_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.monday" :class="this.get_routine_status_color(this.week_ago_status.monday.weight_percentage)">{{ this.week_ago_status.monday.weight_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.tuesday" :class="this.get_routine_status_color(this.week_ago_status.tuesday.weight_percentage)">{{ this.week_ago_status.tuesday.weight_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.wednesday" :class="this.get_routine_status_color(this.week_ago_status.wednesday.weight_percentage)">{{ this.week_ago_status.wednesday.weight_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.thursday" :class="this.get_routine_status_color(this.week_ago_status.thursday.weight_percentage)">{{ this.week_ago_status.thursday.weight_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.friday" :class="this.get_routine_status_color(this.week_ago_status.friday.weight_percentage)">{{ this.week_ago_status.friday.weight_percentage }}</span></div>
+            <div v-for="column in weekColumns" :key="column.day" :title="column.previousDate" class="p-col-1 week-status-cell week-ago-cell"><span v-if="week_ago_status[column.day]" :class="this.get_routine_status_color(week_ago_status[column.day].weight_percentage)">{{ week_ago_status[column.day].weight_percentage }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_routine_status_color(this.get_completed_routine_week_percentage_total(this.week_ago_status, 'weight_percentage'))">{{ this.format_completed_routine_week_percentage_total(this.week_ago_status, 'weight_percentage') }}</span></div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1" ></div>
             <div class="p-col-1 week-status-cell">Blood Pressure</div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.saturday" :class="this.get_routine_status_color(this.week_status.saturday.blood_pressure_percentage)">{{ this.week_status.saturday.blood_pressure_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.sunday" :class="this.get_routine_status_color(this.week_status.sunday.blood_pressure_percentage)">{{ this.week_status.sunday.blood_pressure_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.monday" :class="this.get_routine_status_color(this.week_status.monday.blood_pressure_percentage)">{{ this.week_status.monday.blood_pressure_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.tuesday" :class="this.get_routine_status_color(this.week_status.tuesday.blood_pressure_percentage)">{{ this.week_status.tuesday.blood_pressure_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.wednesday" :class="this.get_routine_status_color(this.week_status.wednesday.blood_pressure_percentage)">{{ this.week_status.wednesday.blood_pressure_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.thursday" :class="this.get_routine_status_color(this.week_status.thursday.blood_pressure_percentage)">{{ this.week_status.thursday.blood_pressure_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.friday" :class="this.get_routine_status_color(this.week_status.friday.blood_pressure_percentage)">{{ this.week_status.friday.blood_pressure_percentage }}</span></div>
+            <div v-for="column in weekColumns" :key="column.day" :title="column.currentDate" class="p-col-1 week-status-cell"><span v-if="week_status[column.day]" :class="this.get_routine_status_color(week_status[column.day].blood_pressure_percentage)">{{ week_status[column.day].blood_pressure_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_routine_status_color(this.get_completed_routine_week_percentage_total(this.week_status, 'blood_pressure_percentage'))">{{ this.format_completed_routine_week_percentage_total(this.week_status, 'blood_pressure_percentage') }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1" ></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.saturday" :class="this.get_routine_status_color(this.week_ago_status.saturday.blood_pressure_percentage)">{{ this.week_ago_status.saturday.blood_pressure_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.sunday" :class="this.get_routine_status_color(this.week_ago_status.sunday.blood_pressure_percentage)">{{ this.week_ago_status.sunday.blood_pressure_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.monday" :class="this.get_routine_status_color(this.week_ago_status.monday.blood_pressure_percentage)">{{ this.week_ago_status.monday.blood_pressure_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.tuesday" :class="this.get_routine_status_color(this.week_ago_status.tuesday.blood_pressure_percentage)">{{ this.week_ago_status.tuesday.blood_pressure_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.wednesday" :class="this.get_routine_status_color(this.week_ago_status.wednesday.blood_pressure_percentage)">{{ this.week_ago_status.wednesday.blood_pressure_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.thursday" :class="this.get_routine_status_color(this.week_ago_status.thursday.blood_pressure_percentage)">{{ this.week_ago_status.thursday.blood_pressure_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.friday" :class="this.get_routine_status_color(this.week_ago_status.friday.blood_pressure_percentage)">{{ this.week_ago_status.friday.blood_pressure_percentage }}</span></div>
+            <div v-for="column in weekColumns" :key="column.day" :title="column.previousDate" class="p-col-1 week-status-cell week-ago-cell"><span v-if="week_ago_status[column.day]" :class="this.get_routine_status_color(week_ago_status[column.day].blood_pressure_percentage)">{{ week_ago_status[column.day].blood_pressure_percentage }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_routine_status_color(this.get_completed_routine_week_percentage_total(this.week_ago_status, 'blood_pressure_percentage'))">{{ this.format_completed_routine_week_percentage_total(this.week_ago_status, 'blood_pressure_percentage') }}</span></div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell">Flexibility</div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.saturday" :class="this.get_routine_status_color(this.week_status.saturday.flexibility_percentage)">{{ this.week_status.saturday.flexibility_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.sunday" :class="this.get_routine_status_color(this.week_status.sunday.flexibility_percentage)">{{ this.week_status.sunday.flexibility_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.monday" :class="this.get_routine_status_color(this.week_status.monday.flexibility_percentage)">{{ this.week_status.monday.flexibility_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.tuesday" :class="this.get_routine_status_color(this.week_status.tuesday.flexibility_percentage)">{{ this.week_status.tuesday.flexibility_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.wednesday" :class="this.get_routine_status_color(this.week_status.wednesday.flexibility_percentage)">{{ this.week_status.wednesday.flexibility_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.thursday" :class="this.get_routine_status_color(this.week_status.thursday.flexibility_percentage)">{{ this.week_status.thursday.flexibility_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.friday" :class="this.get_routine_status_color(this.week_status.friday.flexibility_percentage)">{{ this.week_status.friday.flexibility_percentage }}</span></div>
+            <div v-for="column in weekColumns" :key="column.day" :title="column.currentDate" class="p-col-1 week-status-cell"><span v-if="week_status[column.day]" :class="this.get_routine_status_color(week_status[column.day].flexibility_percentage)">{{ week_status[column.day].flexibility_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_routine_status_color(this.get_completed_routine_week_percentage_total(this.week_status, 'flexibility_percentage'))">{{ this.format_completed_routine_week_percentage_total(this.week_status, 'flexibility_percentage') }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.saturday" :class="this.get_routine_status_color(this.week_ago_status.saturday.flexibility_percentage)">{{ this.week_ago_status.saturday.flexibility_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.sunday" :class="this.get_routine_status_color(this.week_ago_status.sunday.flexibility_percentage)">{{ this.week_ago_status.sunday.flexibility_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.monday" :class="this.get_routine_status_color(this.week_ago_status.monday.flexibility_percentage)">{{ this.week_ago_status.monday.flexibility_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.tuesday" :class="this.get_routine_status_color(this.week_ago_status.tuesday.flexibility_percentage)">{{ this.week_ago_status.tuesday.flexibility_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.wednesday" :class="this.get_routine_status_color(this.week_ago_status.wednesday.flexibility_percentage)">{{ this.week_ago_status.wednesday.flexibility_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.thursday" :class="this.get_routine_status_color(this.week_ago_status.thursday.flexibility_percentage)">{{ this.week_ago_status.thursday.flexibility_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.friday" :class="this.get_routine_status_color(this.week_ago_status.friday.flexibility_percentage)">{{ this.week_ago_status.friday.flexibility_percentage }}</span></div>
+            <div v-for="column in weekColumns" :key="column.day" :title="column.previousDate" class="p-col-1 week-status-cell week-ago-cell"><span v-if="week_ago_status[column.day]" :class="this.get_routine_status_color(week_ago_status[column.day].flexibility_percentage)">{{ week_ago_status[column.day].flexibility_percentage }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_routine_status_color(this.get_completed_routine_week_percentage_total(this.week_ago_status, 'flexibility_percentage'))">{{ this.format_completed_routine_week_percentage_total(this.week_ago_status, 'flexibility_percentage') }}</span></div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell">Mind</div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.saturday" :class="this.get_routine_status_color(this.week_status.saturday.mind_percentage)">{{ this.week_status.saturday.mind_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.sunday" :class="this.get_routine_status_color(this.week_status.sunday.mind_percentage)">{{ this.week_status.sunday.mind_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.monday" :class="this.get_routine_status_color(this.week_status.monday.mind_percentage)">{{ this.week_status.monday.mind_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.tuesday" :class="this.get_routine_status_color(this.week_status.tuesday.mind_percentage)">{{ this.week_status.tuesday.mind_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.wednesday" :class="this.get_routine_status_color(this.week_status.wednesday.mind_percentage)">{{ this.week_status.wednesday.mind_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.thursday" :class="this.get_routine_status_color(this.week_status.thursday.mind_percentage)">{{ this.week_status.thursday.mind_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.friday" :class="this.get_routine_status_color(this.week_status.friday.mind_percentage)">{{ this.week_status.friday.mind_percentage }}</span></div>
+            <div v-for="column in weekColumns" :key="column.day" :title="column.currentDate" class="p-col-1 week-status-cell"><span v-if="week_status[column.day]" :class="this.get_routine_status_color(week_status[column.day].mind_percentage)">{{ week_status[column.day].mind_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_routine_status_color(this.get_completed_routine_week_percentage_total(this.week_status, 'mind_percentage'))">{{ this.format_completed_routine_week_percentage_total(this.week_status, 'mind_percentage') }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.saturday" :class="this.get_routine_status_color(this.week_ago_status.saturday.mind_percentage)">{{ this.week_ago_status.saturday.mind_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.sunday" :class="this.get_routine_status_color(this.week_ago_status.sunday.mind_percentage)">{{ this.week_ago_status.sunday.mind_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.monday" :class="this.get_routine_status_color(this.week_ago_status.monday.mind_percentage)">{{ this.week_ago_status.monday.mind_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.tuesday" :class="this.get_routine_status_color(this.week_ago_status.tuesday.mind_percentage)">{{ this.week_ago_status.tuesday.mind_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.wednesday" :class="this.get_routine_status_color(this.week_ago_status.wednesday.mind_percentage)">{{ this.week_ago_status.wednesday.mind_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.thursday" :class="this.get_routine_status_color(this.week_ago_status.thursday.mind_percentage)">{{ this.week_ago_status.thursday.mind_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.friday" :class="this.get_routine_status_color(this.week_ago_status.friday.mind_percentage)">{{ this.week_ago_status.friday.mind_percentage }}</span></div>
+            <div v-for="column in weekColumns" :key="column.day" :title="column.previousDate" class="p-col-1 week-status-cell week-ago-cell"><span v-if="week_ago_status[column.day]" :class="this.get_routine_status_color(week_ago_status[column.day].mind_percentage)">{{ week_ago_status[column.day].mind_percentage }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_routine_status_color(this.get_completed_routine_week_percentage_total(this.week_ago_status, 'mind_percentage'))">{{ this.format_completed_routine_week_percentage_total(this.week_ago_status, 'mind_percentage') }}</span></div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell">Mood</div>
-            <div class="p-col-1 week-status-cell">{{ this.get_day_mood(this.week_status.saturday) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.get_day_mood(this.week_status.sunday) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.get_day_mood(this.week_status.monday) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.get_day_mood(this.week_status.tuesday) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.get_day_mood(this.week_status.wednesday) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.get_day_mood(this.week_status.thursday) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.get_day_mood(this.week_status.friday) }}</div>
+            <div v-for="column in weekColumns" :key="column.day" :title="column.currentDate" class="p-col-1 week-status-cell">{{ this.get_day_mood(week_status[column.day]) }}</div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_mood_color(this.get_week_mood_average(this.week_status, this.daily_status.date))">{{ this.get_mood_average_emoji(this.get_week_mood_average(this.week_status, this.daily_status.date)) }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.get_day_mood(this.week_ago_status.saturday) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.get_day_mood(this.week_ago_status.sunday) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.get_day_mood(this.week_ago_status.monday) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.get_day_mood(this.week_ago_status.tuesday) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.get_day_mood(this.week_ago_status.wednesday) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.get_day_mood(this.week_ago_status.thursday) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.get_day_mood(this.week_ago_status.friday) }}</div>
+            <div v-for="column in weekColumns" :key="column.day" :title="column.previousDate" class="p-col-1 week-status-cell week-ago-cell">{{ this.get_day_mood(week_ago_status[column.day]) }}</div>
             <div class="p-col-1 week-status-cell week-ago-cell">{{ this.get_mood_average_emoji(this.get_week_mood_average(this.week_ago_status, this.last_week_daily_status.date)) }}</div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell">Sleep</div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_color(this.week_status.saturday?.date)">{{ this.format_week_sleep(this.week_status.saturday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_color(this.week_status.sunday?.date)">{{ this.format_week_sleep(this.week_status.sunday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_color(this.week_status.monday?.date)">{{ this.format_week_sleep(this.week_status.monday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_color(this.week_status.tuesday?.date)">{{ this.format_week_sleep(this.week_status.tuesday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_color(this.week_status.wednesday?.date)">{{ this.format_week_sleep(this.week_status.wednesday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_color(this.week_status.thursday?.date)">{{ this.format_week_sleep(this.week_status.thursday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_color(this.week_status.friday?.date)">{{ this.format_week_sleep(this.week_status.friday?.date) }}</span></div>
+            <div v-for="column in weekColumns" :key="column.day" :title="column.currentDate" class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_color(week_status[column.day]?.date)">{{ this.format_week_sleep(week_status[column.day]?.date) }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_average_color(this.week_status, this.daily_status.date)">{{ this.format_week_sleep_average(this.week_status, this.daily_status.date) }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_color(this.week_ago_status.saturday?.date)">{{ this.format_week_sleep(this.week_ago_status.saturday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_color(this.week_ago_status.sunday?.date)">{{ this.format_week_sleep(this.week_ago_status.sunday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_color(this.week_ago_status.monday?.date)">{{ this.format_week_sleep(this.week_ago_status.monday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_color(this.week_ago_status.tuesday?.date)">{{ this.format_week_sleep(this.week_ago_status.tuesday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_color(this.week_ago_status.wednesday?.date)">{{ this.format_week_sleep(this.week_ago_status.wednesday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_color(this.week_ago_status.thursday?.date)">{{ this.format_week_sleep(this.week_ago_status.thursday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_color(this.week_ago_status.friday?.date)">{{ this.format_week_sleep(this.week_ago_status.friday?.date) }}</span></div>
+            <div v-for="column in weekColumns" :key="column.day" :title="column.previousDate" class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_color(week_ago_status[column.day]?.date)">{{ this.format_week_sleep(week_ago_status[column.day]?.date) }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_average_color(this.week_ago_status, this.last_week_daily_status.date)">{{ this.format_week_sleep_average(this.week_ago_status, this.last_week_daily_status.date) }}</span></div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell">Avg Heart Rate</div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_status.saturday?.date)">{{ this.format_week_sleep_heart_rate(this.week_status.saturday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_status.sunday?.date)">{{ this.format_week_sleep_heart_rate(this.week_status.sunday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_status.monday?.date)">{{ this.format_week_sleep_heart_rate(this.week_status.monday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_status.tuesday?.date)">{{ this.format_week_sleep_heart_rate(this.week_status.tuesday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_status.wednesday?.date)">{{ this.format_week_sleep_heart_rate(this.week_status.wednesday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_status.thursday?.date)">{{ this.format_week_sleep_heart_rate(this.week_status.thursday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_status.friday?.date)">{{ this.format_week_sleep_heart_rate(this.week_status.friday?.date) }}</span></div>
+            <div v-for="column in weekColumns" :key="column.day" :title="column.currentDate" class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_heart_rate_color(week_status[column.day]?.date)">{{ this.format_week_sleep_heart_rate(week_status[column.day]?.date) }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_heart_rate_average_color(this.week_status, this.daily_status.date)">{{ this.format_week_sleep_heart_rate_average(this.week_status, this.daily_status.date) }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_ago_status.saturday?.date)">{{ this.format_week_sleep_heart_rate(this.week_ago_status.saturday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_ago_status.sunday?.date)">{{ this.format_week_sleep_heart_rate(this.week_ago_status.sunday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_ago_status.monday?.date)">{{ this.format_week_sleep_heart_rate(this.week_ago_status.monday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_ago_status.tuesday?.date)">{{ this.format_week_sleep_heart_rate(this.week_ago_status.tuesday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_ago_status.wednesday?.date)">{{ this.format_week_sleep_heart_rate(this.week_ago_status.wednesday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_ago_status.thursday?.date)">{{ this.format_week_sleep_heart_rate(this.week_ago_status.thursday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_ago_status.friday?.date)">{{ this.format_week_sleep_heart_rate(this.week_ago_status.friday?.date) }}</span></div>
+            <div v-for="column in weekColumns" :key="column.day" :title="column.previousDate" class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_heart_rate_color(week_ago_status[column.day]?.date)">{{ this.format_week_sleep_heart_rate(week_ago_status[column.day]?.date) }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_heart_rate_average_color(this.week_ago_status, this.last_week_daily_status.date)">{{ this.format_week_sleep_heart_rate_average(this.week_ago_status, this.last_week_daily_status.date) }}</span></div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell">HRV</div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_hrv_color(this.week_status.saturday?.date)">{{ this.format_week_sleep_hrv(this.week_status.saturday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_hrv_color(this.week_status.sunday?.date)">{{ this.format_week_sleep_hrv(this.week_status.sunday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_hrv_color(this.week_status.monday?.date)">{{ this.format_week_sleep_hrv(this.week_status.monday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_hrv_color(this.week_status.tuesday?.date)">{{ this.format_week_sleep_hrv(this.week_status.tuesday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_hrv_color(this.week_status.wednesday?.date)">{{ this.format_week_sleep_hrv(this.week_status.wednesday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_hrv_color(this.week_status.thursday?.date)">{{ this.format_week_sleep_hrv(this.week_status.thursday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_hrv_color(this.week_status.friday?.date)">{{ this.format_week_sleep_hrv(this.week_status.friday?.date) }}</span></div>
+            <div v-for="column in weekColumns" :key="column.day" :title="column.currentDate" class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_hrv_color(week_status[column.day]?.date)">{{ this.format_week_sleep_hrv(week_status[column.day]?.date) }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_hrv_average_color(this.week_status, this.daily_status.date)">{{ this.format_week_sleep_hrv_average(this.week_status, this.daily_status.date) }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_hrv_color(this.week_ago_status.saturday?.date)">{{ this.format_week_sleep_hrv(this.week_ago_status.saturday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_hrv_color(this.week_ago_status.sunday?.date)">{{ this.format_week_sleep_hrv(this.week_ago_status.sunday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_hrv_color(this.week_ago_status.monday?.date)">{{ this.format_week_sleep_hrv(this.week_ago_status.monday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_hrv_color(this.week_ago_status.tuesday?.date)">{{ this.format_week_sleep_hrv(this.week_ago_status.tuesday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_hrv_color(this.week_ago_status.wednesday?.date)">{{ this.format_week_sleep_hrv(this.week_ago_status.wednesday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_hrv_color(this.week_ago_status.thursday?.date)">{{ this.format_week_sleep_hrv(this.week_ago_status.thursday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_hrv_color(this.week_ago_status.friday?.date)">{{ this.format_week_sleep_hrv(this.week_ago_status.friday?.date) }}</span></div>
+            <div v-for="column in weekColumns" :key="column.day" :title="column.previousDate" class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_hrv_color(week_ago_status[column.day]?.date)">{{ this.format_week_sleep_hrv(week_ago_status[column.day]?.date) }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_hrv_average_color(this.week_ago_status, this.last_week_daily_status.date)">{{ this.format_week_sleep_hrv_average(this.week_ago_status, this.last_week_daily_status.date) }}</span></div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell">Calories</div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_calories_color(this.week_status.saturday?.date)">{{ this.format_week_calories(this.week_status.saturday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_calories_color(this.week_status.sunday?.date)">{{ this.format_week_calories(this.week_status.sunday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_calories_color(this.week_status.monday?.date)">{{ this.format_week_calories(this.week_status.monday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_calories_color(this.week_status.tuesday?.date)">{{ this.format_week_calories(this.week_status.tuesday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_calories_color(this.week_status.wednesday?.date)">{{ this.format_week_calories(this.week_status.wednesday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_calories_color(this.week_status.thursday?.date)">{{ this.format_week_calories(this.week_status.thursday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_calories_color(this.week_status.friday?.date)">{{ this.format_week_calories(this.week_status.friday?.date) }}</span></div>
+            <div v-for="column in weekColumns" :key="column.day" :title="column.currentDate" class="p-col-1 week-status-cell"><span :class="this.get_week_calories_color(week_status[column.day]?.date)">{{ this.format_week_calories(week_status[column.day]?.date) }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_calories_average_color(this.week_status, this.daily_status.date)">{{ this.format_week_calories_average(this.week_status, this.daily_status.date) }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_calories_color(this.week_ago_status.saturday?.date)">{{ this.format_week_calories(this.week_ago_status.saturday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_calories_color(this.week_ago_status.sunday?.date)">{{ this.format_week_calories(this.week_ago_status.sunday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_calories_color(this.week_ago_status.monday?.date)">{{ this.format_week_calories(this.week_ago_status.monday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_calories_color(this.week_ago_status.tuesday?.date)">{{ this.format_week_calories(this.week_ago_status.tuesday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_calories_color(this.week_ago_status.wednesday?.date)">{{ this.format_week_calories(this.week_ago_status.wednesday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_calories_color(this.week_ago_status.thursday?.date)">{{ this.format_week_calories(this.week_ago_status.thursday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_calories_color(this.week_ago_status.friday?.date)">{{ this.format_week_calories(this.week_ago_status.friday?.date) }}</span></div>
+            <div v-for="column in weekColumns" :key="column.day" :title="column.previousDate" class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_calories_color(week_ago_status[column.day]?.date)">{{ this.format_week_calories(week_ago_status[column.day]?.date) }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_calories_average_color(this.week_ago_status, this.last_week_daily_status.date)">{{ this.format_week_calories_average(this.week_ago_status, this.last_week_daily_status.date) }}</span></div>
             <div class="p-col-2" ></div>
 
@@ -491,37 +366,31 @@
               <Button label="Planned" class="p-button-text planned-calorie-label" @click="weekly_calorie_editor_visible = true" />
               <CompactAction icon="pi pi-pencil" aria-label="Edit planned calories" class="planned-calories-edit" @click="weekly_calorie_editor_visible = true" />
             </div>
-            <div class="p-col-1 week-status-cell planned-calorie-value-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[0]) }}</div>
-            <div class="p-col-1 week-status-cell planned-calorie-value-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[1]) }}</div>
-            <div class="p-col-1 week-status-cell planned-calorie-value-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[2]) }}</div>
-            <div class="p-col-1 week-status-cell planned-calorie-value-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[3]) }}</div>
-            <div class="p-col-1 week-status-cell planned-calorie-value-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[4]) }}</div>
-            <div class="p-col-1 week-status-cell planned-calorie-value-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[5]) }}</div>
-            <div class="p-col-1 week-status-cell planned-calorie-value-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[6]) }}</div>
+            <div v-for="column in weekColumns" :key="column.day" class="p-col-1 week-status-cell planned-calorie-value-cell">{{ format_week_typical_calories(column.currentDate) }}</div>
             <div class="p-col-1 week-status-cell planned-calorie-value-cell">{{ this.format_week_typical_calories_average() }}</div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell">Plan progress</div>
-            <div v-for="date in this.get_selected_week_dates()" :key="`reflection-${date}`" class="p-col-1 week-status-cell">{{ format_week_reflection_score(date) }}</div>
+            <div v-for="column in weekColumns" :key="column.day" class="p-col-1 week-status-cell">{{ column.currentDate ? format_week_reflection_score(column.currentDate) : '' }}</div>
             <div class="p-col-1 week-status-cell">{{ format_week_reflection_average() }}</div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
-            <div v-for="date in this.get_previous_week_dates()" :key="`previous-reflection-${date}`" class="p-col-1 week-status-cell week-ago-cell">{{ format_week_reflection_score(date, 'previousWeek') }}</div>
+            <div v-for="column in weekColumns" :key="column.day" class="p-col-1 week-status-cell week-ago-cell">{{ column.previousDate ? format_week_reflection_score(column.previousDate, 'previousWeek') : '' }}</div>
             <div class="p-col-1 week-status-cell week-ago-cell">{{ format_week_reflection_average('previousWeek') }}</div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell">Workouts</div>
-            <div v-for="date in this.get_selected_week_dates()" :key="`workout-${date}`" class="p-col-1 week-status-cell">{{ format_week_workout_assessment(date) }}</div>
+            <div v-for="column in weekColumns" :key="column.day" class="p-col-1 week-status-cell">{{ column.currentDate ? format_week_workout_assessment(column.currentDate) : '' }}</div>
             <div class="p-col-1 week-status-cell">{{ format_week_workout_assessment_average() }}</div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
-            <div v-for="date in this.get_previous_week_dates()" :key="`previous-workout-${date}`" class="p-col-1 week-status-cell week-ago-cell">{{ format_week_workout_assessment(date, 'previousWeek') }}</div>
+            <div v-for="column in weekColumns" :key="column.day" class="p-col-1 week-status-cell week-ago-cell">{{ column.previousDate ? format_week_workout_assessment(column.previousDate, 'previousWeek') : '' }}</div>
             <div class="p-col-1 week-status-cell week-ago-cell">{{ format_week_workout_assessment_average('previousWeek') }}</div>
             <div class="p-col-2" ></div>
 
@@ -635,7 +504,7 @@
                 <DashboardRoutineTable :routines="routines.filter(routine => !routine.isWeekly())" :date="daily_status.date" :pendingIds="routine_action_loading_ids" @complete="plusRoutine" @undo="undoRoutine" />
               </TabPanel>
               <TabPanel header="Weekly">
-                <p>Once each Saturday–Friday. Streaks and fails count weeks; % uses ended weeks in the last 31 days.</p>
+                <p>Once per planning week. Streaks and fails count weeks. The percentage uses weeks that ended in the last 31 days.</p>
                 <DashboardRoutineTable :routines="routines.filter(routine => routine.isWeekly())" :date="daily_status.date" :pendingIds="routine_action_loading_ids" @complete="plusRoutine" @undo="undoRoutine" />
               </TabPanel>
             </TabView>
@@ -1052,7 +921,9 @@
               <details v-if="workout_status_summary" class="workout-status-details">
                 <summary>Weekly workload statistics</summary>
                 <section class="p-grid workout-status-summary" aria-label="Workout status">
-                  <div class="p-col-12 workout-status-summary-heading"><strong>{{ workout_status_summary.workload_heading }}</strong></div>
+                  <div class="p-col-12 workout-status-summary-heading"><strong>{{ workout_status_summary.workload_heading }}</strong>
+                    <small>{{ workout_status_summary.comparison_dates }}</small>
+                  </div>
                   <template v-for="metric in workout_status_summary.workload" :key="metric.label">
                     <div class="p-col-5">{{ metric.label }}:</div>
                     <div class="p-col-7"><strong>{{ metric.value }}</strong> <span class="extra_info" :class="metric.className">{{ metric.trend }}</span></div>
@@ -1152,6 +1023,7 @@
             <Panel v-else>
               <template #header><strong>Coach week</strong></template>
               <div v-if="coach_metrics.selectedWeek">
+                <p>{{ periodLabel(coach_metrics.selectedWeek.startDate, coach_metrics.selectedWeek.endDate) }}</p>
                 <section v-if="coach_status_summary" class="p-grid workout-status-summary" aria-label="Coach status">
                   <template v-for="metric in coach_status_summary" :key="metric.label">
                     <div class="p-col-5">{{ metric.label }}:</div>
@@ -1376,7 +1248,8 @@ import {
 } from "@/model/WeekMetricThresholds";
 import WeeklyCaloriePlanEditor from './WeeklyCaloriePlanEditor.vue';
 import DashboardActions from './DashboardActions.vue';
-import weeklyCaloriePlanService, {resolveEffectiveCalorieTarget, weekStartForDate} from '@/services/WeeklyCaloriePlanService';
+import {planningWeek, planningDates, weekdays, weekdaysFrom, dayLabel, periodLabel, madridDate as madrid_date} from '@/model/PlanningWeek';
+import weeklyCaloriePlanService, {resolveEffectiveCalorieTarget} from '@/services/WeeklyCaloriePlanService';
 import {buildReflectionPrompt} from "@/model/Reflection";
 import {buildAllMealRatingPrompt, buildCoachAdvicePrompt, buildMealRatingPrompt, buildWorkoutAssessmentPrompt, openCoach} from "@/services/CoachService";
 import {formatBackPainLocation, formatBackPainPeriod, formatBackPainSeverity, getBackPainSeverityOption, getBackPainSeverityRank} from "@/model/BackPainEpisode";
@@ -1390,18 +1263,6 @@ import {formatNutritionValue, nutrientSummary} from '@/model/Dish';
 import DashboardRoutineTable from './DashboardRoutineTable.vue';
 import isToday from 'dayjs/plugin/isToday';
 dayjs.extend(isToday)
-
-const madridDateFormatter = new Intl.DateTimeFormat('en-GB', {
-  timeZone: 'Europe/Madrid',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit'
-});
-
-function madrid_date(value) {
-  const parts = Object.fromEntries(madridDateFormatter.formatToParts(value).map(part => [part.type, part.value]));
-  return `${parts.year}-${parts.month}-${parts.day}`;
-}
 
 export default {
   components: {DashboardRoutineTable, BackPainTrendSummary, BackPainChart, DashboardActions, WeeklyCaloriePlanEditor, NutrientSummary, NutrientTrendCharts, NutrientTrendSummary, WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, SleepGoalValue, SleepRatingDetails, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
@@ -1623,10 +1484,23 @@ export default {
     previous_calorie() {
       return this.calories.find(calorie => dayjs(calorie.date).isBefore(this.daily_status.date, 'day')) || null;
     },
+    performanceComparisonDate() { return this.format_coach_metric_date(madrid_date(this.last_week_daily_status.date)); },
+    selectedWeek() { return this.daily_status && planningWeek(madrid_date(this.daily_status.date)); },
+    selectedWeekDates() { return this.selectedWeek ? planningDates(this.selectedWeek) : []; },
+    previousWeek() { return planningWeek(dayjs(this.selectedWeek.start).subtract(1, 'day')); },
+    weekColumns() {
+      const keyByDay = dates => Object.fromEntries(dates.map(date => [dayjs(date).day(), date]));
+      const current = keyByDay(this.selectedWeekDates);
+      const previous = keyByDay(planningDates(this.previousWeek));
+      return weekdaysFrom(this.selectedWeek.firstDay).map(day => {
+        const weekday = weekdays.indexOf(day);
+        return {day: day.toLowerCase(), label: dayLabel(day), currentDate: current[weekday], previousDate: previous[weekday]};
+      });
+    },
     weekly_calorie_maximum_status() {
       const total = this.get_projected_week_calories_total();
       if (total === null) return {label: 'Weekly Calories Maximum', calories: null, className: ''};
-      const difference = total - this.state.user.profile.weeklyAverageCalorieMaximum * 7;
+      const difference = total - this.state.user.profile.weeklyAverageCalorieMaximum * this.selectedWeekDates.length;
       if (difference > 0) {
         return {label: 'Weekly Calories Above Maximum', calories: difference, className: 'bad'};
       }
@@ -1636,10 +1510,13 @@ export default {
       return {label: 'Weekly Calories at Maximum', calories: 0, className: 'normal'};
     },
     workout_session_groups() {
-      const date = dayjs(this.daily_status.date);
+      const date = madrid_date(this.daily_status.date);
+      const elapsed = dayjs(date).diff(this.selectedWeek.start, 'day');
+      const comparableDay = dayjs(this.previousWeek.start).add(elapsed, 'day').format('YYYY-MM-DD');
+      const previousDate = date === this.selectedWeek.end || comparableDay > this.previousWeek.end ? this.previousWeek.end : comparableDay;
       return [
-        {title: 'Selected day workouts', sessions: this.current_workouts, workoutDate: date.format('YYYY-MM-DD')},
-        {title: 'Previous week workouts', sessions: this.previous_week_workouts, workoutDate: date.subtract(1, 'week').format('YYYY-MM-DD')}
+        {title: 'Selected day workouts', sessions: this.current_workouts, workoutDate: date},
+        {title: 'Previous week workouts', sessions: this.previous_week_workouts, workoutDate: previousDate}
       ].map(group => ({...group, assessment: this.workout_days.find(day => day.workoutDate === group.workoutDate)?.assessment}));
     },
     workout_status_summary() {
@@ -1661,6 +1538,7 @@ export default {
       const totals = selectedWeekToDate.totals;
       const previousTotals = previousWeekToDate.totals;
       return {
+        comparison_dates: `${this.format_coach_metric_date(selectedWeekToDate.startDate)} – ${this.format_coach_metric_date(selectedWeekToDate.endDate)} vs ${this.format_coach_metric_date(previousWeekToDate.startDate)} – ${this.format_coach_metric_date(previousWeekToDate.endDate)}`,
         workload_heading: `This ${dayjs(selectedWeekToDate.startDate).format('dddd')}–${dayjs(selectedWeekToDate.endDate).format('dddd')}`,
         workload: [
         metric('Training days', totals.workoutCount, previousTotals?.workoutCount ?? null, value => `${value}`),
@@ -2441,23 +2319,11 @@ export default {
       if (minutes === null) return 'Not recorded';
       return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
     },
+    periodLabel,
     get_week_days(weekStatus, excludedDate = null) {
-      return [
-        weekStatus?.saturday,
-        weekStatus?.sunday,
-        weekStatus?.monday,
-        weekStatus?.tuesday,
-        weekStatus?.wednesday,
-        weekStatus?.thursday,
-        weekStatus?.friday
-      ].filter(day => day && (!excludedDate || !dayjs(day.date).isSame(excludedDate, 'day')));
-    },
-    get_selected_week_dates() {
-      if (!this.daily_status?.date) {
-        return [];
-      }
-      const weekStart = dayjs(this.daily_status.date).subtract((dayjs(this.daily_status.date).day() + 1) % 7, 'day');
-      return Array.from({length: 7}, (_, index) => weekStart.add(index, 'day').format('YYYY-MM-DD'));
+      const dates = weekStatus === this.week_ago_status ? planningDates(this.previousWeek) : this.selectedWeekDates;
+      return dates.map(date => weekStatus[dayjs(date).format('dddd').toLowerCase()])
+          .filter(day => day && (!excludedDate || !dayjs(day.date).isSame(excludedDate, 'day')));
     },
     average_day_metric(days, key) {
       if (days.length === 0) {
@@ -2678,8 +2544,8 @@ export default {
       return getCalorieMetricColor(average, this.state.user.profile, this.get_latest_entry_date(calories), target);
     },
     get_intended_calorie_target(date) {
-      const dateKey = dayjs(date).format('YYYY-MM-DD');
-      const weekStart = weekStartForDate(dateKey);
+      const dateKey = date instanceof Date ? madrid_date(date) : date;
+      const weekStart = planningWeek(dateKey).start;
       if (!(weekStart in this.weekly_calorie_comparison_plans)) return null;
       return resolveEffectiveCalorieTarget(dateKey, this.state.user.profile, this.weekly_calorie_comparison_plans[weekStart]);
     },
@@ -2699,13 +2565,13 @@ export default {
     },
     async load_weekly_calorie_plan(selectedDate = this.daily_status?.date) {
       if (!selectedDate) return;
-      const weekStart = weekStartForDate(selectedDate);
+      const weekStart = planningWeek(selectedDate instanceof Date ? madrid_date(selectedDate) : selectedDate).start;
       const requestId = ++this.weekly_calorie_plan_request_id;
       this.weekly_calorie_plan = null;
       this.weekly_calorie_comparison_plans = {};
       const comparisonPlans = this.weekly_calorie_comparison_plans;
       this.weekly_calorie_plan_error = '';
-      await Promise.all([weekStart, dayjs(weekStart).subtract(7, 'day').format('YYYY-MM-DD')].map(async (planWeekStart, index) => {
+      await Promise.all([weekStart, planningWeek(dayjs(weekStart).subtract(1, 'day')).start].map(async (planWeekStart, index) => {
         try {
           const plan = await weeklyCaloriePlanService.get(planWeekStart);
           if (comparisonPlans !== this.weekly_calorie_comparison_plans || (index === 0 && requestId !== this.weekly_calorie_plan_request_id)) return;
@@ -2731,7 +2597,7 @@ export default {
       return `${formatNutritionValue(calories)} kcal`;
     },
     get_week_typical_calories_average_value() {
-      const dates = this.get_selected_week_dates();
+      const dates = this.selectedWeekDates;
       const total = this.get_projected_week_calories_total();
       if (dates.length === 0 || total === null) {
         return null;
@@ -2739,7 +2605,7 @@ export default {
       return Math.round(total / dates.length * 100) / 100;
     },
     get_projected_week_calories_total() {
-      const calories = this.get_selected_week_dates().map(date => this.get_week_typical_calories_value(date));
+      const calories = this.selectedWeekDates.map(date => this.get_week_typical_calories_value(date));
       return calories.some(value => value === null) ? null : calories.reduce((total, value) => total + value, 0);
     },
     format_week_typical_calories_average() {
@@ -3458,9 +3324,6 @@ export default {
     get_week_coach_reflection(date, week = 'selectedWeek') {
       return this.coach_metrics[week]?.reflections.find(reflection => reflection.date === date);
     },
-    get_previous_week_dates() {
-      return this.get_selected_week_dates().map(date => dayjs(date).subtract(1, 'week').format('YYYY-MM-DD'));
-    },
     get_week_coach_workouts(date, week = 'selectedWeek') {
       return this.coach_metrics[week]?.workouts.find(workout => workout.date === date);
     },
@@ -3635,7 +3498,7 @@ export default {
       if (!this.current_calorie_trend) return;
 
       const currentPeriodCalories = summaryService.get_rolling_period_measures_for(referenceDate, this.calories);
-      const weekStarts = [...new Set(currentPeriodCalories.map(calorie => weekStartForDate(calorie.date)))];
+      const weekStarts = [...new Set(currentPeriodCalories.map(calorie => planningWeek(madrid_date(calorie.date)).start))];
       try {
         const plans = await Promise.all(weekStarts.map(weekStart => this.weekly_calorie_plan?.weekStart === weekStart
             ? this.weekly_calorie_plan
@@ -3646,9 +3509,9 @@ export default {
 
         const plansByWeek = new Map(weekStarts.map((weekStart, index) => [weekStart, plans[index]]));
         const effectiveTargets = currentPeriodCalories.map(calorie => resolveEffectiveCalorieTarget(
-            dayjs(calorie.date).format('YYYY-MM-DD'),
+            madrid_date(calorie.date),
             this.state.user.profile,
-            plansByWeek.get(weekStartForDate(calorie.date))
+            plansByWeek.get(planningWeek(madrid_date(calorie.date)).start)
         ));
         if (effectiveTargets.some(target => target === null || target === undefined)) return;
 
@@ -4993,6 +4856,8 @@ class MeasureGraphData {
   margin-bottom: 1rem;
 }
 .workout-status-summary-heading {
+  display: grid;
+  gap: .25rem;
   margin-top: 0.5rem;
 }
 .workout-line-list {

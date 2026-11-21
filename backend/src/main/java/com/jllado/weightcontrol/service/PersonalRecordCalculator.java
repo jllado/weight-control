@@ -350,13 +350,13 @@ public class PersonalRecordCalculator {
     public record Calculation(List<CurrentRecord> current, List<HistoryEvent> history) {
     }
 
-    public record Sources(User user, List<Weight> weights, List<Workout> workouts, List<BloodPressure> bloodPressures, List<LipidPanel> lipidPanels, List<Mood> moods, List<Sleep> sleeps, List<Meal> meals, List<RoutineSource> routines, List<DailyStatus> dailyStatuses, List<FastingPeriod> fastingPeriods) {
+    public record Sources(User user, List<Weight> weights, List<Workout> workouts, List<BloodPressure> bloodPressures, List<LipidPanel> lipidPanels, List<Mood> moods, List<Sleep> sleeps, List<Meal> meals, List<RoutineSource> routines, List<DailyStatus> dailyStatuses, List<FastingPeriod> fastingPeriods, Map<LocalDate, Integer> calorieTargets) {
         public Sources(List<Weight> weights, List<Workout> workouts, List<BloodPressure> bloodPressures, List<LipidPanel> lipidPanels, List<Mood> moods, List<Sleep> sleeps, List<Meal> meals) {
-            this(null, weights, workouts, bloodPressures, lipidPanels, moods, sleeps, meals, List.of(), List.of(), List.of());
+            this(null, weights, workouts, bloodPressures, lipidPanels, moods, sleeps, meals, List.of(), List.of(), List.of(), Map.of());
         }
 
         public Sources(List<Weight> weights, List<Workout> workouts, List<BloodPressure> bloodPressures, List<LipidPanel> lipidPanels, List<Mood> moods, List<Sleep> sleeps, List<Meal> meals, List<RoutineSource> routines) {
-            this(null, weights, workouts, bloodPressures, lipidPanels, moods, sleeps, meals, routines, List.of(), List.of());
+            this(null, weights, workouts, bloodPressures, lipidPanels, moods, sleeps, meals, routines, List.of(), List.of(), Map.of());
         }
     }
 

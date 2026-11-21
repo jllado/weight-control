@@ -11,7 +11,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDate;
-import java.util.List;
+import java.time.DayOfWeek;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -32,36 +32,46 @@ public class WeeklyCaloriePlan {
     @Column(name = "week_start", nullable = false)
     private LocalDate weekStart;
 
-    @Column(name = "saturday_calories", nullable = false)
-    private int saturdayCalories;
-    @Column(name = "sunday_calories", nullable = false)
-    private int sundayCalories;
-    @Column(name = "monday_calories", nullable = false)
-    private int mondayCalories;
-    @Column(name = "tuesday_calories", nullable = false)
-    private int tuesdayCalories;
-    @Column(name = "wednesday_calories", nullable = false)
-    private int wednesdayCalories;
-    @Column(name = "thursday_calories", nullable = false)
-    private int thursdayCalories;
-    @Column(name = "friday_calories", nullable = false)
-    private int fridayCalories;
+    @Column(name = "saturday_calories")
+    private Integer saturdayCalories;
+    @Column(name = "sunday_calories")
+    private Integer sundayCalories;
+    @Column(name = "monday_calories")
+    private Integer mondayCalories;
+    @Column(name = "tuesday_calories")
+    private Integer tuesdayCalories;
+    @Column(name = "wednesday_calories")
+    private Integer wednesdayCalories;
+    @Column(name = "thursday_calories")
+    private Integer thursdayCalories;
+    @Column(name = "friday_calories")
+    private Integer fridayCalories;
 
     @jakarta.persistence.Version
     @Column(nullable = false)
     private Long revision;
 
-    public List<Integer> getCalories() {
-        return List.of(saturdayCalories, sundayCalories, mondayCalories, tuesdayCalories, wednesdayCalories, thursdayCalories, fridayCalories);
+    public Integer caloriesOn(DayOfWeek day) {
+        return switch (day) {
+            case SATURDAY -> saturdayCalories;
+            case SUNDAY -> sundayCalories;
+            case MONDAY -> mondayCalories;
+            case TUESDAY -> tuesdayCalories;
+            case WEDNESDAY -> wednesdayCalories;
+            case THURSDAY -> thursdayCalories;
+            case FRIDAY -> fridayCalories;
+        };
     }
 
-    public void setCalories(List<Integer> calories) {
-        saturdayCalories = calories.get(0);
-        sundayCalories = calories.get(1);
-        mondayCalories = calories.get(2);
-        tuesdayCalories = calories.get(3);
-        wednesdayCalories = calories.get(4);
-        thursdayCalories = calories.get(5);
-        fridayCalories = calories.get(6);
+    public void setCaloriesOn(DayOfWeek day, int calories) {
+        switch (day) {
+            case SATURDAY -> saturdayCalories = calories;
+            case SUNDAY -> sundayCalories = calories;
+            case MONDAY -> mondayCalories = calories;
+            case TUESDAY -> tuesdayCalories = calories;
+            case WEDNESDAY -> wednesdayCalories = calories;
+            case THURSDAY -> thursdayCalories = calories;
+            case FRIDAY -> fridayCalories = calories;
+        }
     }
 }

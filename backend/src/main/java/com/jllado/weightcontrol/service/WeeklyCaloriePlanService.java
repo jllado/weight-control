@@ -1,18 +1,24 @@
 package com.jllado.weightcontrol.service;
 
 import com.jllado.weightcontrol.api.dto.WeeklyCaloriePlanDtos.DayPlanRequest;
+import com.jllado.weightcontrol.api.dto.WeeklyCaloriePlanDtos.DayPlanResponse;
 import com.jllado.weightcontrol.api.dto.WeeklyCaloriePlanDtos.WeeklyCaloriePlanRequest;
+import com.jllado.weightcontrol.api.dto.WeeklyCaloriePlanDtos.WeeklyCaloriePlanResponse;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.WeeklyCaloriePlan;
+import com.jllado.weightcontrol.repository.UserRepository;
 import com.jllado.weightcontrol.repository.WeeklyCaloriePlanRepository;
+import com.jllado.weightcontrol.service.PlanningWeekService.Period;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,72 +28,118 @@ import org.springframework.web.server.ResponseStatusException;
 @Transactional
 public class WeeklyCaloriePlanService {
     private final WeeklyCaloriePlanRepository repository;
+    private final UserRepository users;
 
-    public WeeklyCaloriePlanService(WeeklyCaloriePlanRepository repository) { this.repository = repository; }
+    private final ApplicationEventPublisher events;
 
-    public Optional<WeeklyCaloriePlan> find(User user, LocalDate weekStart) {
-        requireSaturday(weekStart);
-        return repository.findByUserAndWeekStart(user, weekStart);
+    public WeeklyCaloriePlanService(WeeklyCaloriePlanRepository repository, UserRepository users, ApplicationEventPublisher events) {
+        this.events = events;
+        this.repository = repository;
+        this.users = users;
     }
 
-    public WeeklyCaloriePlan replace(User user, WeeklyCaloriePlanRequest request) {
-        requireSaturday(request.weekStart());
-        List<Integer> values = validateDays(request.weekStart(), request.days());
-        WeeklyCaloriePlan plan = repository.findByUserAndWeekStart(user, request.weekStart()).orElse(null);
-        if ((plan == null && request.revision() != null) || (plan != null && !plan.getRevision().equals(request.revision()))) {
+    public Optional<WeeklyCaloriePlanResponse> find(User user, LocalDate weekStart) {
+        Period period = requirePeriodStart(user, weekStart);
+        var rows = loadRows(user, period.start(), period.end());
+        Long revision = revision(period, rows);
+        return revision == null ? Optional.empty() : Optional.of(response(user, period, rows, revision));
+    }
+
+    public WeeklyCaloriePlanResponse replace(User user, WeeklyCaloriePlanRequest request) {
+        User owner = users.findByIdForUpdate(user.getId()).orElseThrow();
+        Period period = requirePeriodStart(owner, request.weekStart());
+        validateDays(period, request.days());
+        var rows = loadRows(owner, period.start(), period.end());
+        if (!Objects.equals(revision(period, rows), request.revision())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This week's plan changed. Reload it and review your changes before saving again.");
         }
-        if (plan == null) {
-            plan = new WeeklyCaloriePlan();
-            plan.setUser(user);
-            plan.setWeekStart(request.weekStart());
+        for (var day : request.days()) {
+            var row = rows.computeIfAbsent(storageWeek(day.date()), start -> {
+                var newRow = new WeeklyCaloriePlan();
+                newRow.setUser(owner);
+                newRow.setWeekStart(start);
+                return newRow;
+            });
+            row.setCaloriesOn(day.date().getDayOfWeek(), day.calories().intValueExact());
         }
-        plan.setCalories(values);
-        return repository.save(plan);
+        repository.saveAllAndFlush(rows.values());
+        events.publishEvent(new CaloriePlanSaved(owner, period.start()));
+        return response(owner, period, rows, revision(period, rows));
     }
 
     public List<EffectiveCalorieTarget> effectiveTargets(User user, LocalDate from, LocalDate to) {
-        LocalDate firstWeek = saturdayOnOrBefore(from);
-        LocalDate lastWeek = saturdayOnOrBefore(to);
-        Map<LocalDate, WeeklyCaloriePlan> plans = repository.findByUserAndWeekStartBetweenOrderByWeekStartAsc(user, firstWeek, lastWeek)
-            .stream().collect(Collectors.toMap(WeeklyCaloriePlan::getWeekStart, Function.identity()));
-        List<EffectiveCalorieTarget> targets = new ArrayList<>();
+        var rows = loadRows(user, from, to);
+        var targets = new ArrayList<EffectiveCalorieTarget>();
         for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
-            WeeklyCaloriePlan plan = plans.get(saturdayOnOrBefore(date));
-            int target = plan == null ? profileTarget(user, date.getDayOfWeek()) : plan.getCalories().get((int) (date.toEpochDay() - saturdayOnOrBefore(date).toEpochDay()));
-            targets.add(new EffectiveCalorieTarget(date, target, user.getWeeklyAverageCalorieMaximum()));
+            targets.add(new EffectiveCalorieTarget(date, effectiveCalories(user, rows, date), user.getWeeklyAverageCalorieMaximum()));
         }
         return targets;
     }
 
-    private List<Integer> validateDays(LocalDate weekStart, List<DayPlanRequest> days) {
-        if (days.size() != 7) {
-            throw new BadRequestException("Calorie plan must contain all seven dates from Saturday through Friday");
+    static Map<LocalDate, Integer> caloriesByDate(List<EffectiveCalorieTarget> targets) {
+        return targets.stream().collect(java.util.stream.Collectors.toMap(EffectiveCalorieTarget::date, EffectiveCalorieTarget::calories));
+    }
+
+    private Map<LocalDate, WeeklyCaloriePlan> loadRows(User user, LocalDate from, LocalDate to) {
+        var rows = new HashMap<LocalDate, WeeklyCaloriePlan>();
+        for (var row : repository.findByUserAndWeekStartBetweenOrderByWeekStartAsc(user, storageWeek(from), storageWeek(to))) {
+            rows.put(row.getWeekStart(), row);
         }
-        List<Integer> values = new ArrayList<>(7);
-        for (int index = 0; index < 7; index++) {
-            DayPlanRequest day = days.get(index);
-            if (!day.date().equals(weekStart.plusDays(index))) {
-                throw new BadRequestException("Calorie plan dates must be contiguous from Saturday through Friday");
+        return rows;
+    }
+
+    // Physical rows keep their original Saturday keys. Missing cells continue to follow the weekday profile.
+    private static LocalDate storageWeek(LocalDate date) {
+        return date.with(TemporalAdjusters.previousOrSame(DayOfWeek.SATURDAY));
+    }
+
+    private static Integer savedCalories(Map<LocalDate, WeeklyCaloriePlan> rows, LocalDate date) {
+        var row = rows.get(storageWeek(date));
+        return row == null ? null : row.caloriesOn(date.getDayOfWeek());
+    }
+
+    private int effectiveCalories(User user, Map<LocalDate, WeeklyCaloriePlan> rows, LocalDate date) {
+        Integer saved = savedCalories(rows, date);
+        return saved == null ? profileTarget(user, date.getDayOfWeek()) : saved;
+    }
+
+    private static Long revision(Period period, Map<LocalDate, WeeklyCaloriePlan> rows) {
+        boolean hasSavedDates = period.start().datesUntil(period.end().plusDays(1)).anyMatch(date -> savedCalories(rows, date) != null);
+        if (!hasSavedDates) return null;
+        // For a single row this is its original revision. Creation or modification of either row increases it.
+        return rows.values().stream().mapToLong(row -> row.getRevision() + 1).sum() - 1;
+    }
+
+    private WeeklyCaloriePlanResponse response(User user, Period period, Map<LocalDate, WeeklyCaloriePlan> rows, Long revision) {
+        var days = period.start().datesUntil(period.end().plusDays(1))
+            .map(date -> new DayPlanResponse(date, effectiveCalories(user, rows, date))).toList();
+        return new WeeklyCaloriePlanResponse(period.start(), revision, days);
+    }
+
+    private Period requirePeriodStart(User user, LocalDate start) {
+        Period period = PlanningWeekService.period(user, start);
+        if (!period.start().equals(start)) throw new BadRequestException("The requested date must start a planning week");
+        return period;
+    }
+
+    private void validateDays(Period period, List<DayPlanRequest> days) {
+        if (days.size() != period.end().toEpochDay() - period.start().toEpochDay() + 1) {
+            throw new BadRequestException("Calorie plan must contain every date in the planning week");
+        }
+        for (int index = 0; index < days.size(); index++) {
+            var day = days.get(index);
+            if (!day.date().equals(period.start().plusDays(index))) {
+                throw new BadRequestException("Calorie plan dates must be contiguous from the start of the planning week");
             }
             try {
-                int calories = day.calories().intValueExact();
-                if (calories < 0) throw new BadRequestException("Planned calories must be nonnegative");
-                values.add(calories);
+                if (day.calories().intValueExact() < 0) throw new BadRequestException("Planned calories must be nonnegative");
             } catch (ArithmeticException exception) {
                 throw new BadRequestException("Planned calories must be a whole number within the supported range");
             }
         }
-        return values;
     }
 
-    private void requireSaturday(LocalDate date) {
-        if (date.getDayOfWeek() != DayOfWeek.SATURDAY) {
-            throw new BadRequestException("Calorie plan week must start on Saturday");
-        }
-    }
-
-    private int profileTarget(User user, DayOfWeek day) {
+    static int profileTarget(User user, DayOfWeek day) {
         return switch (day) {
             case SATURDAY -> user.getTypicalCaloriesSaturday();
             case SUNDAY -> user.getTypicalCaloriesSunday();
@@ -99,9 +151,7 @@ public class WeeklyCaloriePlanService {
         };
     }
 
-    private LocalDate saturdayOnOrBefore(LocalDate date) {
-        return date.minusDays((date.getDayOfWeek().getValue() + 1L) % 7);
-    }
+    public record CaloriePlanSaved(User user, LocalDate weekStart) { }
 
     public record EffectiveCalorieTarget(LocalDate date, int calories, int weeklyAverageMaximum) { }
 }

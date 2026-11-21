@@ -5,7 +5,7 @@
       <div class="balance-date"><label for="training-balance-date">Date in week</label><Calendar inputId="training-balance-date" :modelValue="calendarDate" :maxDate="latestSelectableDate" dateFormat="dd/mm/yy" showIcon @update:modelValue="selectCalendarDate" /></div>
       <div class="balance-week-actions"><Button label="Previous week" icon="pi pi-chevron-left" class="p-button-outlined" @click="moveWeek(-1)" /><Button label="Next week" icon="pi pi-chevron-right" class="p-button-outlined" :disabled="nextWeekDisabled" @click="moveWeek(1)" /><Button label="This week" class="p-button-outlined" @click="selectDate(today())" /></div>
     </div>
-    <p class="balance-explanation">Saturday–Friday · Europe/Madrid</p>
+    <p class="balance-explanation">{{ periodLabel(selectedWeek.start, selectedWeek.end) }} · Europe/Madrid</p>
     <p v-if="loading" role="status">Loading training balance…</p>
     <div v-else-if="error" role="alert"><p class="error">{{ error }}</p><Button label="Retry" class="p-button-outlined" @click="load" /></div>
     <template v-else-if="balance">
@@ -24,26 +24,22 @@
 
 <script>
 import dayjs from 'dayjs';
+import {planningWeek, periodLabel, madridDate as today} from '../model/PlanningWeek';
 import workoutService from '../services/WorkoutService';
 import {primaryMuscleGroupLabel} from '../model/WorkoutExercise';
 
-function today() {
-  const parts = new Intl.DateTimeFormat('en', {timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit'}).formatToParts(new Date());
-  const date = Object.fromEntries(parts.map(part => [part.type, part.value]));
-  return `${date.year}-${date.month}-${date.day}`;
-}
 function validDate(value) { return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && dayjs(value).format('YYYY-MM-DD') === value; }
-function weekStart(date) { return dayjs(date).subtract((dayjs(date).day() + 1) % 7, 'day').format('YYYY-MM-DD'); }
 
 export default {
   props: {active: {type: Boolean, required: true}, revision: {type: Number, required: true}},
   data() { return {balance: null, loading: false, error: '', requestVersion: 0}; },
   computed: {
     calendarDate() { return dayjs(this.selectedDate).toDate(); },
-    currentWeekStart() { return weekStart(today()); },
-    latestSelectableDate() { return dayjs(this.currentWeekStart).add(6, 'day').toDate(); },
-    nextWeekDisabled() { return weekStart(this.selectedDate) >= this.currentWeekStart; },
-    selectedDate() { return validDate(this.$route.query.date) && weekStart(this.$route.query.date) <= this.currentWeekStart ? this.$route.query.date : today(); },
+    currentWeek() { return planningWeek(today()); },
+    selectedWeek() { return planningWeek(this.selectedDate); },
+    latestSelectableDate() { return dayjs(this.currentWeek.end).toDate(); },
+    nextWeekDisabled() { return this.selectedWeek.start >= this.currentWeek.start; },
+    selectedDate() { return validDate(this.$route.query.date) && this.$route.query.date <= this.currentWeek.end ? this.$route.query.date : today(); },
     maximumSets() { return Math.max(1, ...this.balance.groups.map(group => group.equivalentSets)); }
   },
   created() { if (this.active) this.loadSelectedWeek(); },
@@ -54,14 +50,19 @@ export default {
     revision() { if (this.active) this.loadSelectedWeek(); }
   },
   methods: {
-    primaryMuscleGroupLabel, today,
+    primaryMuscleGroupLabel, today, periodLabel,
     formatEquivalentSets(value) { return Number.isInteger(value) ? value : value.toFixed(1); },
     formatDate(date) { return dayjs(date).format('DD/MM/YYYY'); },
     selectCalendarDate(date) { if (date) this.selectDate(dayjs(date).format('YYYY-MM-DD')); },
-    selectDate(date) { if (validDate(date) && weekStart(date) <= this.currentWeekStart && date !== this.$route.query.date) this.$router.push({query: {...this.$route.query, date}}); },
-    moveWeek(direction) { this.selectDate(dayjs(this.selectedDate).add(direction * 7, 'day').format('YYYY-MM-DD')); },
+    selectDate(date) { if (validDate(date) && date <= this.currentWeek.end && date !== this.$route.query.date) this.$router.push({query: {...this.$route.query, date}}); },
+    moveWeek(direction) {
+      const adjacent = planningWeek(dayjs(direction < 0 ? this.selectedWeek.start : this.selectedWeek.end).add(direction, 'day'));
+      const offset = dayjs(this.selectedDate).diff(this.selectedWeek.start, 'day');
+      const samePosition = dayjs(adjacent.start).add(offset, 'day').format('YYYY-MM-DD');
+      this.selectDate(samePosition < adjacent.end ? samePosition : adjacent.end);
+    },
     loadSelectedWeek() {
-      if (!validDate(this.$route.query.date) || weekStart(this.$route.query.date) > this.currentWeekStart) this.$router.replace({query: {...this.$route.query, date: this.selectedDate}});
+      if (!validDate(this.$route.query.date) || this.$route.query.date > this.currentWeek.end) this.$router.replace({query: {...this.$route.query, date: this.selectedDate}});
       else this.load();
     },
     async load() {

@@ -118,30 +118,19 @@ public class DailyStatusSnapshotService {
     }
 
     public List<DailyStatus> getWeek(User user, LocalDate anchorDate) {
-        LocalDate start = DateTimes.startOfDashboardWeek(anchorDate);
-        List<DailyStatus> statuses = new ArrayList<>();
-        LocalDate current = start;
-        while (!current.isAfter(anchorDate) && statuses.size() < 7) {
-            statuses.add(getOrBuild(user, current));
-            current = current.plusDays(1);
-        }
-        return statuses;
+        return PlanningWeekService.period(user, anchorDate).start().datesUntil(anchorDate.plusDays(1))
+            .map(date -> getOrBuild(user, date)).toList();
     }
 
     public List<DailyStatus> getFullWeek(User user, LocalDate anchorDate) {
-        LocalDate start = DateTimes.startOfDashboardWeek(anchorDate);
-        List<DailyStatus> statuses = new ArrayList<>();
-        LocalDate current = start;
-        while (statuses.size() < 7) {
-            statuses.add(getOrBuild(user, current));
-            current = current.plusDays(1);
-        }
-        return statuses;
+        var period = PlanningWeekService.period(user, anchorDate);
+        return period.start().datesUntil(period.end().plusDays(1)).map(date -> getOrBuild(user, date)).toList();
     }
 
     public DailyStatus getLastWeekDailyStatus(User user, LocalDate currentDate) {
-        return dailyStatusRepository.findFirstByUserAndStatusDateLessThanEqualOrderByStatusDateDesc(user, currentDate.minusDays(7))
-            .orElseGet(() -> getOrBuild(user, currentDate.minusDays(7)));
+        LocalDate comparisonDate = WeeklyMetricsCalculator.comparisonPeriods(user, currentDate).previous().end();
+        return dailyStatusRepository.findFirstByUserAndStatusDateLessThanEqualOrderByStatusDateDesc(user, comparisonDate)
+            .orElseGet(() -> getOrBuild(user, comparisonDate));
     }
 
     private List<Routine> filterByType(List<Routine> routines, RoutineType type) {
