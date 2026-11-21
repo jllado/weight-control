@@ -15,6 +15,7 @@
 </template>
 
 <script>
+import {defaultsToNoRest} from '@/model/WorkoutExercise';
 import WorkoutEditor from './WorkoutEditor.vue';
 import {userState} from '@/state';
 import workoutService from '@/services/WorkoutService';
@@ -72,7 +73,7 @@ export default {
       return parts.join(' · ');
     },
     currentDurationBased() { return !!this.plannedSegment && this.currentLine.stretchingUnit !== 'BREATHS' && (this.currentLine.trackingMode === 'SECONDS' || this.currentLine.trackingMode === 'CARDIO'); },
-    currentRestDuration() { return this.currentLine.restSeconds ?? (this.currentLine.exerciseType === 'STRETCHING' ? 0 : this.guidedWorkoutState.draft.defaultRestSeconds); },
+    currentRestDuration() { return this.currentLine.restSeconds ?? (defaultsToNoRest(this.currentLine.exerciseType) ? 0 : this.guidedWorkoutState.draft.defaultRestSeconds); },
     restDuration: {
       get() { return this.restTimer?.durationSeconds ?? this.guidedWorkoutState.draft?.preparedRest?.durationSeconds ?? (this.currentLine ? this.currentRestDuration : this.defaultRestDuration); },
       set(value) {
@@ -80,7 +81,7 @@ export default {
         if (prepared) {
           const line = this.guidedWorkoutState.draft.workout.lines.find(line => line.guidedLineKey === prepared.lineKey);
           if (line) line.restSeconds = value;
-          prepared.durationSeconds = value ?? (line?.exerciseType === 'STRETCHING' ? 0 : this.guidedWorkoutState.draft.defaultRestSeconds);
+          prepared.durationSeconds = value ?? (defaultsToNoRest(line?.exerciseType) ? 0 : this.guidedWorkoutState.draft.defaultRestSeconds);
         } else this.currentLine.restSeconds = value;
       }
     },

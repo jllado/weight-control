@@ -138,7 +138,7 @@
             </div>
             <div v-if="planning" class="p-col-12 p-md-6">
               <label :for="`rest-${line.localId}`" class="p-d-block p-mb-2">Rest after each set (seconds)</label>
-              <InputNumber :inputId="`rest-${line.localId}`" v-model="line.restSeconds" :min="0" :max="2147483647" :maxFractionDigits="0" :useGrouping="false" :placeholder="line.exerciseType === ExerciseType.STRETCHING ? 'Default: no rest' : 'Default: normal rest'" :aria-describedby="`rest-help-${line.localId}`" />
+              <InputNumber :inputId="`rest-${line.localId}`" v-model="line.restSeconds" :min="0" :max="2147483647" :maxFractionDigits="0" :useGrouping="false" :placeholder="defaultsToNoRest(line.exerciseType) ? 'Default: no rest' : 'Default: normal rest'" :aria-describedby="`rest-help-${line.localId}`" />
               <small :id="`rest-help-${line.localId}`" class="p-d-block">0 means no rest. Leave blank to use the default.</small>
             </div>
             <div class="p-col-12 p-md-4" v-if="!planning && line.trackingMode === ExerciseTrackingMode.CARDIO">
@@ -308,7 +308,7 @@ import workoutService from '../services/WorkoutService';
 import workoutPlanService from '../services/WorkoutPlanService';
 import exerciseService from '../services/WorkoutExerciseService';
 import Workout from "@/model/Workout";
-import {ExerciseTrackingMode, ExerciseType, exerciseTypeLabel, trackingModeLabel, stretchingUnitOptions} from "@/model/WorkoutExercise";
+import {ExerciseTrackingMode, ExerciseType, defaultsToNoRest, exerciseTypeLabel, trackingModeLabel, stretchingUnitOptions} from "@/model/WorkoutExercise";
 import {loadWorkoutRecordContext, recordsForLine, metricRecords, loadMetricRecords, segmentMetricRecords, formatRecordValue} from "@/services/WorkoutRecordContext";
 import {guidedWorkoutState, startGuidedWorkout} from '@/services/GuidedWorkoutService';
 import {madridInstant, madridWallDate} from '@/model/WorkoutTiming';
@@ -584,6 +584,7 @@ export default {
     else this.exercises = await exerciseService.get_all();
   },
     methods: {
+    defaultsToNoRest,
     startGuided() {
       if (!this.validateWorkoutForm('Workout not started')) return;
       const source = this.buildWorkoutPayload();

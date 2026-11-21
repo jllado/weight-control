@@ -17522,13 +17522,14 @@ test('set time warning freezes during rest and pause, survives reload and resets
 for (const scenario of [
     {name: 'explicit zero', exercise: 0, restSeconds: 0, expected: 0},
     {name: 'explicit positive', exercise: 0, restSeconds: 17, expected: 17},
+    {name: 'positive warm-up override', exercise: 1, restSeconds: 30, expected: 30},
     {name: 'stretching default', exercise: 2, expected: 0},
     {name: 'positive stretching override', exercise: 2, restSeconds: 23, expected: 23},
     {name: 'normal preference default', exercise: 0, expected: 75}
 ]) {
     test(`planned rest uses ${scenario.name} for the completed exercise`, async ({page}) => {
         await estimatedWorkoutPlan(page, exercises => [
-            estimatedLine(exercises[scenario.exercise], [scenario.exercise === 2 ? {durationSeconds: 10} : {repetitions: 4}], {restSeconds: scenario.restSeconds}),
+            estimatedLine(exercises[scenario.exercise], [scenario.exercise === 0 ? {repetitions: 4} : {durationSeconds: 10}], {restSeconds: scenario.restSeconds}),
             estimatedLine(exercises[3], [{durationSeconds: 8}], {restSeconds: 41})
         ]);
         await page.addInitScript(() => localStorage.setItem('guided-workout-rest-duration-v1:jllado@gmail.com', '75'));
@@ -17547,6 +17548,31 @@ for (const scenario of [
             await expect(page.getByRole('dialog', {name: 'Rest', exact: true})).toContainText(scenario.expected === 75 ? '00:01:15 remaining' : `00:00:${scenario.expected} remaining`);
         }
         expect(await page.evaluate(() => localStorage.getItem('guided-workout-rest-duration-v1:jllado@gmail.com'))).toBe('75');
+    });
+}
+
+for (const width of [390, 1280]) {
+    test(`planned rest advances through warm-up sets directly at ${width}px`, async ({page}) => {
+        await estimatedWorkoutPlan(page, exercises => [
+            estimatedLine(exercises[1], [{durationSeconds: 10}, {durationSeconds: 15}]),
+            estimatedLine(exercises[3], [{durationSeconds: 8}], {restSeconds: 41})
+        ]);
+        await page.setViewportSize({width, height: 900});
+        const guided = await startEstimatedPlan(page);
+        expect(await page.evaluate(() => innerWidth)).toBe(width);
+        const seconds = guided.getByLabel('Rest after each set (seconds)', {exact: true});
+        for (const nextExercise of ['Exercise bike', 'Plank']) {
+            await expect(seconds).toHaveValue('0');
+            await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+            await expect(page.getByRole('dialog')).toHaveCount(0);
+            await expect(guided.locator('.guided-card h2')).toHaveText(nextExercise);
+            await page.clock.fastForward(3000);
+            await expect(guided.getByRole('timer', {name: 'Set elapsed time', exact: true})).toHaveText('00:00:03');
+        }
+        await expect(seconds).toHaveValue('41');
+        await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+        await expect(guided.getByRole('heading', {name: 'Workout complete'})).toBeVisible();
+        await expect(page.getByRole('dialog')).toHaveCount(0);
     });
 }
 

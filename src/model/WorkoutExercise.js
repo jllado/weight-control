@@ -16,6 +16,10 @@ export const ExerciseType = {
     STRETCHING: 'STRETCHING'
 };
 
+export function defaultsToNoRest(type) {
+    return type === ExerciseType.WARM_UP || type === ExerciseType.STRETCHING;
+}
+
 export default class WorkoutExercise {
 
     constructor(source) {
