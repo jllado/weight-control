@@ -152,7 +152,10 @@ test('planning week closes the short calorie plan and routine on their actual da
     await page.route('**/api/routines', route => route.fulfill({json: [routine(2, 'Weekly review', 'WEEKLY', ['2026-08-10T08:00:00+02:00'])]}));
     await page.goto('/?tab=routines&date=2026-08-12');
     const score = page.locator('.week-status');
-    await expect(score).toContainText('Short transition · Sat 8 Aug 2026 – Wed 12 Aug 2026');
+    await expect(score.locator('.week-status-cell[title="2026-08-08"]').first()).toBeVisible();
+    await expect(score.locator('.week-ago-cell[title="2026-08-01"]').first()).toBeVisible();
+    await expect(score).not.toContainText('Short transition ·');
+    await expect(score).not.toContainText('Previous:');
     await page.getByRole('tab', {name: 'Weekly', exact: true}).click();
     await expect(page.getByRole('button', {name: 'Undo Weekly review', exact: true})).toBeVisible();
     await score.getByRole('button', {name: 'Edit planned calories'}).click();
@@ -165,7 +168,9 @@ test('planning week closes the short calorie plan and routine on their actual da
     await page.route(url => url.pathname === '/api/dashboard' && url.searchParams.get('selectedDate') === '2026-08-13',
         route => route.fulfill({json: {...dashboard, anchorDate: '2026-08-13', dailyStatus: {...dashboard.dailyStatus, date: '2026-08-13'}}}));
     await page.goto('/?tab=routines&date=2026-08-13');
-    await expect(score).toContainText('Planning week · Thu 13 Aug 2026 – Wed 19 Aug 2026');
+    await expect(score.locator('.week-status-cell[title="2026-08-13"]').first()).toBeVisible();
+    await expect(score.locator('.week-ago-cell[title="2026-08-08"]').first()).toBeVisible();
+    await expect(score).not.toContainText('Planning week ·');
     await expect(score.locator('.week-status-cell').nth(1)).toHaveText('Thursday');
     await page.getByRole('tab', {name: 'Weekly', exact: true}).click();
     await expect(page.getByRole('button', {name: 'Complete Weekly review', exact: true})).toBeVisible();

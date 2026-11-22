@@ -241,13 +241,18 @@
             </ul>
           </details>
         </section>
-        <p v-if="workout_plan_review_due_date" class="dashboard-plan-review">
-          <span>Workout plan review due · {{ format_coach_metric_date(workout_plan_review_due_date) }}</span>
-          <router-link :to="{name: 'WorkoutDiary', query: {tab: 'plan'}}">Review workout plan</router-link>
-        </p>
+        <section v-if="workout_plan_review_due_date" class="dashboard-plan-review" aria-labelledby="plan-review-heading">
+          <i class="pi pi-calendar plan-review-icon" aria-hidden="true"></i>
+          <div class="plan-review-copy">
+            <h3 id="plan-review-heading">Workout plan review due</h3>
+            <time :datetime="workout_plan_review_due_date">Due {{ format_coach_metric_date(workout_plan_review_due_date) }}</time>
+          </div>
+          <router-link :to="{name: 'WorkoutDiary', query: {tab: 'plan'}}" class="p-button p-component p-button-outlined plan-review-link">
+            <span>Review plan</span><i class="pi pi-chevron-right" aria-hidden="true"></i>
+          </router-link>
+        </section>
         <DashboardActions :date="action_date()" />
         <Panel header="Week Score" class="week-status">
-          <p>{{ periodLabel(selectedWeek.start, selectedWeek.end) }}<br />Previous: {{ periodLabel(previousWeek.start, previousWeek.end) }}</p>
           <div class="p-grid p-mt-1" style="min-width: 1000px" >
             <div class="p-col-1" ></div>
             <div class="p-col-1 week-status-cell" style="border: thin solid gray;"></div>
@@ -4854,10 +4859,35 @@ class MeasureGraphData {
 
 <style scoped>
 .dashboard-plan-review {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: .25rem .75rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .75rem;
+  margin: .75rem 0;
+  padding: .75rem 1rem;
+  border: 1px solid var(--yellow-300);
+  border-inline-start: .25rem solid var(--yellow-700);
+  border-radius: var(--border-radius);
+  background: var(--yellow-50);
+  color: var(--text-color);
+}
+.plan-review-icon {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--yellow-100);
+  color: var(--yellow-800);
+  font-size: 1.2rem;
+}
+.plan-review-copy h3 { margin: 0 0 .2rem; font-size: 1rem; }
+.plan-review-copy time { font-size: .9rem; }
+.plan-review-link { justify-content: center; gap: .5rem; text-decoration: none; background: var(--surface-card); }
+.plan-review-link .pi { font-size: .8rem; }
+@media (max-width: 575px) {
+  .dashboard-plan-review { grid-template-columns: auto minmax(0, 1fr); }
+  .plan-review-link { grid-column: 1 / -1; min-height: 2.75rem; }
 }
 .sleep-coach-warning { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
 .sleep-coach-warning > .pi { color: var(--yellow-700, #a16207); flex-shrink: 0; }
