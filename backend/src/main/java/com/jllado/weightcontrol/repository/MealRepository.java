@@ -13,9 +13,28 @@ public interface MealRepository extends JpaRepository<Meal, Long> {
     @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "dishes")
     List<Meal> findByUserOrderByMealDateDescIdAsc(User user);
 
-    record Intake(long id, LocalDate mealDate, java.time.LocalTime mealTime, int calories) { }
+    record Timing(long id, LocalDate mealDate, java.time.LocalTime mealTime, Integer durationMinutes, MealType mealType) {
+        public java.time.LocalDateTime start() { return mealDate.atTime(mealTime); }
+    }
 
-    List<Intake> findIntakeByUserAndMealDateBetween(User user, LocalDate from, LocalDate to);
+    List<Timing> findTimingByUserAndMealDateBetweenAndMealTimeIsNotNullOrderByMealDateAscMealTimeAscIdAsc(User user, LocalDate from, LocalDate to);
+
+    Optional<Timing> findFirstTimingByUserAndMealDateLessThanAndMealTimeIsNotNullOrderByMealDateDescMealTimeDescIdDesc(User user, LocalDate before);
+
+    // V129 introduced the explanation solely for backend-generated scores. Earlier app and Coach ratings have no explanation.
+    @org.springframework.data.jpa.repository.Query("""
+        select m from Meal m where m.user = :user and m.ratingVersion is null and m.rating is not null
+        and m.ratingExplanation like 'Base 5. Protein:% Fiber:% Day through meal:% Week from %'
+        order by m.mealDate, m.id
+        """)
+    List<Meal> findLegacyAutomaticRatings(User user);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query(value = """
+        UPDATE meals SET rating=:score, rating_explanation=:explanation, rating_version=:version, updated_at=updated_at
+        WHERE id=:id AND user_id=:owner AND rating_version IS NULL
+        """, nativeQuery = true)
+    void migrateRating(long owner, long id, Integer score, String explanation, int version);
 
     Optional<Meal> findFirstByUserOrderByMealDateAscIdAsc(User user);
 

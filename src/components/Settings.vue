@@ -77,6 +77,7 @@
   <PushNotificationSettings />
   <WeeklySummarySettings :today="today" />
   <NutrientTargetSettings />
+  <MealPreferenceSettings />
 </template>
 
 <script>
@@ -89,11 +90,12 @@ import userProfileService from '../services/UserProfileService';
 import OvernightHeartRateSettings from './OvernightHeartRateSettings.vue';
 import PushNotificationSettings from './PushNotificationSettings.vue';
 import WeeklySummarySettings from './WeeklySummarySettings.vue';
+import MealPreferenceSettings from './MealPreferenceSettings.vue';
 import NutrientTargetSettings from './NutrientTargetSettings.vue';
 import {formatCalories} from '../services/CalorieFormatting';
 
 export default {
-  components: {OvernightHeartRateSettings, PushNotificationSettings, WeeklySummarySettings, NutrientTargetSettings},
+  components: {OvernightHeartRateSettings, PushNotificationSettings, WeeklySummarySettings, NutrientTargetSettings, MealPreferenceSettings},
   data() {
     return {
       profile: new UserProfile({takesMedication: false}),

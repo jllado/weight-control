@@ -4,15 +4,15 @@ const {profile, dashboard, dashboardDailyStatus, nutrientTargetsForDate} = requi
 const targetDate = '2026-08-20';
 const sourceDate = '2026-08-19';
 const longName = 'Yogurt with a very long descriptive food name that wraps across narrow screens';
-const nutrientKeys = ['calories', 'proteinGrams', 'carbohydrateGrams', 'fatGrams', 'vitaminDMicrograms', 'omega3Milligrams', 'magnesiumMilligrams', 'epaDhaMilligrams', 'alaMilligrams', 'fiberGrams', 'saltGrams'];
+const nutrientKeys = ['calories', 'proteinGrams', 'carbohydrateGrams', 'fatGrams', 'vitaminDMicrograms', 'omega3Milligrams', 'magnesiumMilligrams', 'epaDhaMilligrams', 'alaMilligrams', 'fiberGrams', 'saltGrams', 'saturatedFatGrams'];
 function food(name = longName, overrides = {}) {
     return {id: 41, name, calories: 51, proteinGrams: 0.51, carbohydrateGrams: 2.12, fatGrams: null,
-        vitaminDMicrograms: 1.01, omega3Milligrams: 13.13, magnesiumMilligrams: 6.67, epaDhaMilligrams: 0, alaMilligrams: 1.11, fiberGrams: null, saltGrams: 0.23,
+        vitaminDMicrograms: 1.01, omega3Milligrams: 13.13, magnesiumMilligrams: 6.67, epaDhaMilligrams: 0, alaMilligrams: 1.11, fiberGrams: null, saltGrams: 0.23, saturatedFatGrams: 1.26,
         quantity: 50, unit: 'GRAM', fruit: false, nutrientSource: null, nutrientsEstimated: null,
         epaDhaSource: 'Measured zero', epaDhaEstimated: false, alaSource: 'Independent ALA estimate', alaEstimated: true,
-        fiberSource: null, fiberEstimated: null, saltSource: 'Label salt', saltEstimated: false,
+        fiberSource: null, fiberEstimated: null, saltSource: 'Label salt', saltEstimated: false, saturatedFatSource: 'Composition estimate', saturatedFatEstimated: true,
         reference: {quantity: 100, calories: 101, proteinGrams: 1.01, carbohydrateGrams: 4.23, fatGrams: null,
-            vitaminDMicrograms: 2.01, omega3Milligrams: 26.25, magnesiumMilligrams: 13.33, epaDhaMilligrams: 0, alaMilligrams: 2.21, fiberGrams: null, saltGrams: 0.45}, ...overrides};
+            vitaminDMicrograms: 2.01, omega3Milligrams: 26.25, magnesiumMilligrams: 13.33, epaDhaMilligrams: 0, alaMilligrams: 2.21, fiberGrams: null, saltGrams: 0.45, saturatedFatGrams: 2.51}, ...overrides};
 }
 function meal(id, date, mealType, overrides = {}) {
     return {id, date, mealType, mealSequence: 1, calories: 333, proteinGrams: 17.17, carbohydrateGrams: 20.02, fatGrams: null,
@@ -24,7 +24,7 @@ function sourceMeals() {
     legacy.reference = {...legacy.reference, vitaminDMicrograms: null, omega3Milligrams: null, magnesiumMilligrams: null, epaDhaMilligrams: null, alaMilligrams: null};
     return [meal(1, sourceDate, 'BREAKFAST', {dishes: [food(), food('Apple', {fruit: true})]}),
         meal(2, sourceDate, 'LUNCH', {calories: 700, proteinGrams: null, mealTime: '13:30:00', durationMinutes: 35, dishes: [legacy]}),
-        meal(3, sourceDate, 'SNACK', {mealSequence: 2, calories: 42, proteinGrams: 0, carbohydrateGrams: 0, fatGrams: 0, mealTime: null, durationMinutes: null, notes: null, dishes: []}),
+        meal(3, sourceDate, 'SNACK', {mealSequence: 2, estimatedSaturatedFatGrams: 0.4, saturatedFatEstimateSource: 'Comparable snack portion', calories: 42, proteinGrams: 0, carbohydrateGrams: 0, fatGrams: 1, mealTime: null, durationMinutes: null, notes: null, dishes: []}),
         meal(4, sourceDate, 'SNACK', {mealSequence: 5, calories: 150, mealTime: '17:00:00', durationMinutes: 5, dishes: [food('Almonds')]})];
 }
 function snapshot(entry) {
@@ -272,7 +272,7 @@ test.describe('Preload titles for saved salad foods', () => {
             await page.route('**/api/meals', route => route.request().method() === 'POST'
                 ? route.fulfill({json: {result: {...foods[1], date: targetDate, id: 100, rating: 8, ratingExplanation: 'The score for the copied date.'}, recordAchievements: []}}) : route.fallback());
             await page.locator('#meal-form').getByRole('button', {name: 'Save', exact: true}).click();
-            expect((await save).postDataJSON().dishes).toEqual(snapshot(foods[1]).dishes.map(dish => ({...dish, nutrientSchemaVersion: 3})));
+            expect((await save).postDataJSON().dishes).toEqual(snapshot(foods[1]).dishes.map(dish => ({...dish, nutrientSchemaVersion: 4})));
             expect(state.meals).toEqual(foods);
         });
     }
@@ -392,4 +392,65 @@ test('ordinary blank meal Save still explains the required meal type', async ({p
     await expect(form.locator('#meal-type-error')).toHaveText('Value is required');
     expect(state.writes).toEqual([]);
     expect(state.errors).toEqual([]);
+});
+
+test('saturated fat from an unitemized meal keeps its basis on an exact copy and clears after a food description change', async ({page}) => {
+    const source = sourceMeals()[2];
+    const state = await openCopy(page, [source]);
+    await chooseDay(page);
+    const overview = page.locator('#meal-day-copy');
+    await overview.locator('.day-nutrients summary').click();
+    const total = overview.getByRole('button', {name: /^Saturated fat details:/});
+    await expect(total).toHaveText('0.4 g');
+    await total.click();
+    const details = page.getByRole('dialog', {name: 'Saturated fat details'});
+    await expect(details).toContainText('Snack 2 · 0.4 g estimated for the whole meal. Comparable snack portion');
+    await expect(details).toContainText('0 of 0 foods');
+    await page.keyboard.press('Escape');
+    await editMeal(page, 'snack 2');
+    await saveLocal(page);
+    await overview.locator('.day-nutrients summary').click();
+    await expect(total).toHaveText('0.4 g');
+    await editMeal(page, 'snack 2');
+    await page.getByLabel('Notes (optional)', {exact: true}).fill('A different snack');
+    await saveLocal(page);
+    await overview.locator('.day-nutrients summary').click();
+    await expect(total).toHaveText('—');
+    await overview.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(page).toHaveURL(`/?tab=calories&date=${targetDate}`);
+    expect(state.writes[0].body.meals[0]).not.toHaveProperty('estimatedSaturatedFatGrams');
+    expect(state.writes[0].body.meals[0]).not.toHaveProperty('saturatedFatEstimateSource');
+    expect(state.meals[0].estimatedSaturatedFatGrams).toEqual(0.4);
+});
+
+for (const editDescription of [false, true]) {
+    test(`preloading one unitemized meal ${editDescription ? 'clears a stale' : 'preserves its'} saturated-fat estimate`, async ({page}) => {
+        const source = sourceMeals()[2];
+        await openCopy(page, [source]);
+        await page.getByRole('combobox', {name: 'Meal', exact: true}).click();
+        await page.getByRole('option', {name: 'Snack', exact: true}).click();
+        await page.getByRole('combobox', {name: 'Preload a previous meal', exact: true}).click();
+        await page.getByRole('option').first().click();
+        if (editDescription) await page.getByLabel('Notes (optional)', {exact: true}).fill('Another snack');
+        await page.route('**/api/meals', route => route.request().method() === 'POST'
+            ? route.fulfill({json: {result: {...source, ...route.request().postDataJSON(), id: 100}, recordAchievements: []}}) : route.fallback());
+        const write = page.waitForRequest(req => new URL(req.url()).pathname === '/api/meals' && req.method() === 'POST');
+        await page.locator('#meal-form').getByRole('button', {name: 'Save', exact: true}).click();
+        const body = (await write).postDataJSON();
+        expect(body.estimatedSaturatedFatGrams).toBe(editDescription ? undefined : 0.4);
+        expect(body.saturatedFatEstimateSource).toBe(editDescription ? undefined : source.saturatedFatEstimateSource);
+    });
+}
+
+test('ordinary meal notes edit sends the original food provenance and independent meal totals', async ({page}) => {
+    const source = sourceMeals()[1];
+    await openCopy(page, [source], `/meals/${source.id}/edit?from=dashboard&date=${sourceDate}`);
+    await page.getByLabel('Notes (optional)', {exact: true}).fill('Updated notes');
+    await page.route(`**/api/meals/${source.id}`, route => route.fulfill({json: {result: {...source, notes: 'Updated notes'}, recordAchievements: []}}));
+    const write = page.waitForRequest(req => new URL(req.url()).pathname === `/api/meals/${source.id}` && req.method() === 'PUT');
+    await page.locator('#meal-form').getByRole('button', {name: 'Save', exact: true}).click();
+    const body = (await write).postDataJSON();
+    expect(body.dishes).toEqual(snapshot(source).dishes.map(dish => ({...dish, nutrientSchemaVersion: 4})));
+    expect(body.calories).toBe(source.calories);
+    expect(body.proteinGrams).toBe(source.proteinGrams);
 });

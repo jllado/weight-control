@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import {del, get, post, put} from './api';
 import Meal from '../model/Meal';
-import {foodPayload} from '../model/Dish';
+import {foodPayload, nutrientSchemaVersion} from '../model/Dish';
 import {copyMealSnapshot} from '../model/MealDayCopy';
 import {celebratePersonalRecords} from './CelebrationService';
 
@@ -13,11 +13,13 @@ function toPayload(meal) {
         proteinGrams: meal.proteinGrams,
         carbohydrateGrams: meal.carbohydrateGrams,
         fatGrams: meal.fatGrams,
+        estimatedSaturatedFatGrams: meal.estimatedSaturatedFatGrams,
+        saturatedFatEstimateSource: meal.saturatedFatEstimateSource,
         mealTime: meal.mealTime ? dayjs(meal.mealTime).format('HH:mm:ss') : null,
         durationMinutes: meal.durationMinutes,
         notes: meal.notes,
         dishes: meal.dishes.map(foodPayload),
-        nutrientSchemaVersion: 3
+        nutrientSchemaVersion
     };
 }
 
@@ -26,6 +28,12 @@ function toMeal(data) {
 }
 
 export default {
+    get_rating_preferences() {
+        return get('/meals/rating-preferences');
+    },
+    save_rating_preferences(preferences) {
+        return put('/meals/rating-preferences', preferences);
+    },
     async get_all() {
         return (await get('/meals')).map(toMeal);
     },

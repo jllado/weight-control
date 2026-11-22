@@ -35,6 +35,11 @@ class CoachNutritionDishDataTest {
         dish.setSaltSource("Matching salmon salt composition");
         dish.setSaltEstimated(true);
 
+        dish.setSaturatedFatGrams(new BigDecimal("1.42"));
+        dish.setReferenceSaturatedFatGrams(new BigDecimal("1.42"));
+        dish.setSaturatedFatSource("Salmon label");
+        dish.setSaturatedFatEstimated(false);
+
         var coach = CoachDtos.NutritionDishData.from(dish);
         assertEquals(new BigDecimal("1200.00"), coach.epaDhaMilligrams());
         assertEquals("Fish composition", coach.epaDhaSource());
@@ -50,11 +55,17 @@ class CoachNutritionDishDataTest {
         assertEquals("Matching salmon salt composition", coach.saltSource());
         assertTrue(coach.saltEstimated());
 
+        assertEquals(new BigDecimal("1.42"), coach.saturatedFatGrams());
+        assertEquals(new BigDecimal("1.42"), coach.reference().saturatedFatGrams());
+        assertEquals("Salmon label", coach.saturatedFatSource());
+        assertFalse(coach.saturatedFatEstimated());
+
         var catalog = new MealDtos.CatalogFoodResponse(1L, coach.name(), coach.calories(), coach.proteinGrams(),
             coach.carbohydrateGrams(), coach.fatGrams(), coach.quantity(), coach.fruit(), coach.unit(), coach.reference(),
             coach.vitaminDMicrograms(), coach.omega3Milligrams(), coach.magnesiumMilligrams(), coach.nutrientSource(),
             coach.nutrientsEstimated(), coach.epaDhaMilligrams(), coach.epaDhaSource(), coach.epaDhaEstimated(),
-            coach.alaMilligrams(), coach.alaSource(), coach.alaEstimated(), coach.fiberGrams(), coach.fiberSource(), coach.fiberEstimated(), coach.saltGrams(), coach.saltSource(), coach.saltEstimated());
+            coach.alaMilligrams(), coach.alaSource(), coach.alaEstimated(), coach.fiberGrams(), coach.fiberSource(), coach.fiberEstimated(), coach.saltGrams(), coach.saltSource(), coach.saltEstimated(),
+            coach.saturatedFatGrams(), coach.saturatedFatSource(), coach.saturatedFatEstimated());
         assertEquals(coach, CoachDtos.NutritionDishData.from(catalog));
     }
 }

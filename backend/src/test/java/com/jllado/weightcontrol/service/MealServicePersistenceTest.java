@@ -68,6 +68,8 @@ class MealServicePersistenceTest {
     @Autowired
     private com.jllado.weightcontrol.repository.MealRatingProfileHistory profiles;
 
+    @Autowired private MealRatingService ratings;
+    @Autowired private MealRatingPreferenceService ratingPreferences;
     @Autowired
     private org.springframework.jdbc.core.JdbcTemplate jdbc;
 
@@ -131,6 +133,7 @@ class MealServicePersistenceTest {
         var expected = mealRepository.findById(app.getId()).orElseThrow();
 
         assertEquals(8, expected.getRating());
+        assertEquals(2, expected.getRatingVersion());
         assertTrue(expected.getRatingExplanation().contains("Protein"));
         assertTrue(expected.getRatingExplanation().contains("Fiber"));
         var stored = mealRepository.findById(coach.getId()).orElseThrow();
@@ -152,7 +155,7 @@ class MealServicePersistenceTest {
     }
 
     @Test
-    void historicalEditUsesDatedTargetPlanningWeekAndOnlyIntakeThroughThisMeal() {
+    void historicalEditUsesOnlyThisMealsPortionAndEarlierTimingWithTheDatedPlan() {
         var user = ratingOwner("cutoff");
         LocalDate wednesday = LocalDate.of(2026, 8, 12);
         LocalDate monday = wednesday.minusDays(2);
@@ -165,29 +168,31 @@ class MealServicePersistenceTest {
         mealService.create(user, timedSnack(wednesday.plusDays(1), 9000, 1));
         var later = mealService.create(user, timedSnack(wednesday, 9000, 20));
         var equalEarlier = mealService.create(user, timedSnack(wednesday, 30, 12));
-        var meal = mealService.create(user, timedSnack(wednesday, 450, 12));
+        var meal = mealService.create(user, new MealRequest(wednesday, MealType.LUNCH, 450, null, null, null, LocalTime.NOON, null, 5));
         mealService.create(user, timedSnack(wednesday, 9000, 12));
         var earlier = mealService.create(user, timedSnack(wednesday, 10, 8));
 
-        var saved = mealService.update(user, meal.getId(), timedSnack(wednesday, 500, 12));
+        var saved = mealService.update(user, meal.getId(), new MealRequest(wednesday, MealType.LUNCH, 400, null, null, null, LocalTime.NOON, null, 5));
         var stored = mealRepository.findById(saved.getId()).orElseThrow();
-        assertEquals(6, stored.getRating());
-        assertTrue(stored.getRatingExplanation().contains("540 / 500 kcal"));
-        assertTrue(stored.getRatingExplanation().contains("2140 kcal across 2 recorded days"));
-        assertTrue(stored.getRatingExplanation().contains(monday.toString()));
+        assertEquals(5, stored.getRating());
+        assertTrue(stored.getRatingExplanation().contains("400 / 500 kcal (80%"));
+        assertTrue(stored.getRatingExplanation().contains("Previous meal end to start -5 min"));
+        assertTrue(stored.getRatingExplanation().contains("Deduction 1/1"));
         for (var untouched : List.of(later, equalEarlier, earlier)) {
             assertEquals(untouched.getRatingExplanation(), mealRepository.findById(untouched.getId()).orElseThrow().getRatingExplanation());
         }
     }
 
     private MealRequest timedSnack(LocalDate date, int calories, int hour) {
-        return new MealRequest(date, MealType.SNACK, calories, null, null, null, LocalTime.of(hour, 0), null, 5);
+        return new MealRequest(date, MealType.SNACK, calories, BigDecimal.TEN, null, null, LocalTime.of(hour, 0), null, 5);
     }
 
     private User ratingOwner(String suffix) {
         var user = new User();
         user.setEmail("meal-rating-" + suffix + "@example.com");
         user.setTypicalCaloriesWednesday(2000);
+        user.setMacroProteinTargetGrams(BigDecimal.valueOf(100));
+        user.setNutrientFiberTargetGrams(BigDecimal.valueOf(20));
         user.setWeeklyAverageCalorieMaximum(1500);
         user = userRepository.save(user);
         profiles.captureChange(user, LocalDate.of(2026, 8, 1).atStartOfDay(DateTimes.USER_ZONE).toInstant());
@@ -199,9 +204,9 @@ class MealServicePersistenceTest {
         var owner = ratingOwner("profile-history");
         var unknownDate = LocalDate.of(2026, 7, 29);
         var unknown = mealService.create(owner, timedSnack(unknownDate, 400, 12));
-        assertEquals(5, unknown.getRating());
-        assertTrue(unknown.getRatingExplanation().contains("unknown target"));
-        assertTrue(unknown.getRatingExplanation().contains("cap unknown"));
+        assertNull(unknown.getRating());
+        assertEquals(2, unknown.getRatingVersion());
+        assertTrue(unknown.getRatingExplanation().contains("goal unavailable"));
 
         var zeroDate = LocalDate.of(2026, 8, 5);
         owner.setTypicalCaloriesWednesday(0);
@@ -215,11 +220,65 @@ class MealServicePersistenceTest {
         userRepository.save(owner);
 
         var zero = mealService.create(owner, timedSnack(zeroDate, 400, 12));
-        assertEquals(2, zero.getRating());
-        assertTrue(zero.getRatingExplanation().contains("400 / 0 kcal"));
-        assertTrue(zero.getRatingExplanation().contains("cap 0 kcal/day"));
+        assertNull(zero.getRating());
+        assertTrue(zero.getRatingExplanation().contains("Protein: skipped (10 g, goal unavailable"));
         var edited = mealService.update(owner, unknown.getId(), timedSnack(unknownDate, 400, 12));
         assertEquals(unknown.getRatingExplanation(), edited.getRatingExplanation());
+    }
+
+    @Test
+    void reratingTargetsOnlyLegacyAutomaticScoresUnderTheOwnerLockAndReplaysAsANoop() {
+        LocalDate date = LocalDate.of(2026, 8, 12);
+        var owner = ratingOwner("rerate");
+        var other = ratingOwner("rerate-other");
+        var automatic = mealService.create(owner, timedSnack(date, 200, 10));
+        var manual = mealService.create(owner, timedSnack(date, 100, 12));
+        var unrated = mealService.create(owner, timedSnack(date, 100, 14));
+        var otherMeal = mealService.create(other, timedSnack(date, 200, 10));
+        var legacy = "Base 5. Protein: legacy (+1). Fiber: unavailable (0). Day through meal: 200 / 2000 kcal (+2). Week from 2026-08-08: legacy (+1).";
+        for (var id : List.of(automatic.getId(), otherMeal.getId())) {
+            jdbc.update("update meals set rating=9, rating_version=null, rating_explanation=?, updated_at='2026-08-13 03:00:00' where id=?", legacy, id);
+        }
+        jdbc.update("update meals set rating=4, rating_version=null, rating_explanation=null where id=?", manual.getId());
+        jdbc.update("update meals set rating=null, rating_version=null, rating_explanation=null where id=?", unrated.getId());
+        var originalTimestamp = mealRepository.findById(automatic.getId()).orElseThrow().getUpdatedAt();
+        var alreadyVersioned = mealService.create(owner, timedSnack(date, 100, 17));
+        jdbc.update("update meals set rating=7, rating_explanation=? where id=?", legacy, alreadyVersioned.getId());
+        var preview = ratings.rerate(owner, false);
+        assertEquals(1, preview.eligible());
+        assertEquals(1, preview.changed());
+        org.junit.jupiter.api.Assertions.assertFalse(preview.applied());
+        assertEquals(legacy, mealRepository.findById(automatic.getId()).orElseThrow().getRatingExplanation());
+        var applied = ratings.rerate(owner, true);
+        assertEquals(1, applied.changed());
+        assertTrue(applied.applied());
+        var migrated = mealRepository.findById(automatic.getId()).orElseThrow();
+        assertEquals(automatic.getRatingExplanation(), migrated.getRatingExplanation());
+        assertEquals(originalTimestamp, migrated.getUpdatedAt());
+        assertEquals(2, migrated.getRatingVersion());
+        assertEquals(legacy, mealRepository.findById(alreadyVersioned.getId()).orElseThrow().getRatingExplanation());
+        assertEquals(0, ratings.rerate(owner, true).changed());
+        assertEquals(legacy, mealRepository.findById(otherMeal.getId()).orElseThrow().getRatingExplanation());
+        assertEquals(4, mealRepository.findById(manual.getId()).orElseThrow().getRating());
+        assertNull(mealRepository.findById(manual.getId()).orElseThrow().getRatingVersion());
+        assertNull(mealRepository.findById(unrated.getId()).orElseThrow().getRating());
+    }
+
+    @Test
+    void preferenceRevisionsOnlyApplyToTheirOwnerFromTheirEffectiveDate() {
+        var owner = ratingOwner("prefs");
+        var other = ratingOwner("prefs-other");
+        var today = LocalDate.now(DateTimes.USER_ZONE);
+        var defaults = com.jllado.weightcontrol.api.dto.MealRatingDtos.Preferences.defaults();
+        var custom = new com.jllado.weightcontrol.api.dto.MealRatingDtos.Preferences(java.util.Set.of(MealType.BREAKFAST), 55, 100, 75, 9);
+        assertEquals(defaults, ratingPreferences.forDate(owner, today));
+        ratingPreferences.update(owner, custom);
+        assertEquals(custom, ratingPreferences.forDate(owner, today));
+        assertEquals(defaults, ratingPreferences.forDate(owner, today.minusDays(1)));
+        assertEquals(defaults, ratingPreferences.forDate(other, today));
+        var none = new com.jllado.weightcontrol.api.dto.MealRatingDtos.Preferences(java.util.Set.of(), 60, 0, 0, 12);
+        ratingPreferences.update(owner, none);
+        assertEquals(none, ratingPreferences.forDate(owner, today));
     }
 
     @Test
@@ -239,16 +298,19 @@ class MealServicePersistenceTest {
             changedFood(complete, "epaDhaSource", null), changedFood(complete, "alaMilligrams", null),
             changedFood(complete, "fiberGrams", 4), changedFood(complete, "saltGrams", null),
             changedFood(complete, "reference.saltGrams", null), changedFood(complete, "saltSource", ""),
-            changedFood(complete, "saltEstimated", null), changedFood(complete, "saltGrams", 0.5))) {
+            changedFood(complete, "saltEstimated", null), changedFood(complete, "saltGrams", 0.5),
+            changedFood(complete, "saturatedFatGrams", null), changedFood(complete, "reference.saturatedFatGrams", null),
+            changedFood(complete, "saturatedFatSource", ""), changedFood(complete, "saturatedFatEstimated", null),
+            changedFood(complete, "saturatedFatGrams", 0.1))) {
             org.junit.jupiter.api.Assertions.assertThrows(BadRequestException.class,
-                () -> mealService.createConfirmed(owner, sourcedMeal(date, List.of(rejected), "draft", 3)));
+                () -> mealService.createConfirmed(owner, sourcedMeal(date, List.of(rejected), "draft", 4)));
         }
         assertEquals(0, mealRepository.findByUserOrderByMealDateDescIdAsc(user).size());
 
-        var saved = mealService.createConfirmed(user, sourcedMeal(date, List.of(complete), "saved", 3));
+        var saved = mealService.createConfirmed(user, sourcedMeal(date, List.of(complete), "saved", 4));
         var original = com.jllado.weightcontrol.api.dto.MealDtos.MealResponse.from(mealService.findForUser(user, saved.getId()));
         org.junit.jupiter.api.Assertions.assertThrows(BadRequestException.class,
-            () -> mealService.updateConfirmed(owner, saved.getId(), sourcedMeal(date, List.of(incomplete), "changed", 3)));
+            () -> mealService.updateConfirmed(owner, saved.getId(), sourcedMeal(date, List.of(incomplete), "changed", 4)));
         assertEquals(original, com.jllado.weightcontrol.api.dto.MealDtos.MealResponse.from(mealService.findForUser(user, saved.getId())));
     }
 
@@ -259,14 +321,14 @@ class MealServicePersistenceTest {
         user = userRepository.save(user);
         var date = LocalDate.now(DateTimes.USER_ZONE).minusDays(1);
         var food = coachFood("Oats", true);
-        var saved = mealService.createConfirmed(user, sourcedMeal(date, List.of(food), "before", 3));
+        var saved = mealService.createConfirmed(user, sourcedMeal(date, List.of(food), "before", 4));
 
         User owner = user;
         org.junit.jupiter.api.Assertions.assertThrows(BadRequestException.class,
             () -> mealService.updateConfirmed(owner, saved.getId(), sourcedMeal(date, List.of(food), "after", null)));
         assertEquals("before", mealService.findForUser(user, saved.getId()).getNotes());
 
-        mealService.updateConfirmed(user, saved.getId(), sourcedMeal(date, List.of(food), "after", 3));
+        mealService.updateConfirmed(user, saved.getId(), sourcedMeal(date, List.of(food), "after", 4));
         var readback = mealService.findForUser(user, saved.getId());
         assertEquals("after", readback.getNotes());
         assertEquals(new BigDecimal("1.00"), readback.getDishes().getFirst().getEpaDhaMilligrams());
@@ -286,11 +348,11 @@ class MealServicePersistenceTest {
         var original = mealService.create(user, new MealRequest(date, MealType.LUNCH, 200, BigDecimal.ZERO, BigDecimal.ZERO,
             BigDecimal.ZERO, LocalTime.NOON, "before", List.of(complete.meal(), legacy.meal()), 30, 2));
 
-        mealService.updateConfirmed(user, original.getId(), sourcedMeal(date, List.of(complete, legacy), "metadata only", 3));
+        mealService.updateConfirmed(user, original.getId(), sourcedMeal(date, List.of(complete, legacy), "metadata only", 4));
         assertEquals("metadata only", mealService.findForUser(user, original.getId()).getNotes());
         User owner = user;
         org.junit.jupiter.api.Assertions.assertThrows(BadRequestException.class,
-            () -> mealService.updateConfirmed(owner, original.getId(), sourcedMeal(date, List.of(legacy, complete), "reordered", 3)));
+            () -> mealService.updateConfirmed(owner, original.getId(), sourcedMeal(date, List.of(legacy, complete), "reordered", 4)));
         assertEquals("metadata only", mealService.findForUser(user, original.getId()).getNotes());
     }
 
@@ -303,7 +365,7 @@ class MealServicePersistenceTest {
         var reference = new com.jllado.weightcontrol.api.dto.MealDtos.DishReference(new BigDecimal("100"), 100,
             BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
             complete ? BigDecimal.ZERO : null, BigDecimal.ZERO, complete ? new BigDecimal("1.00") : null,
-            complete ? new BigDecimal("2.00") : null, new BigDecimal("3.00"), complete ? new BigDecimal("0.25") : null);
+            complete ? new BigDecimal("2.00") : null, new BigDecimal("3.00"), complete ? new BigDecimal("0.25") : null, complete ? BigDecimal.ZERO : null);
         return new CoachMealDishRequest(name, 100, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
             new BigDecimal("100"), com.jllado.weightcontrol.domain.DishUnit.GRAM, reference, false, false,
             BigDecimal.ZERO, complete ? BigDecimal.ZERO : null, BigDecimal.ZERO, "USDA comparable oats composition", true,
@@ -311,7 +373,8 @@ class MealServicePersistenceTest {
             complete ? true : null, complete ? new BigDecimal("2.00") : null,
             complete ? "USDA comparable oats ALA estimate" : null, complete ? true : null,
             new BigDecimal("3.00"), "USDA comparable oats Fiber estimate", true,
-            complete ? new BigDecimal("0.25") : null, complete ? "Comparable oats salt estimate" : null, complete ? true : null);
+            complete ? new BigDecimal("0.25") : null, complete ? "Comparable oats salt estimate" : null, complete ? true : null,
+            complete ? BigDecimal.ZERO : null, complete ? "Matching saturated fat evidence" : null, complete ? false : null);
     }
 
     private CoachMealDishRequest changedFood(CoachMealDishRequest food, String field, Object value) {
@@ -382,7 +445,7 @@ class MealServicePersistenceTest {
     private CoachMealRequest coachRequest(LocalDate date, Integer rating) {
         return new CoachMealRequest(date, MealType.LUNCH, 100, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
             LocalTime.of(12, 0), null, MealSource.GPT_IMAGE_ESTIMATE, true,
-            List.of(coachFood("Rated dish", true)), 30, rating, 3);
+            List.of(coachFood("Rated dish", true)), 30, rating, 4);
     }
 
     @Test

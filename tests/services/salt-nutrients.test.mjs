@@ -57,7 +57,7 @@ test('salt survives independent catalog, recipe and meal snapshots with source a
     assert.equal(portion.reference.saltGrams, 1.25);
     assert.equal(food.saltGrams, 1.25);
     assert.equal(foodPayload(portion).saltSource, 'Product label');
-    assert.equal(foodPayload(portion).nutrientSchemaVersion, 3);
+    assert.equal(foodPayload(portion).nutrientSchemaVersion, 4);
     const zero = normalizeDish({...food, saltGrams: 0});
     const unknown = normalizeDish({name: 'Unknown food', quantity: 1, calories: 0});
     assert.equal(unknown.saltGrams, null);

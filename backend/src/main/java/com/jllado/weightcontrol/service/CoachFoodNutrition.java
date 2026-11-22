@@ -26,36 +26,38 @@ final class CoachFoodNutrition {
                 || food.alaMilligrams() == null || reference.alaMilligrams() == null
                 || food.fiberGrams() == null || reference.fiberGrams() == null
                 || food.saltGrams() == null || reference.saltGrams() == null
+                || food.saturatedFatGrams() == null || reference.saturatedFatGrams() == null
                 || blank(food.nutrientSource()) || food.nutrientsEstimated() == null
                 || blank(food.epaDhaSource()) || food.epaDhaEstimated() == null
                 || blank(food.alaSource()) || food.alaEstimated() == null
                 || blank(food.fiberSource()) || food.fiberEstimated() == null
                 || blank(food.saltSource()) || food.saltEstimated() == null
+                || blank(food.saturatedFatSource()) || food.saturatedFatEstimated() == null
                 || !CoachDishReferenceConsistency.matches(food)) {
                 throw new BadRequestException("New or changed Coach foods require sourced values or labeled estimates and matching references for every nutrient");
             }
         }
     }
 
-    static boolean sameOrderedMealFoods(List<? extends FoodPortion> previous, List<CoachMealDishRequest> next) {
+    static boolean sameOrderedMealFoods(List<? extends FoodPortion> previous, List<CoachMealDishRequest> next, boolean legacyV3) {
         if (previous.size() != next.size()) return false;
         for (int index = 0; index < previous.size(); index++) {
             var food = next.get(index);
-            if (food.addToCatalog() || !sameSnapshot(previous.get(index), food.meal(), food.fruit())) return false;
+            if (food.addToCatalog() || !sameSnapshot(previous.get(index), food.meal(), food.fruit(), legacyV3)) return false;
         }
         return true;
     }
 
-    static boolean sameOrderedRecipeFoods(List<? extends FoodPortion> previous, List<MealDishRequest> next) {
+    static boolean sameOrderedFoods(List<? extends FoodPortion> previous, List<MealDishRequest> next, boolean legacyV3) {
         if (previous.size() != next.size()) return false;
         for (int index = 0; index < previous.size(); index++) {
             var food = next.get(index);
-            if (!sameSnapshot(previous.get(index), food, food.fruit())) return false;
+            if (!sameSnapshot(previous.get(index), food, food.fruit(), legacyV3)) return false;
         }
         return true;
     }
 
-    private static boolean sameSnapshot(FoodPortion old, MealDishRequest next, Boolean requestedFruit) {
+    private static boolean sameSnapshot(FoodPortion old, MealDishRequest next, Boolean requestedFruit, boolean legacyV3) {
         DishReference ref = next.reference();
         return ref != null && old.getName().equals(next.name())
             && (requestedFruit == null || old.isFruit() == requestedFruit)
@@ -92,7 +94,15 @@ final class CoachFoodNutrition {
             && same(old.getReferenceEpaDhaMilligrams(), ref.epaDhaMilligrams())
             && same(old.getReferenceAlaMilligrams(), ref.alaMilligrams())
             && same(old.getReferenceFiberGrams(), ref.fiberGrams())
-            && same(old.getReferenceSaltGrams(), ref.saltGrams());
+            && same(old.getReferenceSaltGrams(), ref.saltGrams())
+            && ((legacyV3 && omitsSaturatedFat(next))
+                || (same(old.getSaturatedFatGrams(), next.saturatedFatGrams()) && same(old.getReferenceSaturatedFatGrams(), ref.saturatedFatGrams())
+                    && Objects.equals(old.getSaturatedFatSource(), next.saturatedFatSource()) && Objects.equals(old.getSaturatedFatEstimated(), next.saturatedFatEstimated())));
+    }
+
+    static boolean omitsSaturatedFat(MealDishRequest food) {
+        return food.saturatedFatGrams() == null && food.saturatedFatSource() == null && food.saturatedFatEstimated() == null
+            && food.reference() != null && food.reference().saturatedFatGrams() == null;
     }
 
     private static boolean same(BigDecimal left, BigDecimal right) {

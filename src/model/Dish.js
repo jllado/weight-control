@@ -1,4 +1,5 @@
 /* global BigInt */
+export const nutrientSchemaVersion = 4;
 export const dishUnits = [
     {label: 'g', value: 'GRAM'}, {label: 'ml', value: 'MILLILITRE'},
     {label: 'serving', value: 'SERVING'}, {label: 'unit', value: 'UNIT'}
@@ -12,11 +13,12 @@ export const newNutrientFields = [
     {key: 'epaDhaMilligrams', label: 'Omega-3 (EPA+DHA)', unit: 'mg', sourceKey: 'epaDhaSource', estimatedKey: 'epaDhaEstimated', coverageKey: 'epaDhaCoverage'},
     {key: 'alaMilligrams', label: 'ALA', unit: 'mg', sourceKey: 'alaSource', estimatedKey: 'alaEstimated', coverageKey: 'alaCoverage'},
     {key: 'fiberGrams', label: 'Fiber', unit: 'g', sourceKey: 'fiberSource', estimatedKey: 'fiberEstimated', coverageKey: 'fiberCoverage'},
-    {key: 'saltGrams', label: 'Salt', unit: 'g', sourceKey: 'saltSource', estimatedKey: 'saltEstimated', coverageKey: 'saltCoverage'}
+    {key: 'saltGrams', label: 'Salt', unit: 'g', sourceKey: 'saltSource', estimatedKey: 'saltEstimated', coverageKey: 'saltCoverage'},
+    {key: 'saturatedFatGrams', label: 'Saturated fat', unit: 'g', sourceKey: 'saturatedFatSource', estimatedKey: 'saturatedFatEstimated', coverageKey: 'saturatedFatCoverage'}
 ];
 export const nutrientFields = [legacyNutrientFields[0], legacyNutrientFields[2], ...newNutrientFields];
 export const totalOmega3Field = {...legacyNutrientFields[1], label: 'Omega-3'};
-export const dailyNutrientFields = [legacyNutrientFields[0], legacyNutrientFields[2], totalOmega3Field, newNutrientFields[2], newNutrientFields[3]];
+export const dailyNutrientFields = [legacyNutrientFields[0], legacyNutrientFields[2], totalOmega3Field, ...newNutrientFields.slice(2)];
 export const requiredNutrientFields = [legacyNutrientFields[0], legacyNutrientFields[2]];
 export const trendNutrientFields = [legacyNutrientFields[0], totalOmega3Field, legacyNutrientFields[2], newNutrientFields[2], newNutrientFields[3]];
 export const storedNutrientFields = [...legacyNutrientFields, ...newNutrientFields];
@@ -58,10 +60,10 @@ export function macroSummary(dish) {
 }
 
 export function foodPayload(food) {
-    const payload = {nutrientSchemaVersion: 3, ...Object.fromEntries(['name', ...nutritionFields, 'quantity', 'unit', 'reference', 'fruit', 'nutrientSource', 'nutrientsEstimated',
+    const payload = {nutrientSchemaVersion, ...Object.fromEntries(['name', ...nutritionFields, 'quantity', 'unit', 'reference', 'fruit', 'nutrientSource', 'nutrientsEstimated',
         ...newNutrientFields.flatMap(field => [field.sourceKey, field.estimatedKey])].map(key => [key, food[key]]))};
     newNutrientFields.forEach(field => {
-        if (payload[field.key] == null) {
+        if (payload[field.key] == null && payload.reference?.[field.key] == null) {
             payload[field.sourceKey] = null;
             payload[field.estimatedKey] = null;
         }
@@ -99,9 +101,16 @@ export function nutrientSummary(meals) {
         const known = foods.filter(food => food[field.key] != null);
         return {foodsWithValues: known.length, estimatedFoods: known.filter(food => food[field.estimatedKey || 'nutrientsEstimated']).length};
     };
+    const totals = Object.fromEntries(storedNutrientFields.map(field => [field.key, foods.some(food => food[field.key] != null)
+        ? Math.round(foods.reduce((sum, food) => sum + (food[field.key] ?? 0), 0) * 100) / 100 : null]));
+    const unitemizedSaturatedFatEstimates = meals.filter(meal => meal.estimatedSaturatedFatGrams != null)
+        .map(meal => ({mealType: meal.mealType, mealSequence: meal.mealSequence, grams: meal.estimatedSaturatedFatGrams, source: meal.saturatedFatEstimateSource}));
+    if (unitemizedSaturatedFatEstimates.length) {
+        const estimatedGrams = unitemizedSaturatedFatEstimates.reduce((sum, estimate) => sum + estimate.grams, 0);
+        totals.saturatedFatGrams = Math.round(((totals.saturatedFatGrams ?? 0) + estimatedGrams) * 100) / 100;
+    }
     return {
-        ...Object.fromEntries(storedNutrientFields.map(field => [field.key, foods.some(food => food[field.key] != null)
-            ? Math.round(foods.reduce((sum, food) => sum + (food[field.key] ?? 0), 0) * 100) / 100 : null])),
+        ...totals, unitemizedSaturatedFatEstimates,
         vitaminDCoverage: coverage(legacyNutrientFields[0]),
         omega3Coverage: coverage(legacyNutrientFields[1]),
         magnesiumCoverage: coverage(legacyNutrientFields[2]),

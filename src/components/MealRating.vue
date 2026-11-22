@@ -1,10 +1,10 @@
 <template>
-  <RatingDetails v-if="meal.ratingExplanation" title="Meal rating" :label="`${meal.label()} rating details: ${meal.rating}/10`">
-    <template #score>{{ meal.rating }}/10</template>
-    <p><strong>{{ meal.label() }} · {{ meal.dateFormat }} · {{ meal.rating }}/10</strong></p>
-    <p>{{ meal.ratingExplanation }}</p>
+  <RatingDetails v-if="meal.ratingExplanation" title="Meal rating" :label="`${meal.label()} rating details: ${scoreLabel}`">
+    <template #score>{{ scoreLabel }}</template>
+    <p><strong>{{ meal.label() }} · {{ meal.dateFormat }} · {{ scoreLabel }}</strong></p>
+    <p v-for="(line, index) in meal.ratingExplanation.split('\n')" :key="index">{{ line }}</p>
   </RatingDetails>
-  <span v-else>{{ meal.rating === null ? emptyLabel : `${meal.rating}/10` }}</span>
+  <span v-else>{{ meal.rating === null ? emptyLabel : scoreLabel }}</span>
 </template>
 
 <script>
@@ -12,6 +12,9 @@ import RatingDetails from './RatingDetails.vue';
 
 export default {
   components: {RatingDetails},
-  props: {meal: {type: Object, required: true}, emptyLabel: {type: String, default: 'Not rated'}}
+  props: {meal: {type: Object, required: true}, emptyLabel: {type: String, default: 'Not rated'}},
+  computed: {
+    scoreLabel() { return this.meal.rating === null ? 'Not rated' : `${this.meal.rating}/10`; }
+  }
 };
 </script>

@@ -6,19 +6,25 @@
     <Dialog v-if="selectedField" :header="`${selectedField.label} details`" :visible="true" modal appendTo="body" :style="{width: 'min(24rem, 95vw)'}" @update:visible="closeDetails">
       <p v-if="definition(selectedField)">{{ definition(selectedField) }}</p>
       <p>{{ summary[selectedField.key] == null ? 'No value recorded.' : `${partial(selectedField) ? 'Partial total' : 'Total'}: ${format(summary[selectedField.key])} ${selectedField.unit}` }}</p>
-      <p>{{ summary[selectedField.coverageKey].foodsWithValues }} of {{ summary.totalFoods }} foods have a value.</p>
+      <p>{{ summary[selectedField.coverageKey]?.foodsWithValues ?? 0 }} of {{ summary.totalFoods }} foods have a value.</p>
       <p v-if="targetStatus(selectedField)">{{ targetStatus(selectedField).label }}</p>
       <dl v-if="daily && selectedField.key === 'omega3Milligrams' && targets" class="omega-references">
         <div v-for="reference in omegaReferences" :key="reference.key"><dt>{{ reference.label }}</dt><dd>{{ reference.value == null ? 'Not recorded' : `${format(reference.value)} mg` }} · {{ reference.target == null ? 'No target' : `minimum ${format(reference.target)} mg/day` }}</dd></div>
       </dl>
       <p v-if="daily && selectedField.key === 'omega3Milligrams' && targets?.omega3?.value != null">Historical total target: {{ format(targets.omega3.value) }} mg/day; separate from the overall assessment.</p>
-      <p v-if="summary[selectedField.coverageKey].estimatedFoods">Includes estimates.</p>
+      <p v-if="summary[selectedField.coverageKey]?.estimatedFoods || mealEstimates(selectedField).length">Includes estimates.</p>
+      <ul v-if="mealEstimates(selectedField).length">
+        <li v-for="estimate in mealEstimates(selectedField)" :key="`${estimate.mealType}-${estimate.mealSequence}`">
+          {{ mealLabel(estimate.mealType, estimate.mealSequence) }} · {{ format(estimate.grams) }} g estimated for the whole meal. {{ estimate.source }}
+        </li>
+      </ul>
       <p v-if="summary.mealsWithoutFoods">{{ summary.mealsWithoutFoods }} meal(s) have no foods recorded.</p>
     </Dialog>
   </section>
 </template>
 <script>
 import dayjs from 'dayjs';
+import {formatMealType} from '../model/Meal';
 import nutritionService from '../services/NutritionService';
 import {dailyNutrientStatus} from '../model/NutrientTrends';
 import {nutrientFields, totalOmega3Field, dailyNutrientFields, formatNutritionValue} from '../model/Dish';
@@ -52,7 +58,12 @@ export default {
       this.selectedField = null;
       this.$nextTick(() => this.detailTrigger.focus());
     },
-    partial(field) { return this.summary.mealsWithoutFoods > 0 || this.summary[field.coverageKey].foodsWithValues < this.summary.totalFoods; },
+    mealLabel: formatMealType,
+    mealEstimates(field) { return field.key === 'saturatedFatGrams' ? this.summary.unitemizedSaturatedFatEstimates ?? [] : []; },
+    partial(field) {
+      return this.summary.mealsWithoutFoods > this.mealEstimates(field).length
+        || (this.summary[field.coverageKey]?.foodsWithValues ?? 0) < this.summary.totalFoods;
+    },
     definition(field) {
       if (field.key === 'omega3Milligrams') return 'Stored total omega-3 from recorded foods. This is separate from EPA+DHA and ALA.';
       if (field.key === 'epaDhaMilligrams') return 'EPA and DHA are omega-3 fats commonly found in fish and seafood. This is separate from ALA and historical total omega-3.';
@@ -79,7 +90,7 @@ dd { margin: .25rem 0 0; }
 .compact dl { margin: .25rem 0; gap: .25rem .75rem; }
 .compact dl > div { display: flex; gap: .25rem; min-width: 0; }
 .compact dd { margin: 0; }
-.daily dl { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .75rem; }
+.daily dl { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .75rem; }
 .daily dl > div { min-width: 0; }
 .daily dt { overflow-wrap: anywhere; }
 @container (max-width: 64rem) {

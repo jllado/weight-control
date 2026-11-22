@@ -54,6 +54,12 @@ public class Meal {
     @Column(name = "fat_grams", precision = 10, scale = 2)
     private BigDecimal fatGrams;
 
+    @Column(name = "estimated_saturated_fat_grams", precision = 10, scale = 2)
+    private BigDecimal estimatedSaturatedFatGrams;
+
+    @Column(name = "saturated_fat_estimate_source", length = 500)
+    private String saturatedFatEstimateSource;
+
     @OneToMany(mappedBy = "meal", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @OrderBy("position asc")
     @org.hibernate.annotations.BatchSize(size = 50)
@@ -64,6 +70,9 @@ public class Meal {
 
     @Column
     private Integer rating;
+
+    @Column(name = "rating_version")
+    private Integer ratingVersion;
 
     @Column(name = "rating_explanation", columnDefinition = "text")
     private String ratingExplanation;

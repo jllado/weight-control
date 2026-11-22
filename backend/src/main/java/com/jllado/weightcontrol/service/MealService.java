@@ -64,11 +64,10 @@ public class MealService {
     }
 
     public Meal create(User user, MealRequest request) {
-        return create(user, request, MealSource.MANUAL);
+        return create(lockMutations(user), request, MealSource.MANUAL);
     }
 
     private Meal create(User user, MealRequest request, MealSource source) {
-        User owner = lockMutations(user);
         validateDate(request.date());
         Meal meal = new Meal();
         meal.setUser(user);
@@ -76,7 +75,7 @@ public class MealService {
         applyIdentity(meal, user, request.date(), request.mealType());
         apply(meal, request);
         Meal saved = CoachActionTiming.time("mealSave", "mealPersistence", () -> repository.save(meal));
-        ratingService.apply(owner, List.of(meal));
+        ratingService.apply(user, List.of(meal));
         CoachActionTiming.time("mealSave", "fastingRecalculation", () -> {
             fastingPeriodService.recalculateAutomaticPeriods(user);
             return null;
@@ -92,9 +91,13 @@ public class MealService {
         if (!meal.getMealDate().equals(request.date()) || meal.getMealType() != request.mealType()) {
             applyIdentity(meal, user, request.date(), request.mealType());
         }
-        meal.getDishes().clear();
-        repository.flush();
-        apply(meal, request);
+        if (!request.dishes().isEmpty() && CoachFoodNutrition.sameOrderedFoods(meal.getDishes(), request.dishes(), false)) {
+            applyMetadata(meal, request);
+        } else {
+            meal.getDishes().clear();
+            repository.flush();
+            apply(meal, request);
+        }
         Meal saved = repository.save(meal);
         ratingService.apply(owner, List.of(meal));
         fastingPeriodService.recalculateAutomaticPeriods(user);
@@ -108,8 +111,10 @@ public class MealService {
 
     public Meal createConfirmed(User user, CoachMealRequest request) {
         requireConfirmation(request.confirmed());
-        CoachFoodNutrition.requireComplete(request.dishes().stream().map(com.jllado.weightcontrol.api.dto.MealDtos.CoachMealDishRequest::meal).toList());
-        Meal meal = create(user, request.meal(), request.source());
+        var owner = lockMutations(user);
+        var draft = request.meal();
+        var foods = LegacyCoachSaturatedFat.complete(owner, draft.nutrientSchemaVersion(), draft.dishes(), catalogFoodService);
+        Meal meal = create(owner, draft.withDishes(foods), request.source());
         CoachActionTiming.time("mealSave", "foodCatalogRegistration", () -> {
             registerCoachFoods(user, meal, request);
             return null;
@@ -122,18 +127,29 @@ public class MealService {
         requireConfirmation(request.confirmed());
         validateDate(request.date());
         Meal meal = requireOwned(user, id);
-        FoodSnapshotCompatibility.requireAwareReplacement(request.nutrientSchemaVersion(), meal.getDishes());
-        if (!CoachFoodNutrition.sameOrderedMealFoods(meal.getDishes(), request.dishes())) {
-            CoachFoodNutrition.requireComplete(request.dishes().stream().map(com.jllado.weightcontrol.api.dto.MealDtos.CoachMealDishRequest::meal).toList());
-        }
-        var previousDishes = List.copyOf(meal.getDishes());
-        var matchedPreviousDishes = new boolean[previousDishes.size()];
+        boolean legacyV3 = Integer.valueOf(3).equals(request.nutrientSchemaVersion());
+        boolean unchanged = !request.dishes().isEmpty() && CoachFoodNutrition.sameOrderedMealFoods(meal.getDishes(), request.dishes(), legacyV3);
+        if (!(legacyV3 && unchanged)) FoodSnapshotCompatibility.requireAwareReplacement(request.nutrientSchemaVersion(), meal.getDishes());
+        var mealRequest = request.meal();
         if (!meal.getMealDate().equals(request.date()) || meal.getMealType() != request.mealType()) {
             applyIdentity(meal, user, request.date(), request.mealType());
         }
-        meal.getDishes().clear();
-        repository.flush();
-        MealRequest mealRequest = request.meal();
+        if (unchanged) {
+            applyMetadata(meal, mealRequest);
+        } else {
+            replaceCoachFoods(meal, request, mealRequest);
+        }
+        meal.setSource(request.source());
+        Meal saved = repository.save(meal);
+        ratingService.apply(owner, List.of(meal));
+        registerCoachFoods(user, meal, request);
+        fastingPeriodService.recalculateAutomaticPeriods(user);
+        return saved;
+    }
+
+    private void replaceCoachFoods(Meal meal, CoachMealRequest request, MealRequest mealRequest) {
+        var previousDishes = List.copyOf(meal.getDishes());
+        var matchedPreviousDishes = new boolean[previousDishes.size()];
         var dishes = java.util.stream.IntStream.range(0, request.dishes().size()).mapToObj(index -> {
             var dish = request.dishes().get(index);
             boolean fruit = Boolean.TRUE.equals(dish.fruit());
@@ -157,17 +173,13 @@ public class MealService {
             fruit, dish.vitaminDMicrograms(), dish.omega3Milligrams(), dish.magnesiumMilligrams(), dish.nutrientSource(), dish.nutrientsEstimated(),
             dish.epaDhaMilligrams(), dish.epaDhaSource(), dish.epaDhaEstimated(),
             dish.alaMilligrams(), dish.alaSource(), dish.alaEstimated(),
-            dish.fiberGrams(), dish.fiberSource(), dish.fiberEstimated(), request.nutrientSchemaVersion(), dish.saltGrams(), dish.saltSource(), dish.saltEstimated()
+            dish.fiberGrams(), dish.fiberSource(), dish.fiberEstimated(), request.nutrientSchemaVersion(), dish.saltGrams(), dish.saltSource(), dish.saltEstimated(), dish.saturatedFatGrams(), dish.saturatedFatSource(), dish.saturatedFatEstimated()
             );
         }).toList();
-        mealRequest = new MealRequest(mealRequest.date(), mealRequest.mealType(), mealRequest.calories(), mealRequest.proteinGrams(), mealRequest.carbohydrateGrams(), mealRequest.fatGrams(), mealRequest.mealTime(), mealRequest.notes(), dishes, mealRequest.durationMinutes(), request.nutrientSchemaVersion());
-        apply(meal, mealRequest);
-        meal.setSource(request.source());
-        Meal saved = repository.save(meal);
-        ratingService.apply(owner, List.of(meal));
-        registerCoachFoods(user, meal, request);
-        fastingPeriodService.recalculateAutomaticPeriods(user);
-        return saved;
+        var foods = LegacyCoachSaturatedFat.complete(meal.getUser(), request.nutrientSchemaVersion(), dishes, catalogFoodService);
+        meal.getDishes().clear();
+        repository.flush();
+        apply(meal, mealRequest.withDishes(foods));
     }
 
     private User lockMutations(User user) {
@@ -197,6 +209,8 @@ public class MealService {
             meal.setProteinGrams(snapshot.proteinGrams());
             meal.setCarbohydrateGrams(snapshot.carbohydrateGrams());
             meal.setFatGrams(snapshot.fatGrams());
+            meal.setEstimatedSaturatedFatGrams(snapshot.estimatedSaturatedFatGrams());
+            meal.setSaturatedFatEstimateSource(snapshot.saturatedFatEstimateSource());
             meal.setMealTime(snapshot.mealTime());
             meal.setDurationMinutes(snapshot.durationMinutes());
             meal.setNotes(snapshot.notes());
@@ -215,6 +229,8 @@ public class MealService {
     }
 
     private void applySnapshot(MealDish dish, DishSnapshotRequest snapshot) {
+        DishNutrition.requireValidSaturatedFat(snapshot.saturatedFatGrams(), snapshot.fatGrams());
+        DishNutrition.requireValidSaturatedFat(snapshot.reference().saturatedFatGrams(), snapshot.reference().fatGrams());
         dish.setName(snapshot.name());
         dish.setFruit(snapshot.fruit());
         dish.setQuantity(snapshot.quantity());
@@ -238,8 +254,11 @@ public class MealService {
         dish.setFiberSource(snapshot.fiberSource());
         dish.setFiberEstimated(snapshot.fiberEstimated());
         dish.setSaltGrams(snapshot.saltGrams());
+        dish.setSaturatedFatGrams(snapshot.saturatedFatGrams());
         dish.setSaltSource(snapshot.saltSource());
+        dish.setSaturatedFatSource(snapshot.saturatedFatSource());
         dish.setSaltEstimated(snapshot.saltEstimated());
+        dish.setSaturatedFatEstimated(snapshot.saturatedFatEstimated());
         dish.setReferenceQuantity(snapshot.reference().quantity());
         dish.setReferenceCalories(snapshot.reference().calories());
         dish.setReferenceProteinGrams(snapshot.reference().proteinGrams());
@@ -252,6 +271,7 @@ public class MealService {
         dish.setReferenceAlaMilligrams(snapshot.reference().alaMilligrams());
         dish.setReferenceFiberGrams(snapshot.reference().fiberGrams());
         dish.setReferenceSaltGrams(snapshot.reference().saltGrams());
+        dish.setReferenceSaturatedFatGrams(snapshot.reference().saturatedFatGrams());
     }
 
     private void registerCoachFoods(User user, Meal meal, CoachMealRequest request) {
@@ -308,6 +328,21 @@ public class MealService {
     }
 
     private void apply(Meal meal, MealRequest request) {
+        if (meal.getEstimatedSaturatedFatGrams() != null && (!request.dishes().isEmpty()
+            || !java.util.Objects.equals(meal.getNotes(), request.notes()) || !meal.getCalories().equals(request.calories())
+            || !sameGrams(meal.getProteinGrams(), request.proteinGrams())
+            || !sameGrams(meal.getCarbohydrateGrams(), request.carbohydrateGrams())
+            || !sameGrams(meal.getFatGrams(), request.fatGrams()))) {
+            if (!Integer.valueOf(4).equals(request.nutrientSchemaVersion())) {
+                throw new BadRequestException("Reload this record before replacing its saturated fat estimate");
+            }
+            meal.setEstimatedSaturatedFatGrams(null);
+            meal.setSaturatedFatEstimateSource(null);
+        }
+        if (request.estimatedSaturatedFatGrams() != null) {
+            meal.setEstimatedSaturatedFatGrams(request.estimatedSaturatedFatGrams());
+            meal.setSaturatedFatEstimateSource(request.saturatedFatEstimateSource());
+        }
         if (request.dishes().isEmpty()) {
             meal.setCalories(request.calories());
             meal.setProteinGrams(request.proteinGrams());
@@ -333,9 +368,17 @@ public class MealService {
         if (request.dishes().isEmpty()) {
             meal.getDishes().clear();
         }
+        applyMetadata(meal, request);
+    }
+
+    private void applyMetadata(Meal meal, MealRequest request) {
         meal.setMealTime(request.mealTime());
         meal.setDurationMinutes(request.durationMinutes());
         meal.setNotes(request.notes());
+    }
+
+    private boolean sameGrams(BigDecimal saved, BigDecimal next) {
+        return saved == null ? next == null : next != null && saved.compareTo(next) == 0;
     }
 
     private int sumCalories(List<MealDish> dishes) {

@@ -1,24 +1,25 @@
 # Meal ratings
 
-Saving a meal in the app or through Coach stores its integer score and explanation in one transaction. Editing a meal replaces both. A copied meal gets a new calculation for the destination date. A change to a different meal, planning setting or profile leaves existing scores and explanations intact. Earlier rated and unrated meals keep their original values until edited.
+Saving or editing a meal in the app or Coach stores its score and explanation together. A copy is assessed for its destination date. Read the saved explanation for the inputs, estimates, skipped criteria and one suggested improvement. Later meals, new sleep records and preference changes do not revise an existing score.
 
-## Calculation
+## Food and portion criteria
 
-Start at **5**, add the four adjustments below and limit the result to **1–10**.
+| Criterion | Possible points | Calculation |
+| --- | ---: | --- |
+| Non-starchy vegetables | 2 | Give proportional credit up to half of estimated edible plate volume. |
+| Protein foods and starches | ½ each | Give proportional credit up to one quarter of the plate for each group. |
+| Protein and fiber | 1 each | Compare the recorded grams with the dated daily goal multiplied by the meal’s share of that day’s calorie target. Credit rises proportionally to the goal. |
+| Salt and saturated fat | 1 each | At or below the meal allowance, give full credit. Taper to zero at twice the allowance. Scale the salt limit to the meal’s calorie share. The saturated-fat allowance in grams is meal kcal × configured energy percentage ÷ 900. |
+| Main-meal size | 1 | Give full credit through the configured upper share of the dated calorie target, then taper to zero at the entire daily target. |
 
-| Evidence | Positive | Neutral | Negative |
-| --- | --- | --- | --- |
-| Protein in this meal | +1 at or above the reference density | At least half and below the reference, or unknown | −1 below half the reference |
-| Fiber in this meal | +1 at or above the reference density | At least half and below the reference, or insufficient coverage | −1 below half the reference with complete coverage |
-| Recorded calories on this date through this meal | +2 at or below the effective dated target | Above target through 110% | −2 above 110% |
-| Average daily calories recorded from the planning-week start through this meal | +1 at or below the weekly average maximum | Above the maximum through 110% | −1 above 110% |
+Settings → Meal preferences controls main meals (initially lunch and dinner), the upper calorie share (65%), timing, and saturated fat (10% of energy). Plate and size criteria apply to configured main meals. Estimate volume using the logged quantities and identified foods, including itemized recipe ingredients. A plate with identifiable foods and no vegetables earns zero vegetable credit. Skip uncertain plate shares and nutrients without sufficient evidence.
 
-Each composition reference uses the personal daily gram goal divided by the effective calories for this date. If a goal is absent or the calorie target is unknown or zero, use the scoring convention of 5 g of protein or 1.4 g of fiber per 100 kcal. Compare exact densities before rounding. Zero meal calories make both density adjustments neutral. For partially recorded fiber, the known subtotal can establish the positive threshold. An incomplete amount below it is neutral.
+Divide the points earned by the points available for that meal and multiply by ten. After the timing adjustment, round once to an integer from 1 to 10. With no assessable food or portion criterion, save an explanation and leave the rating empty.
 
-The dated calorie plan takes precedence over the weekday profile default, including a saved zero. The local planning-week history determines its start for the meal date. Personal gram goals, weekday defaults and the weekly average maximum use the latest profile settings known effective by the meal date. Profile and nutrient-settings saves record a dated revision. At upgrade, each existing account's initial snapshot starts on the Madrid date of its persisted profile's last update. For new accounts, the initial settings apply from account creation. When older profile evidence is unavailable, a saved calorie plan can still supply the dated target. An unknown daily target or weekly cap contributes zero points. The explanation records the targets and reference densities used.
+## Timing
 
-Both calorie comparisons include this meal once. Include all earlier dates in the same planning week and only the same-date meals through the rated meal. Order known meal times from earliest to latest, followed by untimed meals. Break ties, including between untimed meals, by database insertion order. A copied day is scored with the whole batch available. The weekly denominator counts recorded dates, including the partial meal date and recorded zero-calorie dates. Dates with no entries are unknown.
+Use the previous recorded eating occasion’s end and this meal’s start. The initial minimum gap is 90 minutes. Dinner and evening snacks also use the interval from finish to usual bedtime, initially at least 60 minutes. Usual bedtime is the median local bedtime from the preceding seven nights with records, treating times across midnight as adjacent. A snack counts as evening after dinner or from four hours before usual bedtime through that evening. Meeting a threshold exactly meets the goal. Deduct one point if either or both goals were missed. When evidence is missing, explain the gap.
 
-For example, a 500 kcal meal with 25 g protein and 7 g fiber meets both standard density references. If it takes the day to 2,100 kcal against a 2,000 kcal target and the recorded weekly average is within the maximum, its score is 8 (5 + 1 + 1 + 0 + 1).
+## Saved scores
 
-Coach reads the saved score and explanation through the existing meal reads. The rules operation returns the same thresholds. Legacy rating-only requests return the stored result, subject to their existing validation, confirmation and ownership requirements.
+The release migrates earlier backend-generated scores once after saturated-fat enrichment. It keeps original Coach and manual ratings and leaves previously unrated meals unrated. The authenticated owner can preview the migration with POST /api/meals/rerate?apply=false. Applying it with apply=true selects the same legacy automatic scores under an owner lock. A second application has no eligible scores. The Coach rules Action describes the current calculation.

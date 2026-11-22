@@ -3,6 +3,8 @@ package com.jllado.weightcontrol.api.dto;
 import com.jllado.weightcontrol.service.NutritionService.DailyNutritionSummary;
 import com.jllado.weightcontrol.util.DateTimes;
 import com.jllado.weightcontrol.domain.MacroTargetComparison;
+import com.jllado.weightcontrol.domain.MealType;
+import java.util.List;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import jakarta.validation.constraints.DecimalMin;
@@ -14,6 +16,9 @@ public final class NutritionDtos {
 
     public record NutrientCoverage(int foodsWithValues, int estimatedFoods) { }
 
+    public record UnitemizedSaturatedFatEstimate(MealType mealType, Integer mealSequence,
+        BigDecimal grams, String source) { }
+
     // Legacy shared counts cover foods with all three original nutrients; each total uses its own known values.
     public record NutrientSummary(BigDecimal vitaminDMicrograms, BigDecimal omega3Milligrams, BigDecimal magnesiumMilligrams,
         int foodsWithValues, int totalFoods, int estimatedFoods, int mealsWithoutFoods,
@@ -21,9 +26,11 @@ public final class NutritionDtos {
         NutrientCoverage magnesiumCoverage, NutrientCoverage epaDhaCoverage,
         BigDecimal alaMilligrams, NutrientCoverage alaCoverage,
         BigDecimal fiberGrams, NutrientCoverage fiberCoverage,
-        BigDecimal saltGrams, NutrientCoverage saltCoverage) {
+        BigDecimal saltGrams, NutrientCoverage saltCoverage,
+        BigDecimal saturatedFatGrams, NutrientCoverage saturatedFatCoverage,
+        List<UnitemizedSaturatedFatEstimate> unitemizedSaturatedFatEstimates) {
         public NutrientSummary(BigDecimal vitaminDMicrograms, BigDecimal omega3Milligrams, BigDecimal magnesiumMilligrams, int foodsWithValues, int totalFoods, int estimatedFoods, int mealsWithoutFoods, BigDecimal epaDhaMilligrams, NutrientCoverage vitaminDCoverage, NutrientCoverage omega3Coverage, NutrientCoverage magnesiumCoverage, NutrientCoverage epaDhaCoverage, BigDecimal alaMilligrams, NutrientCoverage alaCoverage, BigDecimal fiberGrams, NutrientCoverage fiberCoverage) {
-            this(vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, foodsWithValues, totalFoods, estimatedFoods, mealsWithoutFoods, epaDhaMilligrams, vitaminDCoverage, omega3Coverage, magnesiumCoverage, epaDhaCoverage, alaMilligrams, alaCoverage, fiberGrams, fiberCoverage, null, new NutrientCoverage(0, 0));
+            this(vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, foodsWithValues, totalFoods, estimatedFoods, mealsWithoutFoods, epaDhaMilligrams, vitaminDCoverage, omega3Coverage, magnesiumCoverage, epaDhaCoverage, alaMilligrams, alaCoverage, fiberGrams, fiberCoverage, null, new NutrientCoverage(0, 0), null, new NutrientCoverage(0, 0), List.of());
         }
 
         public NutrientSummary(BigDecimal vitaminDMicrograms, BigDecimal omega3Milligrams, BigDecimal magnesiumMilligrams,
