@@ -333,3 +333,60 @@ test('backend validation and conflict messages are actionable and omit server in
         upstream.mock.restore();
     }
 });
+
+for (const target of ['DAILY', 'WEEKLY']) {
+    test(target + ' reflection context returns its exact write shape and field limits next to unchanged read data', async t => {
+        const data = { selectedDate: date, syntheticObservation: 'Context read' };
+        t.mock.method(globalThis, 'fetch', () => Response.json(data));
+        const result = await tool('getReflectionContext', { target, date });
+        assert.equal(result.isError, false);
+        assert.equal(result.content.length, 2);
+        assert.deepEqual(JSON.parse(result.content[0].text), data);
+        assert.equal(result.content[1].type, 'text');
+        const schema = JSON.parse(result.content[1].text);
+        const resolve = field => {
+            if (!field.$ref) return field;
+            const [, section, name] = field.$ref.split('/');
+            assert.equal(section, '$defs');
+            assert.ok(schema.$defs[name], name);
+            return schema.$defs[name];
+        };
+        const props = schema.properties;
+        const fields = input => Object.keys(input).sort();
+        const unique = input => [...new Set(input)].sort();
+        const expected = target === 'DAILY' ? daily : weekly;
+        assert.deepEqual(unique(schema.required), unique(['date', 'target', ...fields(expected)]));
+        for (const name of schema.required) assert.ok(props[name], name);
+        assert.equal(props.confirmed.const, true);
+        assert.equal(props.target.const, target);
+        assert.equal(props.title.maxLength, 80);
+        assert.equal(props.summary.maxLength, target === 'DAILY' ? 200 : 500);
+        const warningReview = resolve(props.warningReview);
+        assert.deepEqual(unique(warningReview.required), ['newWarnings', 'reviewedDate', 'reviews']);
+        if (target === 'DAILY') {
+            for (const key of ['positiveSignals', 'watchouts', 'nextActions']) {
+                const listSchema = resolve(props[key]);
+                assert.equal(listSchema.minItems, 1, key);
+                assert.equal(listSchema.maxItems, 1, key);
+                assert.equal(resolve(listSchema.items).maxLength, key === 'nextActions' ? 200 : 120, key);
+            }
+            assert.equal(props.nextWeekActions, undefined);
+            assert.equal(props.bodyComposition, undefined);
+        } else {
+            const actions = resolve(props.nextWeekActions);
+            assert.equal(actions.minItems, 1);
+            assert.equal(actions.maxItems, 5);
+            assert.equal(resolve(actions.items).maxLength, 120);
+            assert.equal(props.positiveSignals, undefined);
+            assert.equal(props.meals, undefined);
+        }
+        const sections = target === 'DAILY' ? ['meals', 'workouts'] :
+            ['bodyComposition', 'bloodPressure', 'routines', 'nutrition', 'trainingRecovery', 'goalProgress'];
+        for (const name of sections) {
+            const section = resolve(props[name]);
+            assert.deepEqual(unique(section.required), ['nextAction', 'summary']);
+            assert.equal(section.properties.summary.maxLength, target === 'DAILY' ? 200 : 400);
+            assert.equal(section.properties.nextAction.maxLength, target === 'DAILY' ? 120 : 200);
+        }
+    });
+}

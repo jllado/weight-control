@@ -81,7 +81,7 @@ async function callTool(baseUrl, operation, args, token, validate) {
     }
 }
 
-function createWorker({ baseUrl, operations, instructions }, validators) {
+function createWorker({ baseUrl, operations, instructions, reflectionSchemas }, validators) {
     const tools = operations.map(operation => operation.tool);
     const byName = new Map(operations.map(operation => [operation.tool.name, operation]));
     return {
@@ -119,7 +119,13 @@ function createWorker({ baseUrl, operations, instructions }, validators) {
             }
             const operation = byName.get(params?.name);
             if (!operation) return rpcError(id, -32602, 'Unknown tool.');
-            return reply(id, await callTool(baseUrl, operation, params.arguments ?? {}, env.CHATGPT_ACTION_TOKEN, validators[operation.tool.name]));
+            const args = params.arguments ?? {};
+            const result = await callTool(baseUrl, operation, args, env.CHATGPT_ACTION_TOKEN, validators[operation.tool.name]);
+            if (operation.tool.name === 'getReflectionContext' && !result.isError) {
+                const target = args.target ?? operation.tool.inputSchema.properties.target.default;
+                result.content.push({ type: 'text', text: JSON.stringify(reflectionSchemas[target]) });
+            }
+            return reply(id, result);
         }
     };
 }

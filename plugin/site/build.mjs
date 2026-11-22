@@ -17,19 +17,25 @@ const pluginDescriptions = {
     saveReflection: 'Save the exact confirmed DAILY or WEEKLY proposal with its current warningReview. DAILY summary ≤200, rationale ≤500, findings ≤120, next action ≤200. Correct validation errors and confirm material changes before retrying.'
 };
 
-function toolSchema(source) {
-    if (source.$ref) return toolSchema(contract.components.schemas[source.$ref.split('/').at(-1)]);
+function toolSchema(source, definitions) {
+    if (source.$ref) {
+        const name = source.$ref.split('/').at(-1);
+        const referenced = contract.components.schemas[name];
+        if (!definitions) return toolSchema(referenced);
+        if (!Object.hasOwn(definitions, name)) definitions[name] = toolSchema(referenced, definitions);
+        return { $ref: '#/$defs/' + name };
+    }
     const { nullable, ...schema } = source;
     if (nullable) {
         schema.type = [...new Set([].concat(schema.type, 'null'))];
         if (schema.enum) schema.enum = [...new Set([...schema.enum, null])];
     }
     if (schema.properties) {
-        schema.properties = Object.fromEntries(Object.entries(schema.properties).map(([name, field]) => [name, toolSchema(field)]));
+        schema.properties = Object.fromEntries(Object.entries(schema.properties).map(([name, field]) => [name, toolSchema(field, definitions)]));
     }
-    if (schema.items) schema.items = toolSchema(schema.items);
+    if (schema.items) schema.items = toolSchema(schema.items, definitions);
     for (const clause of ['anyOf', 'oneOf', 'allOf']) {
-        if (schema[clause]) schema[clause] = schema[clause].map(toolSchema);
+        if (schema[clause]) schema[clause] = schema[clause].map(part => toolSchema(part, definitions));
     }
     if (schema.format === 'int64') {
         delete schema.format;
@@ -78,8 +84,27 @@ function operationConfig(path, method, operation) {
 
 const operations = Object.entries(contract.paths).flatMap(([path, methods]) =>
     Object.entries(methods).map(([method, operation]) => operationConfig(path, method, operation)));
+// Chat may expose a union-typed tool as a generic object. Supply its exact selected
+// branch alongside the context, with shared warning definitions included once.
+function reflectionSchemas() {
+    const save = operations.find(operation => operation.tool.name === 'saveReflection');
+    const body = contract.paths[save.path].post.requestBody.content['application/json'].schema;
+    const { date, confirmed } = save.tool.inputSchema.properties;
+    return Object.fromEntries(body.oneOf.map(branch => {
+        const name = branch.$ref.split('/').at(-1);
+        const target = { SaveReflection: 'DAILY', SaveWeeklyReflection: 'WEEKLY' }[name];
+        if (!target) throw new Error('Unmapped saveReflection branch: ' + name);
+        const definitions = {};
+        const schema = toolSchema(contract.components.schemas[name], definitions);
+        schema.title = 'saveReflection ' + target + ' tool arguments';
+        schema.properties = { date, target: { type: 'string', const: target }, ...schema.properties, confirmed };
+        schema.required = [...new Set(['date', 'target', 'confirmed', ...schema.required])];
+        schema.$defs = definitions;
+        return [target, schema];
+    }));
+}
 const instructions = readFileSync(values.skill, 'utf8').replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, '').trim();
-const config = { baseUrl: contract.servers[0].url, operations, instructions };
+const config = { baseUrl: contract.servers[0].url, operations, instructions, reflectionSchemas: reflectionSchemas() };
 const validators = operations.map(({ tool }) => {
     const validate = schemasafe.validator(tool.inputSchema, { mode: 'spec', formatAssertion: true, includeErrors: true, isJSON: true });
     return JSON.stringify(tool.name) + ': ' + validate.toModule({ semi: false });

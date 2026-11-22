@@ -38,3 +38,15 @@ zip /tmp/weight-control-coach-plugin.zip .app.json .codex-plugin/plugin.json ski
 3. Exercise a synthetic multi-food meal through calculation, proposal, confirmation, write and readback. Compare the meal and nutrient values with the approved proposal. Cancel a second proposal and verify that no record appears. Keep synthetic writes in an isolated fixture.
 4. Exercise workout edits, scale and sleep screenshots, selected-photo transfer and both reflection workflows. Verify whole-plan replacement and the required renewed consent for a materially changed proposal. The [Coach acceptance scenarios](../docs/coach/coach-gpt.md#cutover-and-acceptance) describe the expected behavior.
 5. Verify the installed plugin and an owner-authorized production read in a fresh chat. Record live outcomes separately from synthetic tests. After these checks pass, record the previous `VITE_CHATGPT_COACH_URL` and set it to the verified plugin landing page before building the frontend. Test **Open Coach → Try in chat** at phone and desktop widths. To roll back the launcher, restore the recorded private GPT URL and rebuild and deploy the frontend.
+
+## Private Chat acceptance, November 22, 2026
+
+Plugin version 1.1.2 was installed on the personal account. Its downloaded skill, manifest and app mapping matched the packaged source. Refreshing the connected app in ChatGPT settings registered all 30 operations by name. Use **Refresh tools** after changing the tool schema, then open a fresh chat.
+
+In ordinary Chat, the generic starter asked what to work on. An isolated fixture verified the following journeys with synthetic data.
+
+- The two-food meal proposal totalled 183 kcal. Chat saved it after confirmation and read it back. Cancelling a later portion change preserved 100 g of yogurt and the original meal total.
+- A note-only workout edit retained the session duration and performed set. Weight and sleep screenshot drafts retained the measured values. Selected-photo retrieval transferred the requested front image and identified its limits.
+- DAILY and WEEKLY proposals displayed the exact tool arguments before consent. Each confirmed reflection matched its independent readback. The DAILY proposal was revised using a recorded workout before consent. Each reflection context includes its target's save schema so Chat can check required sections and field limits.
+
+The fixture reset verified that all six storage keys were empty. In a fresh ordinary Chat, the production plugin called only the catalog operation and returned 18 domains in Europe/Madrid, matching the backend read. All acceptance writes used the isolated fixture.
