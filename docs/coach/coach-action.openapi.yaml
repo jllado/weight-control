@@ -189,7 +189,7 @@ paths:
     post:
       operationId: createMeal
       summary: Create a confirmed meal
-      description: Before offering Save, build and validate complete prepared-meal.json with Code Interpreter, including all 11 nutrient/reference values and sources. Reuse that file for proposal and confirmed Action, then getMeals. No extra estimate opt-in; material changes require reconfirmation.
+      description: Before offering Save, build and validate complete prepared-meal.json with Code Interpreter, including all 12 nutrient/reference values and sources. Reuse that file for proposal and confirmed Action, then getMeals. No extra estimate opt-in; material changes require reconfirmation.
       x-openai-isConsequential: true
       requestBody:
         required: true
@@ -210,7 +210,7 @@ paths:
     put:
       operationId: updateMeal
       summary: Update a confirmed meal
-      description: Read the owned meal, preserve unchanged foods and metadata, and estimate changed foods under MealWrite. Confirm the complete replacement with nutrientSchemaVersion 3. Read back the saved meal, automatic rating and explanation.
+      description: Read the owned meal, preserve unchanged foods and metadata, and estimate changed foods under MealWrite. Confirm the complete replacement with nutrientSchemaVersion 4. Read back the saved meal, automatic rating and explanation.
       x-openai-isConsequential: true
       parameters:
         - name: id
@@ -231,7 +231,7 @@ paths:
               properties:
                 nutrientSchemaVersion:
                   type: integer
-                  const: 3
+                  const: 4
                   description: Required for every full meal replacement to preserve saved nutrient snapshots.
                 date:
                   type: string
@@ -1746,7 +1746,7 @@ components:
     NutrientSummary:
       type: object
       additionalProperties: false
-      required: [vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, foodsWithValues, totalFoods, estimatedFoods, mealsWithoutFoods, epaDhaMilligrams, alaMilligrams, fiberGrams, saltGrams, vitaminDCoverage, omega3Coverage, magnesiumCoverage, epaDhaCoverage, alaCoverage, fiberCoverage, saltCoverage]
+      required: [vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, foodsWithValues, totalFoods, estimatedFoods, mealsWithoutFoods, epaDhaMilligrams, alaMilligrams, fiberGrams, saltGrams, saturatedFatGrams, vitaminDCoverage, omega3Coverage, magnesiumCoverage, epaDhaCoverage, alaCoverage, fiberCoverage, saltCoverage, saturatedFatCoverage]
       description: Each total sums known food values independently; per-field coverage describes logged foods, not all consumption. Legacy shared counts require all three original values. Missing values remain unknown.
       properties:
         vitaminDMicrograms: {type: [number, "null"]}
@@ -1756,12 +1756,27 @@ components:
         alaMilligrams: {type: [number, "null"]}
         fiberGrams: {type: [number, "null"]}
         saltGrams: {type: [number, "null"]}
+        saturatedFatGrams: {type: [number, "null"]}
         vitaminDCoverage: {$ref: "#/components/schemas/NutrientCoverage"}
         omega3Coverage: {$ref: "#/components/schemas/NutrientCoverage"}
         magnesiumCoverage: {$ref: "#/components/schemas/NutrientCoverage"}
         epaDhaCoverage: {$ref: "#/components/schemas/NutrientCoverage"}
         alaCoverage: {$ref: "#/components/schemas/NutrientCoverage"}
         fiberCoverage: {$ref: "#/components/schemas/NutrientCoverage"}
+        unitemizedSaturatedFatEstimates:
+          type: [array, "null"]
+          description: Historical whole-meal estimates. These contribute to grams independently of itemized-food coverage.
+          items:
+            type: object
+            properties:
+              mealType: {$ref: "#/components/schemas/MealType"}
+              mealSequence: {type: [integer, "null"]}
+              grams: {type: number}
+              source: {type: string}
+        saturatedFatCoverage:
+          anyOf:
+            - $ref: "#/components/schemas/NutrientCoverage"
+            - type: "null"
         saltCoverage:
           anyOf:
             - $ref: "#/components/schemas/NutrientCoverage"
@@ -1930,6 +1945,8 @@ components:
           type: [integer, "null"]
           minimum: 1
           maximum: 10
+        estimatedSaturatedFatGrams: {type: [number, "null"], minimum: 0}
+        saturatedFatEstimateSource: {type: [string, "null"]}
         ratingExplanation:
           type: [string, "null"]
           description: Saved evidence from the automatic calculation. Older meals may lack an explanation.
@@ -1967,8 +1984,9 @@ components:
         For a model estimate use "Model estimate: <food/composition basis>; <assumptions>; approximate, not verified label data".
         Cite a title and stable ID or URL only when that source was actually read and supports the claimed value; never invent citations,
         claim an unread source verifies an estimate, or relabel a prior model estimate as verified evidence.
-        For EACH food, complete calories, protein, carbohydrate, fat, vitamin D, magnesium, total omega-3, EPA+DHA, ALA, fiber and salt
+        For EACH food, complete calories, protein, carbohydrate, fat, vitamin D, magnesium, total omega-3, EPA+DHA, ALA, fiber, salt and saturated fat
         in both consumed and reference portions, with honest provenance and estimate flags. Do not stop at macros or offer later research.
+        Saturated fat is grams for both portions. Use a matching label, comparable food or a marked recipe estimate; keep it within total fat.
         Salt is grams: convert sodium milligrams × 0.0025 or sodium grams × 2.5 exactly once; never convert existing salt grams.
         Salt uses a strict maximum: default below 5 g/day or personal limit. A partial subtotal at/above the limit proves failure;
         below-limit partial evidence is unknown, while fully covered completed intake below the limit meets it.
@@ -1988,14 +2006,14 @@ components:
         Quantity-only changes keep references; explicit nutrient corrections or unit changes reset references to the current amount and totals.
         Before offering Save, use Code Interpreter to construct the COMPLETE MealWrite body and persist /mnt/data/prepared-meal.json.
         Keep the original matched catalog references in a separate internal ledger; assert their quantities, units and known values are unchanged.
-        Filling a displayed macro table or summing manually entered tuples is not this preflight: every food, all eleven consumed/reference
+        Filling a displayed macro table or summing manually entered tuples is not this preflight: every food, all twelve consumed/reference
         nutrients, sources, flags and catalog decisions must exist in the actual body before the readable proposal.
         Use Decimal(str(value)) and ROUND_HALF_UP to derive each consumed value from its completed reference (integer kcal, two-decimal nutrients),
         then sum the rounded food values. Assert every scaled value, meal total, supplied label and retained-reference value matches.
         Assert complete nonnull nutrient/reference values, nonblank source strings within 500 characters, boolean estimate/catalog flags,
         valid units/quantities and only the schema's allowed properties. Meal root keys are nutrientSchemaVersion,date,mealType,mealTime,
         durationMinutes,calories,proteinGrams,carbohydrateGrams,fatGrams,notes,dishes,source,confirmed only. The backend assigns the rating.
-        Vitamin D, total omega-3, EPA+DHA, ALA, magnesium, fiber and salt belong in dishes and references, NEVER as extra meal-root properties.
+        Vitamin D, total omega-3, EPA+DHA, ALA, magnesium, fiber, salt and saturated fat belong in dishes and references, NEVER as extra meal-root properties.
         Serialize the validated full body with confirmed:false; read that file to generate the readable summary and requested technical JSON.
         Keep the file and reference ledger internal unless requested; ordinary confirmation must remain readable, with no required file/JSON review.
         On confirmation, read the same file, set confirmed:true, and pass that body to the Action. Do not rebuild from rounded displayed values.
@@ -2050,8 +2068,8 @@ components:
       properties:
         nutrientSchemaVersion:
           type: integer
-          const: 3
-          description: Aware replacement of nullable EPA+DHA, ALA, fiber and salt snapshots; send all values and their provenance explicitly, including nulls.
+          const: 4
+          description: Aware replacement of nullable EPA+DHA, ALA, fiber, salt and saturated fat snapshots; send all values and their provenance explicitly, including nulls.
         date:
           type: string
           format: date
@@ -2141,11 +2159,12 @@ components:
         alaMilligrams: {type: [number, "null"], minimum: 0}
         fiberGrams: {type: [number, "null"], minimum: 0, description: "Fiber for this reference portion. When consumed fiber is known, the reference fiber must also be known; never reuse a null reference for a researched value."}
         saltGrams: {type: [number, "null"], minimum: 0, description: "Salt grams for this portion; preserve known values, otherwise use a sourced or marked food-specific estimate with a matching reference. Convert sodium mg × 0.0025 or sodium g × 2.5 once; salt values are already grams. Unknown is not zero."}
+        saturatedFatGrams: {type: [number, "null"], minimum: 0, description: "Saturated fat in grams for this portion, including a sourced or explicitly estimated value for new or changed foods."}
     DishReferenceWrite:
       allOf:
         - $ref: "#/components/schemas/DishReference"
         - type: object
-          required: [proteinGrams, carbohydrateGrams, fatGrams, vitaminDMicrograms, magnesiumMilligrams, epaDhaMilligrams, alaMilligrams, fiberGrams, saltGrams]
+          required: [proteinGrams, carbohydrateGrams, fatGrams, vitaminDMicrograms, magnesiumMilligrams, epaDhaMilligrams, alaMilligrams, fiberGrams, saltGrams, saturatedFatGrams]
           properties:
             proteinGrams: {type: [number, "null"], minimum: 0}
             carbohydrateGrams: {type: [number, "null"], minimum: 0}
@@ -2157,11 +2176,12 @@ components:
             alaMilligrams: {type: [number, "null"], minimum: 0, description: "Use exact, comparable or food-specific model-estimated ALA (18:3 n-3). An undifferentiated 18:3 proxy must state the food-specific assumption and uncertainty, never measured ALA. Keep an old null only for an exact unchanged legacy snapshot."}
             fiberGrams: {type: [number, "null"], minimum: 0, description: "Keep an unchanged legacy null only on an exact metadata-only replacement; new or changed foods require a sourced exact or marked estimated value."}
             saltGrams: {type: [number, "null"], minimum: 0, description: "Salt grams for this portion; preserve known values, otherwise use a sourced or marked food-specific estimate with a matching reference. Convert sodium mg × 0.0025 or sodium g × 2.5 once; salt values are already grams. Unknown is not zero."}
+            saturatedFatGrams: {type: [number, "null"], minimum: 0, description: "Saturated fat in grams for this portion, including a sourced or explicitly estimated value for new or changed foods."}
     CoachDishReferenceComplete:
       allOf:
         - $ref: "#/components/schemas/DishReferenceWrite"
         - type: object
-          required: [quantity, calories, proteinGrams, carbohydrateGrams, fatGrams, vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, epaDhaMilligrams, alaMilligrams, fiberGrams, saltGrams]
+          required: [quantity, calories, proteinGrams, carbohydrateGrams, fatGrams, vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, epaDhaMilligrams, alaMilligrams, fiberGrams, saltGrams, saturatedFatGrams]
           properties:
             proteinGrams: {type: number, minimum: 0}
             carbohydrateGrams: {type: number, minimum: 0}
@@ -2173,6 +2193,7 @@ components:
             alaMilligrams: {type: number, minimum: 0}
             fiberGrams: {type: number, minimum: 0}
             saltGrams: {type: number, minimum: 0}
+            saturatedFatGrams: {type: number, minimum: 0}
     NutritionDish:
       type: object
       additionalProperties: false
@@ -2237,10 +2258,13 @@ components:
         alaEstimated: {type: [boolean, "null"]}
         fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Fiber in grams for this recorded portion; a null value means the saved food has no Fiber evidence."}
         saltGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Salt grams for this portion; preserve known values, otherwise use a sourced or marked food-specific estimate with a matching reference. Convert sodium mg × 0.0025 or sodium g × 2.5 once; salt values are already grams. Unknown is not zero."}
+        saturatedFatGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Saturated fat in grams for this portion, including a sourced or explicitly estimated value for new or changed foods."}
         fiberSource: {type: [string, "null"], maxLength: 500}
         saltSource: {type: [string, "null"], maxLength: 500}
+        saturatedFatSource: {type: [string, "null"], maxLength: 500}
         fiberEstimated: {type: [boolean, "null"]}
         saltEstimated: {type: [boolean, "null"]}
+        saturatedFatEstimated: {type: [boolean, "null"]}
     MealDish:
       type: object
       additionalProperties: false
@@ -2305,14 +2329,17 @@ components:
         alaEstimated: {type: [boolean, "null"]}
         fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Fiber in grams for this portion. New or changed Coach foods use a matching label, cited comparable or reasonable food-specific model estimate with its basis, uncertainty and matching reference. Exact unchanged legacy snapshots/manual writes may retain nulls; missing alone is not zero."}
         saltGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Salt grams for this portion; preserve known values, otherwise use a sourced or marked food-specific estimate with a matching reference. Convert sodium mg × 0.0025 or sodium g × 2.5 once; salt values are already grams. Unknown is not zero."}
+        saturatedFatGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Saturated fat in grams for this portion, including a sourced or explicitly estimated value for new or changed foods."}
         fiberSource: {type: [string, "null"], maxLength: 500}
         saltSource: {type: [string, "null"], maxLength: 500}
+        saturatedFatSource: {type: [string, "null"], maxLength: 500}
         fiberEstimated: {type: [boolean, "null"]}
         saltEstimated: {type: [boolean, "null"]}
+        saturatedFatEstimated: {type: [boolean, "null"]}
     MealDishWrite:
       type: object
       additionalProperties: false
-      required: [name, calories, quantity, unit, vitaminDMicrograms, magnesiumMilligrams, nutrientSource, nutrientsEstimated, epaDhaMilligrams, epaDhaSource, epaDhaEstimated, alaMilligrams, alaSource, alaEstimated, fiberGrams, saltGrams, fiberSource, fiberEstimated, saltSource, saltEstimated]
+      required: [name, calories, quantity, unit, vitaminDMicrograms, magnesiumMilligrams, nutrientSource, nutrientsEstimated, epaDhaMilligrams, epaDhaSource, epaDhaEstimated, alaMilligrams, alaSource, alaEstimated, fiberGrams, saltGrams, saturatedFatGrams, fiberSource, fiberEstimated, saltSource, saturatedFatSource, saltEstimated, saturatedFatEstimated]
       properties:
         quantity:
           type: number
@@ -2367,15 +2394,18 @@ components:
         alaEstimated: {type: [boolean, "null"]}
         fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Fiber in grams for this portion. New or changed Coach foods use a matching label, cited comparable or reasonable food-specific model estimate with its basis, uncertainty and matching reference. Exact unchanged legacy snapshots/manual writes may retain nulls; missing alone is not zero."}
         saltGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Salt grams for this portion; preserve known values, otherwise use a sourced or marked food-specific estimate with a matching reference. Convert sodium mg × 0.0025 or sodium g × 2.5 once; salt values are already grams. Unknown is not zero."}
+        saturatedFatGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Saturated fat in grams for this portion, including a sourced or explicitly estimated value for new or changed foods."}
         fiberSource: {type: [string, "null"], maxLength: 500}
         saltSource: {type: [string, "null"], maxLength: 500}
+        saturatedFatSource: {type: [string, "null"], maxLength: 500}
         fiberEstimated: {type: [boolean, "null"]}
         saltEstimated: {type: [boolean, "null"]}
+        saturatedFatEstimated: {type: [boolean, "null"]}
     CoachMealDishWrite:
       type: object
       additionalProperties: false
       description: New or changed foods need exact values or marked comparable/model estimates with food-specific basis and uncertainty for every nutrient. An exact ordered legacy snapshot may retain nulls only for a metadata-only replacement. Never infer zero from absence.
-      required: [name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference, vitaminDMicrograms, magnesiumMilligrams, nutrientSource, nutrientsEstimated, epaDhaMilligrams, epaDhaSource, epaDhaEstimated, alaMilligrams, alaSource, alaEstimated, fiberGrams, saltGrams, fiberSource, fiberEstimated, saltSource, saltEstimated]
+      required: [name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference, vitaminDMicrograms, magnesiumMilligrams, nutrientSource, nutrientsEstimated, epaDhaMilligrams, epaDhaSource, epaDhaEstimated, alaMilligrams, alaSource, alaEstimated, fiberGrams, saltGrams, saturatedFatGrams, fiberSource, fiberEstimated, saltSource, saturatedFatSource, saltEstimated, saturatedFatEstimated]
       properties:
         addToCatalog:
           type: boolean
@@ -2439,15 +2469,18 @@ components:
         alaEstimated: {type: [boolean, "null"]}
         fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "New or changed foods require a sourced exact or marked estimated Fiber value; unchanged legacy nulls are allowed only on metadata-only replacements."}
         saltGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Salt grams for this portion; preserve known values, otherwise use a sourced or marked food-specific estimate with a matching reference. Convert sodium mg × 0.0025 or sodium g × 2.5 once; salt values are already grams. Unknown is not zero."}
+        saturatedFatGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Saturated fat in grams for this portion, including a sourced or explicitly estimated value for new or changed foods."}
         fiberSource: {type: [string, "null"], maxLength: 500}
         saltSource: {type: [string, "null"], maxLength: 500}
+        saturatedFatSource: {type: [string, "null"], maxLength: 500}
         fiberEstimated: {type: [boolean, "null"]}
         saltEstimated: {type: [boolean, "null"]}
+        saturatedFatEstimated: {type: [boolean, "null"]}
     CoachMealDishComplete:
       allOf:
         - $ref: "#/components/schemas/CoachMealDishWrite"
         - type: object
-          required: [omega3Milligrams, proteinGrams, carbohydrateGrams, fatGrams, vitaminDMicrograms, magnesiumMilligrams, nutrientSource, nutrientsEstimated, epaDhaMilligrams, epaDhaSource, epaDhaEstimated, alaMilligrams, alaSource, alaEstimated, fiberGrams, saltGrams, fiberSource, fiberEstimated, saltSource, saltEstimated]
+          required: [omega3Milligrams, proteinGrams, carbohydrateGrams, fatGrams, vitaminDMicrograms, magnesiumMilligrams, nutrientSource, nutrientsEstimated, epaDhaMilligrams, epaDhaSource, epaDhaEstimated, alaMilligrams, alaSource, alaEstimated, fiberGrams, saltGrams, saturatedFatGrams, fiberSource, fiberEstimated, saltSource, saturatedFatSource, saltEstimated, saturatedFatEstimated]
           properties:
             reference: {$ref: "#/components/schemas/CoachDishReferenceComplete"}
             omega3Milligrams: {type: number, minimum: 0}
@@ -2466,10 +2499,13 @@ components:
             alaEstimated: {type: boolean}
             fiberGrams: {type: number, minimum: 0}
             saltGrams: {type: number, minimum: 0}
+            saturatedFatGrams: {type: number, minimum: 0}
             fiberSource: {type: string, minLength: 1, maxLength: 500}
             saltSource: {type: string, minLength: 1, maxLength: 500}
+            saturatedFatSource: {type: string, minLength: 1, maxLength: 500}
             fiberEstimated: {type: boolean}
             saltEstimated: {type: boolean}
+            saturatedFatEstimated: {type: boolean}
     MealType:
       type: string
       enum:
@@ -5366,7 +5402,7 @@ components:
       description: Full reusable dish replacement; preserve each unchanged ingredient, its position and all saved nutrition/reference/fruit fields from the editable read.
       required: [name, servings, ingredients, nutrientSchemaVersion]
       properties:
-        nutrientSchemaVersion: {type: integer, const: 3, description: Aware replacement of nullable EPA+DHA, ALA, fiber and salt ingredient snapshots.}
+        nutrientSchemaVersion: {type: integer, const: 4, description: Aware replacement of nullable EPA+DHA, ALA, fiber, salt and saturated fat ingredient snapshots.}
         name: { type: string, minLength: 1, maxLength: 255 }
         servings: { type: number, exclusiveMinimum: 0, maximum: 99999999.999, multipleOf: 0.001 }
         ingredients:
@@ -5376,9 +5412,9 @@ components:
     CoachDishRecipeIngredient:
       type: object
       additionalProperties: false
-      required: [name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference, fruit, vitaminDMicrograms, magnesiumMilligrams, nutrientSource, nutrientsEstimated, epaDhaMilligrams, epaDhaSource, epaDhaEstimated, alaMilligrams, alaSource, alaEstimated, fiberGrams, saltGrams, fiberSource, fiberEstimated, saltSource, saltEstimated]
+      required: [name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference, fruit, vitaminDMicrograms, magnesiumMilligrams, nutrientSource, nutrientsEstimated, epaDhaMilligrams, epaDhaSource, epaDhaEstimated, alaMilligrams, alaSource, alaEstimated, fiberGrams, saltGrams, saturatedFatGrams, fiberSource, fiberEstimated, saltSource, saturatedFatSource, saltEstimated, saturatedFatEstimated]
       properties:
-        nutrientSchemaVersion: {type: [integer, "null"], enum: [3, null]}
+        nutrientSchemaVersion: {type: [integer, "null"], enum: [4, null]}
         name: { type: string, minLength: 1, maxLength: 255 }
         calories: { type: integer, minimum: 0 }
         proteinGrams: { type: [number, "null"], minimum: 0 }
@@ -5403,10 +5439,13 @@ components:
         alaEstimated: {type: [boolean, "null"]}
         fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "New or changed ingredients require exact or marked comparable/model-estimated Fiber with its basis and matching reference; unchanged legacy nulls may persist only for metadata edits."}
         saltGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Salt grams for this portion; preserve known values, otherwise use a sourced or marked food-specific estimate with a matching reference. Convert sodium mg × 0.0025 or sodium g × 2.5 once; salt values are already grams. Unknown is not zero."}
+        saturatedFatGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Saturated fat in grams for this portion, including a sourced or explicitly estimated value for new or changed foods."}
         fiberSource: {type: [string, "null"], maxLength: 500}
         saltSource: {type: [string, "null"], maxLength: 500}
+        saturatedFatSource: {type: [string, "null"], maxLength: 500}
         fiberEstimated: {type: [boolean, "null"]}
         saltEstimated: {type: [boolean, "null"]}
+        saturatedFatEstimated: {type: [boolean, "null"]}
     CoachHealthEntryWrite:
       type: object
       description: Send every field required by the selected path type. ROUTINE requires routineId and date YYYY-MM-DD; it completes an existing routine, not a new definition. DISH_RECIPE uses the nested full recipe. WORKOUT uses nested workout; create requires its UUID recordingKey, and update requires the current updateToken beside workout. All writes require confirmed=true. WEIGHT date accepts YYYY-MM-DD at the start of that date in Europe/Madrid, or an ISO-8601 offset timestamp; other types use their documented date/date-time formats. BACK_PAIN_EPISODE update omits date because it cannot change. BACK_PAIN_EPISODE severity NONE requires null region and side and must be the only entry for its date and period; other severities require a location.

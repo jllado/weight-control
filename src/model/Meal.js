@@ -42,6 +42,8 @@ export default class Meal {
         this.proteinGrams = source.proteinGrams;
         this.carbohydrateGrams = source.carbohydrateGrams;
         this.fatGrams = source.fatGrams;
+        this.estimatedSaturatedFatGrams = source.estimatedSaturatedFatGrams;
+        this.saturatedFatEstimateSource = source.saturatedFatEstimateSource;
         this.notes = source.notes;
         this.rating = source.rating ?? null;
         this.ratingExplanation = source.ratingExplanation;
@@ -82,6 +84,8 @@ export default class Meal {
             proteinGrams: this.proteinGrams,
             carbohydrateGrams: this.carbohydrateGrams,
             fatGrams: this.fatGrams,
+            estimatedSaturatedFatGrams: this.estimatedSaturatedFatGrams,
+            saturatedFatEstimateSource: this.saturatedFatEstimateSource,
             mealTime: this.mealTime,
             durationMinutes: this.durationMinutes,
             notes: this.notes,

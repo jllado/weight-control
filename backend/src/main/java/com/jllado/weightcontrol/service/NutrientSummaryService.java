@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.service;
 
 import com.jllado.weightcontrol.api.dto.NutritionDtos.NutrientSummary;
 import com.jllado.weightcontrol.api.dto.NutritionDtos.NutrientCoverage;
+import com.jllado.weightcontrol.api.dto.NutritionDtos.UnitemizedSaturatedFatEstimate;
 import com.jllado.weightcontrol.domain.FoodPortion;
 import com.jllado.weightcontrol.domain.Meal;
 import java.math.BigDecimal;
@@ -15,6 +16,12 @@ public final class NutrientSummaryService {
         var foods = meals.stream().flatMap(meal -> meal.getDishes().stream()).toList();
         var recorded = foods.stream().filter(food -> food.getVitaminDMicrograms() != null
             && food.getOmega3Milligrams() != null && food.getMagnesiumMilligrams() != null).toList();
+        var estimates = meals.stream().filter(meal -> meal.getDishes().isEmpty() && meal.getEstimatedSaturatedFatGrams() != null)
+            .map(meal -> new UnitemizedSaturatedFatEstimate(meal.getMealType(), meal.getMealSequence(),
+                meal.getEstimatedSaturatedFatGrams(), meal.getSaturatedFatEstimateSource())).toList();
+        var saturatedFat = java.util.stream.Stream.concat(foods.stream().map(FoodPortion::getSaturatedFatGrams),
+            estimates.stream().map(UnitemizedSaturatedFatEstimate::grams)).filter(java.util.Objects::nonNull)
+            .reduce(BigDecimal::add).orElse(null);
         return new NutrientSummary(total(foods, FoodPortion::getVitaminDMicrograms),
             total(foods, FoodPortion::getOmega3Milligrams), total(foods, FoodPortion::getMagnesiumMilligrams),
             recorded.size(), foods.size(), (int) recorded.stream().filter(food -> Boolean.TRUE.equals(food.getNutrientsEstimated())).count(),
@@ -29,7 +36,8 @@ public final class NutrientSummaryService {
             total(foods, FoodPortion::getFiberGrams),
             coverage(foods, FoodPortion::getFiberGrams, FoodPortion::getFiberEstimated),
             total(foods, FoodPortion::getSaltGrams),
-            coverage(foods, FoodPortion::getSaltGrams, FoodPortion::getSaltEstimated));
+            coverage(foods, FoodPortion::getSaltGrams, FoodPortion::getSaltEstimated),
+            saturatedFat, coverage(foods, FoodPortion::getSaturatedFatGrams, FoodPortion::getSaturatedFatEstimated), estimates);
     }
 
     private static BigDecimal total(List<? extends FoodPortion> foods, Function<FoodPortion, BigDecimal> value) {

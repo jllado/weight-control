@@ -7,8 +7,16 @@ export function copyFoodSnapshot(food) {
         ...newNutrientFields.flatMap(field => [field.sourceKey, field.estimatedKey])].map(key => [key, food[key]])), reference: {...food.reference}};
 }
 
+export function copyUnitemizedEstimate(meal, source) {
+    if (source?.estimatedSaturatedFatGrams == null || meal.dishes.length || (meal.notes || null) !== (source.notes || null)) return;
+    if (['calories', 'proteinGrams', 'carbohydrateGrams', 'fatGrams'].every(key => meal[key] === source[key])) {
+        meal.estimatedSaturatedFatGrams = source.estimatedSaturatedFatGrams;
+        meal.saturatedFatEstimateSource = source.saturatedFatEstimateSource;
+    }
+}
+
 export function copyMealSnapshot(meal) {
-    return {...Object.fromEntries(['mealType', 'mealSequence', 'calories', 'proteinGrams', 'carbohydrateGrams', 'fatGrams', 'durationMinutes', 'notes'].map(key => [key, meal[key]])),
+    return {...Object.fromEntries(['mealType', 'mealSequence', 'calories', 'proteinGrams', 'carbohydrateGrams', 'fatGrams', 'durationMinutes', 'notes', 'estimatedSaturatedFatGrams', 'saturatedFatEstimateSource'].map(key => [key, meal[key]])),
         mealTime: meal.mealTime instanceof Date ? dayjs(meal.mealTime).format('HH:mm:ss') : meal.mealTime,
         dishes: meal.dishes.map(copyFoodSnapshot)};
 }

@@ -16,7 +16,7 @@ public final class DishNutrition {
         }
         BigDecimal quantity = request.quantity() == null ? BigDecimal.ONE : request.quantity();
         DishReference reference = request.reference() == null
-            ? new DishReference(quantity, request.calories(), request.proteinGrams(), request.carbohydrateGrams(), request.fatGrams(), request.vitaminDMicrograms(), request.omega3Milligrams(), request.magnesiumMilligrams(), request.epaDhaMilligrams(), request.alaMilligrams(), request.fiberGrams(), request.saltGrams())
+            ? new DishReference(quantity, request.calories(), request.proteinGrams(), request.carbohydrateGrams(), request.fatGrams(), request.vitaminDMicrograms(), request.omega3Milligrams(), request.magnesiumMilligrams(), request.epaDhaMilligrams(), request.alaMilligrams(), request.fiberGrams(), request.saltGrams(), request.saturatedFatGrams())
             : request.reference();
         if (request.fiberGrams() != null && reference.fiberGrams() == null) {
             throw new BadRequestException("Recorded fiber also needs a value for the reference portion");
@@ -24,6 +24,11 @@ public final class DishNutrition {
         if (request.saltGrams() != null && reference.saltGrams() == null) {
             throw new BadRequestException("Recorded salt also needs a value for the reference portion");
         }
+        if (request.saturatedFatGrams() != null && reference.saturatedFatGrams() == null) {
+            throw new BadRequestException("Recorded saturated fat also needs a value for the reference portion");
+        }
+        requireValidSaturatedFat(request.saturatedFatGrams(), request.fatGrams());
+        requireValidSaturatedFat(reference.saturatedFatGrams(), reference.fatGrams());
         dish.setQuantity(quantity);
         dish.setUnit(request.unit() == null ? DishUnit.SERVING : request.unit());
         dish.setReferenceQuantity(reference.quantity());
@@ -46,8 +51,11 @@ public final class DishNutrition {
         dish.setFiberSource(request.fiberSource());
         dish.setFiberEstimated(request.fiberEstimated());
         dish.setReferenceSaltGrams(reference.saltGrams());
+        dish.setReferenceSaturatedFatGrams(reference.saturatedFatGrams());
         dish.setSaltSource(request.saltSource());
+        dish.setSaturatedFatSource(request.saturatedFatSource());
         dish.setSaltEstimated(request.saltEstimated());
+        dish.setSaturatedFatEstimated(request.saturatedFatEstimated());
         BigDecimal calories = scale(BigDecimal.valueOf(reference.calories()), quantity, reference.quantity(), 0);
         if (calories.compareTo(BigDecimal.valueOf(Integer.MAX_VALUE)) > 0) {
             throw new BadRequestException("Dish calories exceed the supported range");
@@ -63,6 +71,13 @@ public final class DishNutrition {
         dish.setAlaMilligrams(macro(reference.alaMilligrams(), quantity, reference.quantity()));
         dish.setFiberGrams(macro(reference.fiberGrams(), quantity, reference.quantity()));
         dish.setSaltGrams(macro(reference.saltGrams(), quantity, reference.quantity()));
+        dish.setSaturatedFatGrams(macro(reference.saturatedFatGrams(), quantity, reference.quantity()));
+    }
+
+    static void requireValidSaturatedFat(BigDecimal saturatedFat, BigDecimal totalFat) {
+        if (saturatedFat != null && totalFat != null && saturatedFat.compareTo(totalFat) > 0) {
+            throw new BadRequestException("Saturated fat cannot exceed total fat for the same portion");
+        }
     }
 
     private static BigDecimal macro(BigDecimal value, BigDecimal quantity, BigDecimal referenceQuantity) {

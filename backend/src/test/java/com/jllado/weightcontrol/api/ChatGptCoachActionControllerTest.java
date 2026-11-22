@@ -1646,7 +1646,7 @@ class ChatGptCoachActionControllerTest {
     }
 
     @Test
-    void coachMealWriteAcceptsSourceBackedEstimatedFiberAndSaltAtAScaledPortion() throws Exception {
+    void coachMealWriteAcceptsSourceBackedEstimatedNutrientsAtAScaledPortion() throws Exception {
         when(currentUserService.requireUser()).thenReturn(user);
         when(personalRecordMutationService.createConfirmedMeal(eq(user), any())).thenReturn(meal());
         var mapper = new ObjectMapper();
@@ -1666,7 +1666,9 @@ class ChatGptCoachActionControllerTest {
         dish.put("fiberGrams", 6);
         dish.put("fiberSource", "Estimated matching composition: 8 g per 100 g");
         dish.put("saltGrams", 0.94).put("saltSource", "Matching label: 1.25 g salt per 100 g").put("saltEstimated", true);
-        body.put("nutrientSchemaVersion", 3);
+        reference.put("saturatedFatGrams", 2.25);
+        dish.put("saturatedFatGrams", 1.69).put("saturatedFatSource", "Product label").put("saturatedFatEstimated", false);
+        body.put("nutrientSchemaVersion", 4);
         body.put("calories", 525);
         body.put("proteinGrams", 30);
         body.put("carbohydrateGrams", 52.5);
@@ -1681,7 +1683,10 @@ class ChatGptCoachActionControllerTest {
         assertEquals(new BigDecimal("0.94"), captured.getValue().dishes().getFirst().saltGrams());
         assertEquals(new BigDecimal("1.25"), captured.getValue().dishes().getFirst().reference().saltGrams());
         assertEquals("Matching label: 1.25 g salt per 100 g", captured.getValue().dishes().getFirst().saltSource());
-        assertEquals(3, captured.getValue().nutrientSchemaVersion());
+        assertEquals(new BigDecimal("1.69"), captured.getValue().dishes().getFirst().saturatedFatGrams());
+        assertEquals(new BigDecimal("2.25"), captured.getValue().dishes().getFirst().reference().saturatedFatGrams());
+        assertEquals("Product label", captured.getValue().dishes().getFirst().saturatedFatSource());
+        assertEquals(4, captured.getValue().nutrientSchemaVersion());
     }
 
     private String mealJson(boolean confirmed) {

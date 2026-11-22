@@ -24,13 +24,14 @@
 import DishForm from './DishForm.vue';
 import FoodPicker from './FoodPicker.vue';
 import service from '../services/DishRecipeService';
+import {copyFoodSnapshot} from '../model/MealDayCopy';
 import {normalizeDish, quantityLabel, macroSummary, foodTotals} from '../model/Dish';
 export default {
   components: {DishForm, FoodPicker},
   props: {recipe: {type: Object, required: true}, foods: {type: Array, default: () => []}, independent: Boolean, editableIngredients: Boolean},
   emits: ['saved', 'close'],
   data() {
-    const draft = {...this.recipe, ingredients: this.recipe.ingredients.map(food => ({...normalizeDish(food), key: crypto.randomUUID()}))};
+    const draft = {...this.recipe, ingredients: this.recipe.ingredients.map(food => ({...copyFoodSnapshot(food), key: crypto.randomUUID()}))};
     return {draft, snapshot: JSON.stringify(draft), food_draft: null, food_index: null, saving: false, error: ''};
   },
   computed: {dirty() { return !!this.food_draft || JSON.stringify(this.draft) !== this.snapshot; }, totals() { return foodTotals(this.draft.ingredients); }},

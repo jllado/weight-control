@@ -114,7 +114,7 @@
     </template>
     </SaveFields>
     <footer class="meal-editor-footer">
-      <div v-if="meal || !fixed_date || fform.mealType" role="status"><strong>{{ displayed_calories }} kcal</strong><div>{{ fform.dishes.length && (!local_mode || nutrition_changed) ? calculated_macro_summary : macro_summary(fform) }}</div></div>
+      <div v-if="meal || !fixed_date || fform.mealType" role="status"><strong>{{ displayed_calories }} kcal</strong><div>{{ fform.dishes.length && nutrition_changed ? calculated_macro_summary : macro_summary(fform) }}</div></div>
       <div class="meal-dish-actions action-group">
       <Button v-if="meal || !fixed_date || fform.mealType" :label="saving ? 'Saving…' : local_mode ? 'Apply' : 'Save'" icon="pi pi-check" :loading="saving" :disabled="saving || !!dish_draft" @click="save" :aria-busy="saving" />
       <Button label="Cancel" icon="pi pi-times" :disabled="saving" @click="close_modal" class="p-button-secondary" />
@@ -145,7 +145,7 @@ import DishRecipeForm from './DishRecipeForm.vue';
 import {normalizeDish, quantityLabel, macroSummary, foodPayload, nutritionFields} from '../model/Dish';
 
 import MealPreloadOption from './MealPreloadOption.vue';
-import {copyFoodSnapshot, copyMealSnapshot, foodTitle, preloadDate, previousDays} from '../model/MealDayCopy';
+import {copyFoodSnapshot, copyMealSnapshot, copyUnitemizedEstimate, foodTitle, preloadDate, previousDays} from '../model/MealDayCopy';
 
 export default {
   name: "MealForm",
@@ -212,6 +212,7 @@ export default {
       selected_foods: [],
       recipe_draft: null,
       selected_meal: null,
+      preloaded_meal: null,
       duration_specified: !!this.meal,
       dish_draft: null,
       dish_index: null,
@@ -229,9 +230,9 @@ export default {
     previous_days() { return previousDays(this.meals, this.fform.date); },
     target_has_meals() { return this.meals.some(meal => dayjs(meal.date).isSame(this.fform.date, 'day')); },
     nutrition_changed() {
-      return this.local_mode && JSON.stringify(this.fform.dishes.map(dish => nutritionFields.map(key => dish[key]))) !== JSON.stringify(this.meal.dishes.map(dish => nutritionFields.map(key => dish[key])));
+      return !this.meal || JSON.stringify(this.fform.dishes.map(dish => nutritionFields.map(key => dish[key]))) !== JSON.stringify(this.meal.dishes.map(dish => nutritionFields.map(key => dish[key])));
     },
-    displayed_calories() { return this.fform.dishes.length && (!this.local_mode || this.nutrition_changed) ? this.calculated_calories : (this.fform.calories ?? 0); },
+    displayed_calories() { return this.fform.dishes.length && this.nutrition_changed ? this.calculated_calories : (this.fform.calories ?? 0); },
     dirty() { return !!this.dish_draft || !!this.recipe_draft || JSON.stringify(this.fform) !== this.saved_snapshot; },
     has_ongoing_fast() {
       return this.fasting_periods.some(period => period.source === 'AUTOMATIC' && !period.endTime);
@@ -303,7 +304,7 @@ export default {
       this.vv.carbohydrateGrams.$model = this.meal?.carbohydrateGrams ?? null;
       this.vv.fatGrams.$model = this.meal?.fatGrams ?? null;
       this.vv.notes.$model = this.local_mode ? this.meal.notes : this.meal?.notes || '';
-      this.vv.dishes.$model = (this.meal?.dishes || []).map(dish => ({...(this.local_mode ? copyFoodSnapshot(dish) : normalizeDish(dish)), key: dish.id || crypto.randomUUID()}));
+      this.vv.dishes.$model = (this.meal?.dishes || []).map(dish => ({...copyFoodSnapshot(dish), key: dish.id || crypto.randomUUID()}));
     },
     add_dish() {
       const firstDish = this.vv.dishes.$model.length === 0;
@@ -347,6 +348,7 @@ export default {
     copy_previous_meal() {
       if (!this.selected_meal) return;
       const source = this.selected_meal;
+      this.preloaded_meal = source;
       this.selected_foods = [];
       this.vv.mealTime.$model = source.mealTime;
       this.set_duration(source.durationMinutes);
@@ -367,6 +369,7 @@ export default {
       }
       if (this.local_mode) {
         const snapshot = copyMealSnapshot({...this.fform, mealSequence: this.meal.mealSequence});
+        copyUnitemizedEstimate(snapshot, this.meal);
         if (this.nutrition_changed && snapshot.dishes.length) {
           ['calories', 'proteinGrams', 'carbohydrateGrams', 'fatGrams'].forEach(key => {
             snapshot[key] = snapshot.dishes.some(dish => dish[key] === null) ? null : Math.round(snapshot.dishes.reduce((sum, dish) => sum + dish[key], 0) * 100) / 100;
@@ -388,7 +391,8 @@ export default {
       meal.fatGrams = this.vv.fatGrams.$model;
       meal.notes = this.vv.notes.$model || null;
       meal.dishes = this.vv.dishes.$model.map(foodPayload);
-      if (meal.dishes.length) {
+      copyUnitemizedEstimate(meal, this.preloaded_meal);
+      if (meal.dishes.length && this.nutrition_changed) {
         meal.calories = this.calculated_calories;
         meal.proteinGrams = this.vv.dishes.$model.some(dish => dish.proteinGrams === null) ? null : Math.round(this.vv.dishes.$model.reduce((total, dish) => total + dish.proteinGrams, 0) * 100) / 100;
         meal.carbohydrateGrams = this.vv.dishes.$model.some(dish => dish.carbohydrateGrams === null) ? null : Math.round(this.vv.dishes.$model.reduce((total, dish) => total + dish.carbohydrateGrams, 0) * 100) / 100;

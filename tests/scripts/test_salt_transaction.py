@@ -99,3 +99,33 @@ class SaltTransactionTest(unittest.TestCase):
         self.query("INSERT INTO catalog_foods(id,user_id,name) VALUES(2,1,'New food');")
         self.assertNotEqual(0,self.execute().returncode)
         self.assertEqual(['NULL']*4,self.values())
+
+    def test_saturated_fat_updates_foods_and_unitemized_meal_in_one_transaction(self):
+        from scripts.nutrients.salt_transaction import KINDS, SATURATED_FAT
+        for table in KINDS.values():
+            fields = dict(zip(SATURATED_FAT.columns, ('DECIMAL(10,2)', 'DECIMAL(10,2)', 'VARCHAR(500)', 'BOOLEAN')))
+            self.assertEqual(0, self.query('ALTER TABLE ' + table + ' ' + ','.join('ADD ' + key + ' ' + kind for key, kind in fields.items())).returncode)
+            self.schema[table].extend(fields)
+            self.inventory[table][0].update(dict.fromkeys(fields))
+        extra = ['estimated_saturated_fat_grams', 'saturated_fat_estimate_source', 'updated_at']
+        self.assertEqual(0, self.query('ALTER TABLE meals ADD estimated_saturated_fat_grams DECIMAL(10,2), ADD saturated_fat_estimate_source VARCHAR(500), ADD updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;INSERT INTO meals(id,user_id) VALUES(11,1);UPDATE meals SET updated_at=\'2026-01-01 12:00:00\';').returncode)
+        self.schema['meals'].extend(extra)
+        self.inventory['meals'].append(dict(id=11, user_id=1))
+        for meal in self.inventory['meals']:
+            meal.update(dict.fromkeys(extra))
+            meal["updated_at"] = "2026-01-01 12:00:00"
+        food = dict(zip(SATURATED_FAT.fields, (0.5, 1, 'Reviewed estimate', True)))
+        records = [dict(kind=kind, id=1, status='estimated', saturatedFat=food) for kind in KINDS]
+        records.extend([dict(kind='legacy_meal', id=10, status='itemized'), dict(kind='legacy_meal', id=11, status='estimated',
+                        saturatedFat=dict(saturatedFatGrams=2, saturatedFatEstimated=True, saturatedFatSource='Saved meal estimate'))])
+        def run(commit):
+            return self.query(build_transaction(self.inventory, self.schema, {'records': records}, 1, commit=commit, nutrient=SATURATED_FAT))
+        dry = run(False)
+        self.assertEqual(0, dry.returncode, dry.stderr)
+        self.assertEqual('NULL', self.query('SELECT estimated_saturated_fat_grams FROM meals WHERE id=11;').stdout.strip())
+        applied = run(True)
+        self.assertEqual(0, applied.returncode, applied.stderr)
+        self.assertEqual('2.00', self.query('SELECT estimated_saturated_fat_grams FROM meals WHERE id=11;').stdout.strip())
+        replay = run(True)
+        self.assertEqual(0, replay.returncode, replay.stderr)
+        self.assertIn('saturatedFat_updated_legacy_meal\t0', replay.stdout)

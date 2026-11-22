@@ -769,3 +769,7 @@ Deploy the additive application migration and complete reviewed owner-wide salt 
 The backend now calculates each meal’s score and explanation and one goal-alignment and training-demand assessment for each saved workout day. This supersedes the original manual proposal and assessment invalidation workflows above. App and Coach share the recording services. A dated save may replace its earlier assessment. Untouched records and reflection scores retain their historical values. The private GPT reads the stored evidence and the current rules through `getRatingRules`.
 
 See the [meal rating rules](meal-rating-rules.md) and [workout rating rules](workout-rating-rules.md).
+
+## Saturated fat and meal quality
+
+Meal, catalog and reusable-dish writes include saturated-fat grams for consumed and reference portions with provenance and estimate status. Version 4 guards replacement of known values. Coach uses the shared automatic score and explanation. Dated meal preferences govern usual main meals, portion size, saturated fat, spacing and bedtime. See [meal rating rules](meal-rating-rules.md) and [saturated-fat enrichment](../food-nutrients.md#saturated-fat).

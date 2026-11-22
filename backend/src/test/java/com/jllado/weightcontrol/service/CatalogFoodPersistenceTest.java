@@ -38,15 +38,83 @@ class CatalogFoodPersistenceTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired org.springframework.transaction.support.TransactionTemplate transactions;
 
-    @Test void saltPersistsInEveryStoreAndRejectsLegacyReplacementsAndArchivedRevival() throws Exception {
+    @Test void publishedV3CoachWritesSaturatedFatAndPreservesExistingEvidenceOnExactMetadataEdits() throws Exception {
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules();
+        var owner = user("v3-transition");
+        var row = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree("""
+            {"name":"Owner soup","quantity":25,"unit":"GRAM","calories":50,"proteinGrams":2.5,"carbohydrateGrams":2.5,"fatGrams":2.5,
+             "vitaminDMicrograms":0,"magnesiumMilligrams":0,"omega3Milligrams":0,"nutrientSource":"Label","nutrientsEstimated":false,
+             "epaDhaMilligrams":0,"epaDhaSource":"Label","epaDhaEstimated":false,"alaMilligrams":0,"alaSource":"Label","alaEstimated":false,
+             "fiberGrams":0,"fiberSource":"Label","fiberEstimated":false,"saltGrams":0,"saltSource":"Label","saltEstimated":false,
+             "reference":{"quantity":50,"calories":100,"proteinGrams":5,"carbohydrateGrams":5,"fatGrams":5,
+             "vitaminDMicrograms":0,"magnesiumMilligrams":0,"omega3Milligrams":0,"epaDhaMilligrams":0,"alaMilligrams":0,"fiberGrams":0,"saltGrams":0}}
+            """);
+        var catalog = row.deepCopy().put("saturatedFatGrams", 0.80).put("saturatedFatSource", "Owner soup product label").put("saturatedFatEstimated", false);
+        ((com.fasterxml.jackson.databind.node.ObjectNode) catalog.get("reference")).put("quantity", 100).put("calories", 200)
+            .put("proteinGrams", 10).put("carbohydrateGrams", 10).put("fatGrams", 10).put("saturatedFatGrams", 3.20);
+        service.create(owner, mapper.treeToValue(catalog, MealDishRequest.class));
+        var matched = mapper.treeToValue(row, CoachMealDishRequest.class);
+        var named = mapper.treeToValue(row.deepCopy().put("name", "Olive oil"), CoachMealDishRequest.class);
+        var unknown = mapper.treeToValue(row.deepCopy().put("name", "House special"), CoachMealDishRequest.class);
+        var request = legacyMeal(List.of(matched, named, unknown), "before", 3);
+        var saved = meals.createConfirmed(owner, request);
+        var stored = meals.findForUser(owner, saved.getId()).getDishes();
+        assertEquals(new BigDecimal("0.80"), stored.get(0).getSaturatedFatGrams());
+        assertEquals(new BigDecimal("1.60"), stored.get(0).getReferenceSaturatedFatGrams());
+        assertEquals("Owner soup product label", stored.get(0).getSaturatedFatSource());
+        assertFalse(stored.get(0).getSaturatedFatEstimated());
+        assertEquals(new BigDecimal("0.32"), stored.get(1).getSaturatedFatGrams());
+        assertTrue(stored.get(1).getSaturatedFatSource().contains("olive oil"));
+        assertTrue(stored.get(1).getSaturatedFatEstimated());
+        assertEquals(new BigDecimal("0.81"), stored.get(2).getSaturatedFatGrams());
+        assertTrue(stored.get(2).getSaturatedFatSource().contains("mixed-diet proxy"));
+        assertTrue(stored.get(2).getSaturatedFatEstimated());
+
+        meals.updateConfirmed(owner, saved.getId(), legacyMeal(request.dishes(), "edited notes", 3));
+        var edited = meals.findForUser(owner, saved.getId());
+        assertEquals("edited notes", edited.getNotes());
+        assertEquals(stored.getFirst().getId(), edited.getDishes().getFirst().getId());
+        assertFalse(edited.getDishes().getFirst().getSaturatedFatEstimated());
+        assertThrows(BadRequestException.class, () -> meals.updateConfirmed(owner, saved.getId(), legacyMeal(List.of(named), "replace", 3)));
+        assertThrows(BadRequestException.class, () -> meals.createConfirmed(owner, legacyMeal(List.of(matched), "v4 missing", 4)));
+        var incomplete = mapper.treeToValue(row.deepCopy().putNull("fiberGrams"), CoachMealDishRequest.class);
+        assertThrows(BadRequestException.class, () -> meals.createConfirmed(owner, legacyMeal(List.of(incomplete), "missing fiber", 3)));
+        var partial = mapper.treeToValue(row.deepCopy().put("saturatedFatGrams", 1), CoachMealDishRequest.class);
+        assertThrows(BadRequestException.class, () -> meals.createConfirmed(owner, legacyMeal(List.of(partial), "partial evidence", 3)));
+
+        var recipe = new RecipeRequest("Soup recipe", BigDecimal.ONE, List.of(matched.meal()), 3);
+        var savedRecipe = recipes.createCoach(owner, new com.jllado.weightcontrol.api.dto.DishRecipeDtos.CoachRecipeRequest(recipe, true));
+        var renamed = new RecipeRequest("Renamed soup recipe", BigDecimal.ONE, recipe.ingredients(), 3);
+        var storedRecipe = recipes.updateCoach(owner, savedRecipe.id(), new com.jllado.weightcontrol.api.dto.DishRecipeDtos.CoachRecipeRequest(renamed, true));
+        assertEquals("Owner soup product label", storedRecipe.ingredients().getFirst().saturatedFatSource());
+        var replacement = new RecipeRequest("Replacement", BigDecimal.ONE, List.of(named.meal()), 3);
+        assertThrows(BadRequestException.class, () -> recipes.updateCoach(owner, savedRecipe.id(),
+            new com.jllado.weightcontrol.api.dto.DishRecipeDtos.CoachRecipeRequest(replacement, true)));
+
+        var other = user("v3-transition-other");
+        var independent = meals.createConfirmed(other, legacyMeal(List.of(matched), "other catalog", 3));
+        assertTrue(independent.getDishes().getFirst().getSaturatedFatSource().contains("mixed-diet proxy"));
+        var incompatible = row.deepCopy().put("proteinGrams", 3);
+        ((com.fasterxml.jackson.databind.node.ObjectNode) incompatible.get("reference")).put("proteinGrams", 6);
+        var different = meals.createConfirmed(owner, legacyMeal(List.of(mapper.treeToValue(incompatible, CoachMealDishRequest.class)), "different composition", 3));
+        assertTrue(different.getDishes().getFirst().getSaturatedFatSource().contains("mixed-diet proxy"));
+    }
+
+    private CoachMealRequest legacyMeal(List<CoachMealDishRequest> dishes, String notes, int version) {
+        return new CoachMealRequest(LocalDate.of(2026, 8, 12), MealType.SNACK, 50 * dishes.size(), null, null, null,
+            java.time.LocalTime.NOON, notes, MealSource.GPT_IMAGE_ESTIMATE, true, dishes, 15, null, version);
+    }
+
+    @Test void saltAndSaturatedFatPersistInEveryStoreAndRejectLegacyReplacementsAndArchivedRevival() throws Exception {
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules()
             .disable(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
         var owner = user("salt-snapshots");
         var json = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree("""
             {"name":"Salt soup","calories":50,"quantity":50,"unit":"GRAM",
              "vitaminDMicrograms":0,"magnesiumMilligrams":10,"nutrientSource":"Label","nutrientsEstimated":false,
-             "saltGrams":0.63,"saltSource":"Label 1.25 g/100 g","saltEstimated":true,"nutrientSchemaVersion":3,
-             "reference":{"quantity":100,"calories":100,"vitaminDMicrograms":0,"magnesiumMilligrams":20,"saltGrams":1.25}}
+             "saltGrams":0.63,"saltSource":"Label 1.25 g/100 g","saltEstimated":true,"nutrientSchemaVersion":4,
+             "saturatedFatGrams":0.57,"saturatedFatSource":"Soup fat profile","saturatedFatEstimated":true,
+             "reference":{"quantity":100,"calories":100,"vitaminDMicrograms":0,"magnesiumMilligrams":20,"saltGrams":1.25,"fatGrams":4,"saturatedFatGrams":1.13}}
             """);
         var food = mapper.treeToValue(json, MealDishRequest.class);
         var catalog = service.create(owner, food);
@@ -59,14 +127,25 @@ class CatalogFoodPersistenceTest {
             assertEquals(1.25, response.path("reference").path("saltGrams").asDouble());
             assertEquals("Label 1.25 g/100 g", response.path("saltSource").asText());
             assertTrue(response.path("saltEstimated").asBoolean());
+            assertEquals(0.57, response.path("saturatedFatGrams").asDouble());
+            assertEquals(1.13, response.path("reference").path("saturatedFatGrams").asDouble());
+            assertEquals("Soup fat profile", response.path("saturatedFatSource").asText());
+            assertTrue(response.path("saturatedFatEstimated").asBoolean());
         }
         var legacy = food("Salt soup", 1, DishUnit.SERVING, 100);
         assertThrows(BadRequestException.class, () -> service.update(owner, catalog.id(), legacy));
         assertThrows(BadRequestException.class, () -> recipes.update(owner, recipe.id(), new RecipeRequest("Changed", BigDecimal.ONE, List.of(), 2)));
         assertThrows(BadRequestException.class, () -> meals.update(owner, meal.getId(), new MealRequest(LocalDate.of(2026,8,12), MealType.SNACK, 0, null, null, null, null, null, List.of(), null, 2)));
+        var versionThree = json.deepCopy().put("nutrientSchemaVersion", 3);
+        assertThrows(BadRequestException.class, () -> service.update(owner, catalog.id(), mapper.treeToValue(versionThree, MealDishRequest.class)));
+        assertThrows(BadRequestException.class, () -> recipes.update(owner, recipe.id(), new RecipeRequest("Changed", BigDecimal.ONE, List.of(legacy), 3)));
+        assertThrows(BadRequestException.class, () -> meals.update(owner, meal.getId(),
+            new MealRequest(LocalDate.of(2026,8,12), MealType.SNACK, 0, null, null, null, null, null, List.of(), null, 3)));
         json.put("name", "Renamed salt soup").put("quantity", 75).put("saltGrams", 0.94);
         service.update(owner, catalog.id(), mapper.treeToValue(json, MealDishRequest.class));
         assertEquals(new BigDecimal("0.63"), jdbc.queryForObject("SELECT salt_grams FROM catalog_foods WHERE user_id=? AND deleted=true", BigDecimal.class, owner.getId()));
+        assertThrows(BadRequestException.class, () -> service.create(owner, mapper.treeToValue(versionThree, MealDishRequest.class)));
+        assertEquals(new BigDecimal("0.57"), jdbc.queryForObject("SELECT saturated_fat_grams FROM catalog_foods WHERE user_id=? AND deleted=true", BigDecimal.class, owner.getId()));
         assertThrows(BadRequestException.class, () -> service.create(owner, legacy));
         assertEquals(0.63, mapper.valueToTree(recipes.find(owner, recipe.id()).ingredients().getFirst()).path("saltGrams").asDouble());
         assertEquals(0.63, mapper.valueToTree(MealResponse.from(meals.findAll(owner).getFirst()).dishes().getFirst()).path("saltGrams").asDouble());
@@ -74,7 +153,10 @@ class CatalogFoodPersistenceTest {
         var daily = ((com.jllado.weightcontrol.api.dto.CoachDtos.NutritionContext) evidence.data().get(CoachDomain.NUTRITION)).dailyTotals().getFirst();
         assertEquals(0.63, mapper.valueToTree(daily.nutrients()).path("saltGrams").asDouble());
         assertEquals(1, mapper.valueToTree(daily.nutrients()).path("saltCoverage").path("foodsWithValues").asInt());
-        meals.update(owner, meal.getId(), new MealRequest(LocalDate.of(2026,8,12), MealType.SNACK, 0, null, null, null, null, null, List.of(), null, 3));
+        assertEquals(0.57, daily.nutrients().saturatedFatGrams().doubleValue());
+        assertEquals(1, daily.nutrients().saturatedFatCoverage().foodsWithValues());
+        assertEquals(1, daily.nutrients().saturatedFatCoverage().estimatedFoods());
+        meals.update(owner, meal.getId(), new MealRequest(LocalDate.of(2026,8,12), MealType.SNACK, 0, null, null, null, null, null, List.of(), null, 4));
         assertTrue(meals.findAll(owner).getFirst().getDishes().isEmpty());
     }
 
@@ -165,6 +247,10 @@ class CatalogFoodPersistenceTest {
         assertEquals(BigDecimal.ZERO.setScale(2), registered.reference().saltGrams());
         assertEquals("Test composition estimate", registered.saltSource());
         assertTrue(registered.saltEstimated());
+        assertEquals(BigDecimal.ZERO.setScale(2), registered.saturatedFatGrams());
+        assertEquals(BigDecimal.ZERO.setScale(2), registered.reference().saturatedFatGrams());
+        assertEquals("Test composition estimate", registered.saturatedFatSource());
+        assertTrue(registered.saturatedFatEstimated());
         assertEquals("ALA evidence", registered.alaSource());
         assertEquals(new BigDecimal("2.00"), registered.reference().fiberGrams());
         assertEquals(new BigDecimal("250.00"), meals.findAll(owner).getFirst().getDishes().getFirst().getEpaDhaMilligrams());
@@ -196,7 +282,7 @@ class CatalogFoodPersistenceTest {
         service.delete(owner, unknownArchived.id());
         assertEquals(unknownArchived.id(), service.create(owner, food("Unknown archived", 1, DishUnit.SERVING, 101)).id());
         var clear = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.valueToTree(meal(legacy));
-        clear.put("nutrientSchemaVersion", 3);
+        clear.put("nutrientSchemaVersion", 4);
         meals.update(owner, saved.getId(), mapper.treeToValue(clear, MealRequest.class));
         assertNull(meals.findAll(owner).getFirst().getDishes().getFirst().getEpaDhaMilligrams());
         assertNull(meals.findAll(owner).getFirst().getDishes().getFirst().getAlaMilligrams());
@@ -229,7 +315,7 @@ class CatalogFoodPersistenceTest {
             new BigDecimal("50"), DishUnit.GRAM, reference, true, false,
             BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, "Published composition; estimated portion", true));
         meals.updateConfirmed(owner, meal.getId(), new CoachMealRequest(date, MealType.SNACK, 100, null, null, null,
-            null, null, MealSource.MANUAL, true, List.of(coach), 5, null, 3));
+            null, null, MealSource.MANUAL, true, List.of(coach), 5, null, 4));
         var registered = service.findAll(owner).stream().filter(item -> item.name().equals("New fish")).findFirst().orElseThrow();
         assertEquals(new BigDecimal("2.01"), registered.reference().vitaminDMicrograms());
         assertEquals("Published composition; estimated portion", registered.nutrientSource());
@@ -262,13 +348,13 @@ class CatalogFoodPersistenceTest {
         var coachDish = completeCoachFood(new CoachMealDishRequest("Apple", 80, BigDecimal.ZERO, new BigDecimal("20"), BigDecimal.ZERO,
             BigDecimal.ONE, DishUnit.UNIT, apple.reference(), true, null, java.math.BigDecimal.ZERO, java.math.BigDecimal.ONE, java.math.BigDecimal.TEN, "Test composition", false));
         var coachUpdate = new CoachMealRequest(date, MealType.SNACK, 80, BigDecimal.ZERO, new BigDecimal("20"), BigDecimal.ZERO,
-            null, null, MealSource.GPT_IMAGE_ESTIMATE, true, List.of(coachDish), 5, null, 3);
+            null, null, MealSource.GPT_IMAGE_ESTIMATE, true, List.of(coachDish), 5, null, 4);
         assertTrue(meals.updateConfirmed(owner, meal.getId(), coachUpdate).getDishes().getFirst().isFruit());
 
         var renamed = completeCoachFood(new CoachMealDishRequest("Green apple", 80, BigDecimal.ZERO, new BigDecimal("20"), BigDecimal.ZERO,
             BigDecimal.ONE, DishUnit.UNIT, apple.reference(), false, null, java.math.BigDecimal.ZERO, java.math.BigDecimal.ONE, java.math.BigDecimal.TEN, "Test composition", false));
         var oldCoachUpdate = new CoachMealRequest(date, MealType.SNACK, 80, BigDecimal.ZERO, new BigDecimal("20"), BigDecimal.ZERO,
-            null, null, MealSource.GPT_IMAGE_ESTIMATE, true, List.of(renamed), 5, null, 3);
+            null, null, MealSource.GPT_IMAGE_ESTIMATE, true, List.of(renamed), 5, null, 4);
         assertTrue(meals.updateConfirmed(owner, meal.getId(), oldCoachUpdate).getDishes().getFirst().isFruit());
 
         var notFruit = new MealDishRequest("Apple", 80, BigDecimal.ZERO, new BigDecimal("20"), BigDecimal.ZERO,
@@ -285,12 +371,12 @@ class CatalogFoodPersistenceTest {
         var explicitFalse = completeCoachFood(new CoachMealDishRequest("Green apple", 80, BigDecimal.ZERO, new BigDecimal("20"), BigDecimal.ZERO,
             BigDecimal.ONE, DishUnit.UNIT, apple.reference(), false, false, java.math.BigDecimal.ZERO, java.math.BigDecimal.ONE, java.math.BigDecimal.TEN, "Test composition", false));
         var explicitUpdate = new CoachMealRequest(date, MealType.SNACK, 80, BigDecimal.ZERO, new BigDecimal("20"), BigDecimal.ZERO,
-            null, null, MealSource.GPT_IMAGE_ESTIMATE, true, List.of(explicitFalse), 5, null, 3);
+            null, null, MealSource.GPT_IMAGE_ESTIMATE, true, List.of(explicitFalse), 5, null, 4);
         assertFalse(meals.updateConfirmed(owner, meal.getId(), explicitUpdate).getDishes().getFirst().isFruit());
         var explicitTrue = completeCoachFood(new CoachMealDishRequest("Fresh apple", 80, BigDecimal.ZERO, new BigDecimal("20"), BigDecimal.ZERO,
             BigDecimal.ONE, DishUnit.UNIT, apple.reference(), true, true, java.math.BigDecimal.ZERO, java.math.BigDecimal.ONE, java.math.BigDecimal.TEN, "Test composition", false));
         var coachCreate = new CoachMealRequest(date.plusDays(1), MealType.SNACK, 80, BigDecimal.ZERO, new BigDecimal("20"), BigDecimal.ZERO,
-            null, null, MealSource.GPT_IMAGE_ESTIMATE, true, List.of(explicitTrue), 5, null, 3);
+            null, null, MealSource.GPT_IMAGE_ESTIMATE, true, List.of(explicitTrue), 5, null, 4);
         assertTrue(meals.createConfirmed(owner, coachCreate).getDishes().getFirst().isFruit());
         assertTrue(service.findAll(owner).getFirst().fruit());
     }
@@ -562,7 +648,7 @@ class CatalogFoodPersistenceTest {
         var uncertain = completeCoachFood(new CoachMealDishRequest("Possible oats variant", 100, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, DishUnit.SERVING, null, false, null, java.math.BigDecimal.ZERO, java.math.BigDecimal.ONE, java.math.BigDecimal.TEN, "Test composition", false));
         var selected = coach(oats).dishes().getFirst();
         var request = new CoachMealRequest(LocalDate.of(2026, 8, 12), MealType.SNACK, 450, null, null, null,
-            java.time.LocalTime.NOON, null, MealSource.MANUAL, true, List.of(uncertain, selected), 10, null, 3);
+            java.time.LocalTime.NOON, null, MealSource.MANUAL, true, List.of(uncertain, selected), 10, null, 4);
         var saved = meals.createConfirmed(owner, request);
         assertEquals(2, saved.getDishes().size());
         assertEquals(450, saved.getCalories());
@@ -570,7 +656,7 @@ class CatalogFoodPersistenceTest {
         meals.updateConfirmed(owner, saved.getId(), request);
         assertEquals(1, service.findAll(owner).size());
         var rejected = new CoachMealRequest(request.date(), request.mealType(), 450, null, null, null,
-            request.mealTime(), null, request.source(), false, List.of(coach(food("New food", 1, DishUnit.UNIT, 20)).dishes().getFirst()), 10, null, 3);
+            request.mealTime(), null, request.source(), false, List.of(coach(food("New food", 1, DishUnit.UNIT, 20)).dishes().getFirst()), 10, null, 4);
         assertThrows(BadRequestException.class, () -> meals.createConfirmed(owner, rejected));
         assertEquals(1, service.findAll(owner).size());
         assertThrows(IllegalStateException.class, () -> transactions.executeWithoutResult(status -> {
@@ -581,6 +667,37 @@ class CatalogFoodPersistenceTest {
         var other = user("selected-other");
         meals.createConfirmed(other, coach(oats));
         assertEquals(1, service.findAll(other).size());
+    }
+
+    @Test void waitingLegacyFoodAndRecipeWritesReadTheCommittedSaturatedFatBeforeReplacement() throws Exception {
+        var owner = user("concurrent-saturated-fat");
+        var legacy = food("Oats", 100, DishUnit.GRAM, 350);
+        var catalog = service.create(owner, legacy);
+        var recipeRequest = new RecipeRequest("Oat dish", BigDecimal.ONE, List.of(legacy), 3);
+        var recipe = recipes.create(owner, recipeRequest);
+        var started = new java.util.concurrent.CountDownLatch(2);
+        try (var pool = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            var waiting = transactions.execute(status -> {
+                users.findByIdForUpdate(owner.getId()).orElseThrow();
+                jdbc.update("UPDATE catalog_foods SET saturated_fat_grams=1, reference_saturated_fat_grams=1, saturated_fat_source='Label', saturated_fat_estimated=false WHERE id=?", catalog.id());
+                jdbc.update("UPDATE recipe_ingredients SET saturated_fat_grams=1, reference_saturated_fat_grams=1, saturated_fat_source='Label', saturated_fat_estimated=false WHERE recipe_id=?", recipe.id());
+                var updates = List.of(pool.submit(() -> {
+                    started.countDown();
+                    return assertThrows(BadRequestException.class, () -> service.update(owner, catalog.id(), legacy));
+                }), pool.submit(() -> {
+                    started.countDown();
+                    return assertThrows(BadRequestException.class, () -> recipes.update(owner, recipe.id(), recipeRequest));
+                }));
+                try {
+                    assertTrue(started.await(5, java.util.concurrent.TimeUnit.SECONDS));
+                    for (var update : updates) assertThrows(java.util.concurrent.TimeoutException.class, () -> update.get(200, java.util.concurrent.TimeUnit.MILLISECONDS));
+                } catch (InterruptedException e) { throw new RuntimeException(e); }
+                return updates;
+            });
+            for (var result : waiting) assertTrue(result.get(10, java.util.concurrent.TimeUnit.SECONDS).getMessage().contains("saturated fat"));
+        }
+        assertEquals(new BigDecimal("1.00"), service.findAll(owner).getFirst().saturatedFatGrams());
+        assertEquals(new BigDecimal("1.00"), recipes.find(owner, recipe.id()).ingredients().getFirst().saturatedFatGrams());
     }
 
     @Test void concurrentSelectedNamesKeepOneCatalogSnapshot() throws Exception {
@@ -614,10 +731,11 @@ class CatalogFoodPersistenceTest {
             food.quantity(), food.unit(), food.reference(), true, null, food.vitaminDMicrograms(), food.omega3Milligrams(),
             food.magnesiumMilligrams(), food.nutrientSource(), food.nutrientsEstimated(), food.epaDhaMilligrams(),
             food.epaDhaSource(), food.epaDhaEstimated(), food.alaMilligrams(), food.alaSource(), food.alaEstimated(),
-            food.fiberGrams(), food.fiberSource(), food.fiberEstimated(), food.saltGrams(), food.saltSource(), food.saltEstimated());
+            food.fiberGrams(), food.fiberSource(), food.fiberEstimated(), food.saltGrams(), food.saltSource(), food.saltEstimated(),
+            food.saturatedFatGrams(), food.saturatedFatSource(), food.saturatedFatEstimated());
         return new CoachMealRequest(LocalDate.of(2026, 8, 12), MealType.SNACK, food.calories(), food.proteinGrams(),
             food.carbohydrateGrams(), food.fatGrams(), null, null, MealSource.GPT_IMAGE_ESTIMATE, true,
-            List.of(completeCoachFood(proposed)), 10, null, 3);
+            List.of(completeCoachFood(proposed)), 10, null, 4);
     }
     private CoachMealDishRequest completeCoachFood(CoachMealDishRequest partial) {
         var normalized = new MealDish();
@@ -626,7 +744,7 @@ class CatalogFoodPersistenceTest {
         var reference = new DishReference(sourceReference.quantity(), sourceReference.calories(),
             sourceReference.proteinGrams(), sourceReference.carbohydrateGrams(), sourceReference.fatGrams(),
             sourceReference.vitaminDMicrograms(), known(sourceReference.omega3Milligrams()), sourceReference.magnesiumMilligrams(),
-            known(sourceReference.epaDhaMilligrams()), known(sourceReference.alaMilligrams()), known(sourceReference.fiberGrams()), known(sourceReference.saltGrams()));
+            known(sourceReference.epaDhaMilligrams()), known(sourceReference.alaMilligrams()), known(sourceReference.fiberGrams()), known(sourceReference.saltGrams()), known(sourceReference.saturatedFatGrams()));
         return new CoachMealDishRequest(partial.name(), normalized.getCalories(), normalized.getProteinGrams(),
             normalized.getCarbohydrateGrams(), normalized.getFatGrams(), partial.quantity(), partial.unit(), reference,
             partial.addToCatalog(), partial.fruit(), normalized.getVitaminDMicrograms(), known(normalized.getOmega3Milligrams()),
@@ -634,7 +752,8 @@ class CatalogFoodPersistenceTest {
             known(normalized.getEpaDhaMilligrams()), source(partial.epaDhaSource()), estimated(partial.epaDhaEstimated()),
             known(normalized.getAlaMilligrams()), source(partial.alaSource()), estimated(partial.alaEstimated()),
             known(normalized.getFiberGrams()), source(partial.fiberSource()), estimated(partial.fiberEstimated()),
-            known(normalized.getSaltGrams()), source(partial.saltSource()), estimated(partial.saltEstimated()));
+            known(normalized.getSaltGrams()), source(partial.saltSource()), estimated(partial.saltEstimated()),
+            known(normalized.getSaturatedFatGrams()), source(partial.saturatedFatSource()), estimated(partial.saturatedFatEstimated()));
     }
     private BigDecimal known(BigDecimal value) { return value == null ? BigDecimal.ZERO : value; }
     private String source(String value) { return value == null ? "Test composition estimate" : value; }

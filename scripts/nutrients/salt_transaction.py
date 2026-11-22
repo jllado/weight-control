@@ -1,7 +1,19 @@
-"""Generate a frozen-owner salt-only transaction; exact replay is a no-op."""
+"""Generate a frozen-owner single-nutrient transaction; exact replay is a no-op."""
 from decimal import Decimal
+from dataclasses import dataclass
 
-SALT = ("salt_grams", "reference_salt_grams", "salt_source", "salt_estimated")
+@dataclass(frozen=True)
+class NutrientColumns:
+    key: str
+    columns: tuple
+    fields: tuple
+
+
+SALT = NutrientColumns("salt", ("salt_grams", "reference_salt_grams", "salt_source", "salt_estimated"),
+                       ("saltGrams", "referenceSaltGrams", "saltSource", "saltEstimated"))
+SATURATED_FAT = NutrientColumns("saturatedFat", ("saturated_fat_grams", "reference_saturated_fat_grams",
+                                "saturated_fat_source", "saturated_fat_estimated"),
+                                ("saturatedFatGrams", "referenceSaturatedFatGrams", "saturatedFatSource", "saturatedFatEstimated"))
 KINDS = {"catalog_food": "catalog_foods", "meal_snapshot": "meal_dishes", "recipe_ingredient": "recipe_ingredients"}
 SCOPES = {
     "catalog_foods": ("catalog_foods a", "a.user_id"),
@@ -22,18 +34,24 @@ def literal(value):
     return "CONVERT(0x" + str(value).encode("utf-8").hex() + " USING utf8mb4)"
 
 
-def build_transaction(inventory, schema, manifest, owner_id, *, commit=False):
-    """Compare every frozen field before changing only selected empty salt fields.
+def build_transaction(inventory, schema, manifest, owner_id, *, commit=False, nutrient=SALT):
+    """Compare every frozen field before changing only selected empty nutrient fields.
 
     inventory contains all five owner-scoped tables, including archived foods and
     every meal date. schema lists their real columns. No external lookup runs here.
     """
-    expected = {(kind, row["id"]) for kind, table in KINDS.items() for row in inventory[table]}
+    kinds = dict(KINDS)
+    mappings = {kind: dict(zip(nutrient.columns, ("value", "reference_value", "source", "estimated"))) for kind in kinds}
+    if nutrient == SATURATED_FAT:
+        kinds["legacy_meal"] = "meals"
+        mappings["legacy_meal"] = {"estimated_saturated_fat_grams": "value", "saturated_fat_estimate_source": "source"}
+    columns_by_table = {table: mappings[kind] for kind, table in kinds.items()}
+    expected = {(kind, row["id"]) for kind, table in kinds.items() for row in inventory[table]}
     records = {(row["kind"], row["id"]): row for row in manifest["records"]}
     if len(records) != len(manifest["records"]) or set(records) != expected:
         raise ValueError("Manifest must account for the complete frozen inventory")
     selected = [row for row in manifest["records"] if row["status"] in ("researched", "estimated")]
-    sql = ["-- Reviewed salt-only enrichment; disconnect on error, never use --force.",
+    sql = [f"-- Reviewed {nutrient.key} enrichment; disconnect on error, never use --force.",
            "-- SERIALIZABLE owner transaction; exact replay is accepted, mixed/stale state rejected."]
     for table in SCOPES:
         sql += [f"DROP TEMPORARY TABLE IF EXISTS salt_old_{table};", f"CREATE TEMPORARY TABLE salt_old_{table} LIKE {table};"]
@@ -48,9 +66,9 @@ def build_transaction(inventory, schema, manifest, owner_id, *, commit=False):
     if selected:
         values = []
         for row in selected:
-            value = row["salt"]
-            values.append("(" + ",".join(literal(item) for item in (row["kind"], row["id"], Decimal(str(value["saltGrams"])),
-                           Decimal(str(value["referenceSaltGrams"])), value["saltSource"], value["saltEstimated"])) + ")")
+            value = row[nutrient.key]
+            values.append("(" + ",".join(literal(item) for item in (row["kind"], row["id"], Decimal(str(value[nutrient.fields[0]])),
+                           value.get(nutrient.fields[1]), value[nutrient.fields[2]], value[nutrient.fields[3]])) + ")")
         sql.append("INSERT INTO salt_review VALUES\n" + ",\n".join(values) + ";")
     sql += ["SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;", "START TRANSACTION;",
             f"SELECT id FROM users WHERE id={owner_id} FOR UPDATE;",
@@ -63,31 +81,35 @@ def build_transaction(inventory, schema, manifest, owner_id, *, commit=False):
     for table, (scope, owner) in SCOPES.items():
         count = len(inventory[table])
         sql.append(f"INSERT INTO salt_assertion SELECT COUNT(*)={count} FROM {scope} WHERE {owner}={owner_id};")
-        fields = [column for column in schema[table] if column not in SALT]
+        fields = [column for column in schema[table] if column not in columns_by_table.get(table, {})]
         comparison = " AND ".join(f"BINARY a.{column}<=>BINARY old.{column}" for column in fields)
         unchanged_checks.append(f"INSERT INTO salt_assertion SELECT COUNT(*)={count} FROM {scope} JOIN salt_old_{table} old ON old.id=a.id WHERE {owner}={owner_id} AND {comparison};")
     sql += unchanged_checks
     state_branches = []
     untouched_checks = []
-    for kind, table in KINDS.items():
+    for kind, table in kinds.items():
+        columns = mappings[kind]
         scope, owner = SCOPES[table]
         count = sum(row["kind"] == kind for row in selected)
-        unchanged = " AND ".join(f"BINARY a.{field}<=>BINARY old.{field}" for field in SALT)
+        unchanged = " AND ".join(f"BINARY a.{field}<=>BINARY old.{field}" for field in columns)
         untouched_checks.append(f"INSERT INTO salt_assertion SELECT COUNT(*)={len(inventory[table])-count} FROM {scope} JOIN salt_old_{table} old ON old.id=a.id LEFT JOIN salt_review r ON r.kind='{kind}' AND r.id=a.id WHERE {owner}={owner_id} AND r.id IS NULL AND {unchanged};")
-        empty = " AND ".join(f"a.{field} IS NULL" for field in SALT)
-        populated = " AND ".join(f"BINARY a.{field}<=>BINARY r.{new}" for field, new in zip(SALT, ("value", "reference_value", "source", "estimated")))
+        empty = " AND ".join(f"a.{field} IS NULL" for field in columns)
+        populated = " AND ".join(f"BINARY a.{field}<=>BINARY r.{new}" for field, new in columns.items())
         state_branches.append(f"SELECT ({empty}) is_old,({populated}) is_new FROM {scope} JOIN salt_review r ON r.kind='{kind}' AND r.id=a.id WHERE {owner}={owner_id}")
     state = " UNION ALL ".join(state_branches)
     sql += untouched_checks
     sql.append(f"INSERT INTO salt_assertion SELECT COUNT(*)={len(selected)} AND (COALESCE(SUM(is_old),0)={len(selected)} OR COALESCE(SUM(is_new),0)={len(selected)}) FROM ({state}) states;")
-    for kind, table in KINDS.items():
+    for kind, table in kinds.items():
+        columns = mappings[kind]
         scope, owner = SCOPES[table]
-        assignments = ",".join(f"a.{field}=r.{new}" for field, new in zip(SALT, ("value", "reference_value", "source", "estimated")))
-        empty = " AND ".join(f"a.{field} IS NULL" for field in SALT)
+        assignments = ",".join(f"a.{field}=r.{new}" for field, new in columns.items())
+        if "updated_at" in schema[table]:
+            assignments += ",a.updated_at=a.updated_at"
+        empty = " AND ".join(f"a.{field} IS NULL" for field in columns)
         sql += [f"UPDATE {scope} JOIN salt_review r ON r.kind='{kind}' AND r.id=a.id SET {assignments} WHERE {owner}={owner_id} AND {empty};",
-                f"SELECT 'salt_updated_{kind}',ROW_COUNT();"]
+                f"SELECT '{nutrient.key}_updated_{kind}',ROW_COUNT();"]
     sql += unchanged_checks + untouched_checks
     sql += [f"INSERT INTO salt_assertion SELECT COUNT(*)={len(selected)} AND COALESCE(SUM(is_new),0)={len(selected)} FROM ({state}) states;",
             "COMMIT;" if commit else "ROLLBACK;",
-            f"SELECT 'salt_{'committed' if commit else 'dry_run_rolled_back'}',{len(selected)};"]
+            f"SELECT '{nutrient.key}_{'committed' if commit else 'dry_run_rolled_back'}',{len(selected)};"]
     return "\n".join(sql) + "\n"

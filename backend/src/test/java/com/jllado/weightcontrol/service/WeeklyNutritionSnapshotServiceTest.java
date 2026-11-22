@@ -43,10 +43,10 @@ class WeeklyNutritionSnapshotServiceTest {
         var partial = new NutrientCoverage(1, 1);
         var first = new NutrientSummary(BigDecimal.ONE, new BigDecimal("900"), new BigDecimal("200"), 2, 2, 1, 0,
             new BigDecimal("250"), coverage, coverage, coverage, coverage, null, new NutrientCoverage(0,0),
-            new BigDecimal("25"), coverage, new BigDecimal("4.99"), coverage);
+            new BigDecimal("25"), coverage, new BigDecimal("4.99"), coverage, null, new NutrientCoverage(0, 0), List.of());
         var second = new NutrientSummary(BigDecimal.ONE, new BigDecimal("900"), new BigDecimal("200"), 2, 2, 1, 0,
             new BigDecimal("150"), coverage, coverage, coverage, partial, null, new NutrientCoverage(0,0),
-            new BigDecimal("25"), coverage, new BigDecimal("9"), partial);
+            new BigDecimal("25"), coverage, new BigDecimal("9"), partial, null, new NutrientCoverage(0, 0), List.of());
         when(nutrition.findBetween(eq(user), eq(friday.minusDays(6)), eq(friday), anyMap())).thenReturn(List.of(
             new NutritionService.DailyNutritionSummary(friday.minusDays(1), 2050, new BigDecimal("120.00"), new BigDecimal("200"), new BigDecimal("60"), true, first, true, null),
             new NutritionService.DailyNutritionSummary(friday, 2589, new BigDecimal("120.01"), new BigDecimal("200"), new BigDecimal("60"), true, second, true, null)));

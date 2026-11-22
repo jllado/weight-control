@@ -196,7 +196,7 @@ test('Coach meal replacement exposes the required nutrient snapshot version dire
     const create = value.components.schemas.MealWrite;
     const replace = value.paths['/coach/meals/{id}'].put.requestBody.content['application/json'].schema;
     assert.ok(create.required.includes('nutrientSchemaVersion'));
-    assert.equal(replace.properties.nutrientSchemaVersion.const, 3);
+    assert.equal(replace.properties.nutrientSchemaVersion.const, 4);
     assert.equal(replace.additionalProperties, false);
     assert.ok(!Object.hasOwn(replace.properties, 'id'));
     assert.match(replace.properties.nutrientSchemaVersion.description, /full meal replacement/i);
@@ -210,7 +210,7 @@ test('Coach meal replacement exposes the required nutrient snapshot version dire
     assert.equal(replace.properties.dishes.items.$ref, '#/components/schemas/CoachMealDishWrite');
     const complete = value.components.schemas.CoachMealDishComplete.allOf[1];
     const reference = value.components.schemas.CoachDishReferenceComplete.allOf[1];
-    for (const field of ['omega3Milligrams', 'epaDhaMilligrams', 'alaMilligrams', 'fiberGrams', 'saltGrams']) {
+    for (const field of ['omega3Milligrams', 'epaDhaMilligrams', 'alaMilligrams', 'fiberGrams', 'saltGrams', 'saturatedFatGrams']) {
         assert.ok(complete.required.includes(field));
         assert.equal(complete.properties[field].type, 'number');
         assert.ok(reference.required.includes(field));
@@ -220,6 +220,7 @@ test('Coach meal replacement exposes the required nutrient snapshot version dire
     assert.deepEqual(value.components.schemas.CoachMealDishWrite.properties.saltGrams.type, ['number', 'null']);
     assert.ok(value.components.schemas.NutrientTargets.properties.salt);
     assert.ok(value.components.schemas.NutrientSummary.properties.saltCoverage);
+    assert.ok(value.components.schemas.NutrientSummary.properties.saturatedFatCoverage);
     assert.ok(value.components.schemas.WeeklyNutritionMeasure.properties.comparison.enum.includes('STRICT_MAXIMUM'));
 });
 

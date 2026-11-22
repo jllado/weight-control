@@ -848,7 +848,7 @@
                   <div class="meal-entry-main">
                     <div class="meal-entry-summary">
                       <strong>{{ meal.label() }}</strong>
-                      <span>{{ format_nutrition_value(meal.calories) }} kcal<template v-if="meal.rating"> · <MealRating :meal="meal" /></template></span>
+                      <span>{{ format_nutrition_value(meal.calories) }} kcal<template v-if="meal.rating !== null || meal.ratingExplanation"> · <MealRating :meal="meal" /></template></span>
                     </div>
                     <div class="meal-entry-actions action-group action-group--compact">
                       <CreateMeal :initial_date="daily_status.date" :meal="meal" :meals="meals" :fasting_periods="fasting_periods" fixed_date @onSave="load_all" />

@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.service;
 import com.jllado.weightcontrol.api.dto.MealDtos.*;
 import com.jllado.weightcontrol.domain.*;
 import com.jllado.weightcontrol.repository.CatalogFoodRepository;
+import com.jllado.weightcontrol.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import java.util.List;
 import java.util.Locale;
@@ -13,7 +14,16 @@ import org.springframework.stereotype.Service;
 @Transactional
 public class CatalogFoodService {
     private final CatalogFoodRepository repository;
-    public CatalogFoodService(CatalogFoodRepository repository) { this.repository = repository; }
+    private final UserRepository users;
+
+    public CatalogFoodService(CatalogFoodRepository repository, UserRepository users) {
+        this.repository = repository;
+        this.users = users;
+    }
+
+    java.util.Optional<CatalogFood> findActiveByName(User user, String name) {
+        return repository.findByUserAndNormalizedName(user, normalized(name)).filter(food -> !food.isDeleted());
+    }
 
     public long count(User user) { return repository.countByUserAndDeletedFalse(user); }
     public List<CatalogFoodResponse> findAll(User user) {
@@ -38,6 +48,7 @@ public class CatalogFoodService {
         );
     }
     public CatalogFoodResponse create(User user, MealDishRequest request) {
+        users.findByIdForUpdate(user.getId()).orElseThrow();
         var food = repository.findByUserAndNormalizedName(user, normalized(request.name())).orElseGet(() -> newFood(user));
         if (food.getId() != null) {
             if (!food.isDeleted()) throw new BadRequestException("A food with this name already exists.");
@@ -47,6 +58,7 @@ public class CatalogFoodService {
         return CatalogFoodResponse.from(repository.saveAndFlush(food));
     }
     public CatalogFoodResponse update(User user, Long id, MealDishRequest request) {
+        users.findByIdForUpdate(user.getId()).orElseThrow();
         var food = requireOwned(user, id);
         FoodSnapshotCompatibility.requireAwareReplacement(request.nutrientSchemaVersion(), List.of(food));
         String nextName = normalized(request.name());
@@ -60,11 +72,8 @@ public class CatalogFoodService {
                 repository.flush();
             }
             oldName = newFood(user);
-            apply(oldName, new MealDishRequest(food.getName(), food.getCalories(), food.getProteinGrams(), food.getCarbohydrateGrams(), food.getFatGrams(), food.getQuantity(), food.getUnit(), DishReference.from(food), food.isFruit(),
-                food.getVitaminDMicrograms(), food.getOmega3Milligrams(), food.getMagnesiumMilligrams(), food.getNutrientSource(), food.getNutrientsEstimated(),
-                food.getEpaDhaMilligrams(), food.getEpaDhaSource(), food.getEpaDhaEstimated(),
-                food.getAlaMilligrams(), food.getAlaSource(), food.getAlaEstimated(),
-                food.getFiberGrams(), food.getFiberSource(), food.getFiberEstimated(), 3, food.getSaltGrams(), food.getSaltSource(), food.getSaltEstimated()));
+            org.springframework.beans.BeanUtils.copyProperties(food, oldName, FoodPortion.class);
+            oldName.setNormalizedName(food.getNormalizedName());
             oldName.setDeleted(true);
         }
         apply(food, request);
@@ -72,10 +81,14 @@ public class CatalogFoodService {
         if (oldName != null) repository.saveAndFlush(oldName);
         return CatalogFoodResponse.from(food);
     }
-    public void delete(User user, Long id) { requireOwned(user, id).setDeleted(true); }
+    public void delete(User user, Long id) {
+        users.findByIdForUpdate(user.getId()).orElseThrow();
+        requireOwned(user, id).setDeleted(true);
+    }
 
     // A concurrent meal may introduce the same name; keep the existing catalog snapshot in either case.
     public void register(User user, List<MealDish> foods) {
+        users.findByIdForUpdate(user.getId()).orElseThrow();
         for (var food : foods) {
             repository.insertIfAbsent(user.getId(), food.getName().trim(), normalized(food.getName()), food);
         }

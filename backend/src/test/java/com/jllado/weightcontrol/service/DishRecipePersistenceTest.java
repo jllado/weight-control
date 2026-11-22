@@ -100,18 +100,18 @@ class DishRecipePersistenceTest {
         assertEquals(0, service.findAll(owner).size());
 
         var created = service.createCoach(owner,
-            new CoachRecipeRequest(new RecipeRequest("Complete", BigDecimal.ONE, List.of(complete), 3), true));
+            new CoachRecipeRequest(new RecipeRequest("Complete", BigDecimal.ONE, List.of(complete), 4), true));
         assertEquals(new BigDecimal("1.00"), service.find(owner, created.id()).ingredients().getFirst().epaDhaMilligrams());
         assertEquals(new BigDecimal("2.00"), service.find(owner, created.id()).ingredients().getFirst().alaMilligrams());
         assertEquals(new BigDecimal("0.25"), service.find(owner, created.id()).ingredients().getFirst().saltGrams());
         assertEquals("Comparable salt estimate", service.find(owner, created.id()).ingredients().getFirst().saltSource());
 
-        var previous = service.create(owner, new RecipeRequest("Legacy", BigDecimal.ONE, List.of(complete, legacy), 3));
+        var previous = service.create(owner, new RecipeRequest("Legacy", BigDecimal.ONE, List.of(complete, legacy), 4));
         service.updateCoach(owner, previous.id(),
-            new CoachRecipeRequest(new RecipeRequest("Renamed", BigDecimal.ONE, List.of(complete, legacy), 3), true));
+            new CoachRecipeRequest(new RecipeRequest("Renamed", BigDecimal.ONE, List.of(complete, legacy), 4), true));
         assertEquals("Renamed", service.find(owner, previous.id()).name());
         assertThrows(BadRequestException.class, () -> service.updateCoach(owner, previous.id(),
-            new CoachRecipeRequest(new RecipeRequest("Reordered", BigDecimal.ONE, List.of(legacy, complete), 3), true)));
+            new CoachRecipeRequest(new RecipeRequest("Reordered", BigDecimal.ONE, List.of(legacy, complete), 4), true)));
         assertEquals("Renamed", service.find(owner, previous.id()).name());
     }
 
@@ -119,7 +119,7 @@ class DishRecipePersistenceTest {
         var reference = new DishReference(new BigDecimal("100"), 100, BigDecimal.ZERO, BigDecimal.ZERO,
             BigDecimal.ZERO, BigDecimal.ZERO, complete ? BigDecimal.ZERO : null, BigDecimal.ZERO,
             complete ? new BigDecimal("1.00") : null, complete ? new BigDecimal("2.00") : null,
-            new BigDecimal("3.00"), complete ? new BigDecimal("0.25") : null);
+            new BigDecimal("3.00"), complete ? new BigDecimal("0.25") : null, complete ? BigDecimal.ZERO : null);
         return new MealDishRequest(name, 100, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
             new BigDecimal("100"), DishUnit.GRAM, reference, false, BigDecimal.ZERO,
             complete ? BigDecimal.ZERO : null, BigDecimal.ZERO, "USDA comparable composition", true,
@@ -127,7 +127,8 @@ class DishRecipePersistenceTest {
             complete ? true : null, complete ? new BigDecimal("2.00") : null,
             complete ? "USDA comparable ALA estimate" : null, complete ? true : null,
             new BigDecimal("3.00"), "USDA comparable Fiber estimate", true, 3,
-            complete ? new BigDecimal("0.25") : null, complete ? "Comparable salt estimate" : null, complete ? true : null);
+            complete ? new BigDecimal("0.25") : null, complete ? "Comparable salt estimate" : null, complete ? true : null,
+            complete ? BigDecimal.ZERO : null, complete ? "Matching saturated fat evidence" : null, complete ? false : null);
     }
     private User user(String name) { var user = new User(); user.setEmail(name + "@example.com"); return users.save(user); }
     private MealDishRequest food(String name, String quantity) {

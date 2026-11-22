@@ -89,16 +89,86 @@ class MealDayCopyPersistenceTest {
         assertEquals(1, meals.copyDay(other, request(DAY, List.of(totals(MealType.LUNCH, 1)))).size());
     }
 
-    @Test void copiedDayScoresAllTimedMealsInOrderThenUntimedMealsInStorageOrder() {
+    @Test void unitemizedSaturatedFatEstimateKeepsItsSourceWithoutCountingAsFoodAndExpiresWhenEdited() {
+        var owner = user("estimated-unitemized");
+        var snapshot = new MealSnapshotRequest(MealType.DINNER, 1, 420, null, null, new BigDecimal("20"),
+            null, null, "Unitemized supper", List.of(), new BigDecimal("6.50"), "Estimated from saved supper description");
+        var saved = meals.copyDay(owner, request(DAY, List.of(snapshot))).getFirst();
+        var stored = MealResponse.from(meals.findForUser(owner, saved.getId()));
+        assertTrue(stored.dishes().isEmpty());
+        assertEquals("Estimated from saved supper description", stored.saturatedFatEstimateSource());
+        assertEquals(new BigDecimal("6.50"), stored.nutrients().saturatedFatGrams());
+        assertEquals(0, stored.nutrients().saturatedFatCoverage().foodsWithValues());
+        assertEquals(1, stored.nutrients().mealsWithoutFoods());
+        assertEquals(MealType.DINNER, stored.nutrients().unitemizedSaturatedFatEstimates().getFirst().mealType());
+
+        var timed = new MealRequest(DAY, MealType.DINNER, 420, null, null, new BigDecimal("20"),
+            LocalTime.NOON, snapshot.notes(), List.of(), 30, 4);
+        assertEquals(new BigDecimal("6.50"), meals.update(owner, saved.getId(), timed).getEstimatedSaturatedFatGrams());
+        var previous = new MealRequest(DAY, MealType.DINNER, 500, null, null, new BigDecimal("22"),
+            LocalTime.NOON, snapshot.notes(), List.of(), 30, 3);
+        assertThrows(BadRequestException.class, () -> meals.update(owner, saved.getId(), previous));
+        var revised = new MealRequest(DAY, MealType.DINNER, 500, null, null, new BigDecimal("22"),
+            LocalTime.NOON, snapshot.notes(), List.of(), 30, 4);
+        var result = MealResponse.from(meals.update(owner, saved.getId(), revised));
+        assertNull(result.estimatedSaturatedFatGrams());
+        assertNull(result.saturatedFatEstimateSource());
+        assertNull(result.nutrients().saturatedFatGrams());
+        assertTrue(result.nutrients().unitemizedSaturatedFatEstimates().isEmpty());
+    }
+
+    @Test void ordinaryMealPreloadAcceptsTheCopiedUnitemizedEstimateWithinItsOriginalTotalFat() throws Exception {
+        var owner = user("preloaded-estimate");
+        var cookie = new jakarta.servlet.http.Cookie("wc_session", sessions.createToken(
+            new com.jllado.weightcontrol.security.AuthenticatedUser(owner.getId(), owner.getEmail())));
+        var body = mapper.createObjectNode().put("date", DAY.toString()).put("mealType", "SNACK")
+            .put("calories", 42).put("fatGrams", 0).put("estimatedSaturatedFatGrams", 0.4)
+            .put("saturatedFatEstimateSource", "Comparable snack portion").put("nutrientSchemaVersion", 4);
+        var post = org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/meals").cookie(cookie).contentType("application/json");
+        mvc.perform(post.content(body.toString())).andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isBadRequest());
+        body.put("fatGrams", 1).put("nutrientSchemaVersion", 3);
+        mvc.perform(post.content(body.toString())).andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isBadRequest());
+        body.put("nutrientSchemaVersion", 4);
+        mvc.perform(post.content(body.toString())).andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+        var stored = MealResponse.from(meals.findAll(owner).getFirst());
+        assertEquals(new BigDecimal("0.40"), stored.nutrients().saturatedFatGrams());
+        assertEquals("Comparable snack portion", stored.saturatedFatEstimateSource());
+    }
+
+    @Test void copiedDayTimingSeesEarlierMealsEvenWhenInsertedLaterAndSkipsUntimedMeals() {
         User owner = user("copy-rating-order");
         var batch = meals.copyDay(owner, request(DAY, List.of(
             timed(MealType.DINNER, LocalTime.of(20, 0), 15), totals(MealType.SNACK, 1),
             timed(MealType.BREAKFAST, LocalTime.of(8, 0), 15), totals(MealType.SNACK, 2))));
-        var expected = List.of(176, 264, 88, 352);
-        for (int i = 0; i < batch.size(); i++) {
-            var meal = repository.findById(batch.get(i).getId()).orElseThrow();
-            assertTrue(meal.getRatingExplanation().contains("Day through meal: " + expected.get(i) + " /"));
-        }
+        var explanations = batch.stream().map(meal -> repository.findById(meal.getId()).orElseThrow().getRatingExplanation()).toList();
+        assertTrue(explanations.get(0).contains("Previous meal end to start 705 min"));
+        assertTrue(explanations.get(2).contains("Previous meal gap unavailable"));
+        assertTrue(explanations.get(1).contains("Timing unavailable"));
+        assertTrue(explanations.get(3).contains("Timing unavailable"));
+    }
+
+    @Test void mealPreferencesRequireAuthenticationAndRejectFractionalOrMissingTargets() throws Exception {
+        var owner = user("preferences-http");
+        var cookie = new jakarta.servlet.http.Cookie("wc_session", sessions.createToken(
+            new com.jllado.weightcontrol.security.AuthenticatedUser(owner.getId(), owner.getEmail())));
+        var get = org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/meals/rating-preferences");
+        mvc.perform(get).andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isForbidden());
+        mvc.perform(get.cookie(cookie)).andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.mainMealLimitPercent").value(65));
+        var prefs = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.valueToTree(com.jllado.weightcontrol.api.dto.MealRatingDtos.Preferences.defaults());
+        prefs.put("mainMealLimitPercent", 50);
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/meals/rating-preferences")
+            .cookie(cookie).contentType("application/json").content(mapper.writeValueAsString(prefs)))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+        prefs.put("minimumMealGapMinutes", 0.5);
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/meals/rating-preferences")
+            .cookie(cookie).contentType("application/json").content(mapper.writeValueAsString(prefs)))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isBadRequest());
+        prefs.remove("minimumMealGapMinutes");
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/meals/rating-preferences")
+            .cookie(cookie).contentType("application/json").content(mapper.writeValueAsString(prefs)))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isBadRequest());
+        mvc.perform(get).andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.mainMealLimitPercent").value(50));
     }
 
     @Test void httpBoundaryAuthenticatesValidatesAndReturnsTheWholeSavedDay() throws Exception {
@@ -266,8 +336,9 @@ class MealDayCopyPersistenceTest {
               "vitaminDMicrograms":0,"omega3Milligrams":0,"magnesiumMilligrams":0,"nutrientSource":"Test evidence","nutrientsEstimated":false,
               "epaDhaMilligrams":0,"epaDhaSource":"Test evidence","epaDhaEstimated":false,"alaMilligrams":0,"alaSource":"Test evidence","alaEstimated":false,
               "fiberGrams":0,"fiberSource":"Test evidence","fiberEstimated":false,"saltGrams":0,"saltSource":"Test evidence","saltEstimated":false,
+              "saturatedFatGrams":0,"saturatedFatSource":"Test evidence","saturatedFatEstimated":false,
               "reference":{"quantity":100,"calories":100,"proteinGrams":0,"carbohydrateGrams":0,"fatGrams":0,"vitaminDMicrograms":0,
-               "omega3Milligrams":0,"magnesiumMilligrams":0,"epaDhaMilligrams":0,"alaMilligrams":0,"fiberGrams":0,"saltGrams":0}}]}
+               "omega3Milligrams":0,"magnesiumMilligrams":0,"epaDhaMilligrams":0,"alaMilligrams":0,"fiberGrams":0,"saltGrams":0,"saturatedFatGrams":0}}]}
             """, CoachMealRequest.class);
     }
 
@@ -306,13 +377,14 @@ class MealDayCopyPersistenceTest {
         return mapper.readValue("""
             {"mealType":"%s","mealSequence":%d,"calories":777,"proteinGrams":12.34,"carbohydrateGrams":null,"fatGrams":0,
              "mealTime":"12:34:56","durationMinutes":37,"notes":"edited local draft",
-             "dishes":[{"name":"Fruit with legacy evidence","calories":43,"proteinGrams":0.77,"carbohydrateGrams":null,"fatGrams":0,
+             "dishes":[{"name":"Fruit with legacy evidence","calories":43,"proteinGrams":0.77,"carbohydrateGrams":null,"fatGrams":1.12,
               "quantity":33.333,"unit":"GRAM","fruit":true,"vitaminDMicrograms":null,"omega3Milligrams":0,"magnesiumMilligrams":2.22,
               "nutrientSource":null,"nutrientsEstimated":null,"epaDhaMilligrams":0,"epaDhaSource":null,"epaDhaEstimated":null,
               "alaMilligrams":3.33,"alaSource":"saved ALA source","alaEstimated":false,"fiberGrams":null,"fiberSource":null,"fiberEstimated":null,
               "saltGrams":0.12,"saltSource":"saved salt source","saltEstimated":true,
-              "reference":{"quantity":100,"calories":101,"proteinGrams":1.01,"carbohydrateGrams":null,"fatGrams":0,
-               "vitaminDMicrograms":0,"omega3Milligrams":null,"magnesiumMilligrams":7.77,"epaDhaMilligrams":null,"alaMilligrams":9.99,"fiberGrams":null,"saltGrams":0.5}}]}
+              "saturatedFatGrams":0.14,"saturatedFatSource":"saved saturated fat label","saturatedFatEstimated":false,
+              "reference":{"quantity":100,"calories":101,"proteinGrams":1.01,"carbohydrateGrams":null,"fatGrams":3.33,
+               "vitaminDMicrograms":0,"omega3Milligrams":null,"magnesiumMilligrams":7.77,"epaDhaMilligrams":null,"alaMilligrams":9.99,"fiberGrams":null,"saltGrams":0.5,"saturatedFatGrams":0.50}}]}
             """.formatted(type, sequence), MealSnapshotRequest.class);
     }
 }

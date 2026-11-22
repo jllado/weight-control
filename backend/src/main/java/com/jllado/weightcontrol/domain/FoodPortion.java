@@ -118,4 +118,16 @@ public abstract class FoodPortion {
 
     @Column(name = "salt_estimated")
     private Boolean saltEstimated;
+
+    @Column(name = "saturated_fat_grams", precision = 10, scale = 2)
+    private BigDecimal saturatedFatGrams;
+
+    @Column(name = "reference_saturated_fat_grams", precision = 10, scale = 2)
+    private BigDecimal referenceSaturatedFatGrams;
+
+    @Column(name = "saturated_fat_source", length = 500)
+    private String saturatedFatSource;
+
+    @Column(name = "saturated_fat_estimated")
+    private Boolean saturatedFatEstimated;
 }
