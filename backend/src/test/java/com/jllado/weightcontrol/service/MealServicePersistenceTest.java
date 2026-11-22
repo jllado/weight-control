@@ -133,7 +133,7 @@ class MealServicePersistenceTest {
         var expected = mealRepository.findById(app.getId()).orElseThrow();
 
         assertEquals(8, expected.getRating());
-        assertEquals(2, expected.getRatingVersion());
+        assertEquals(3, expected.getRatingVersion());
         assertTrue(expected.getRatingExplanation().contains("Protein"));
         assertTrue(expected.getRatingExplanation().contains("Fiber"));
         var stored = mealRepository.findById(coach.getId()).orElseThrow();
@@ -155,7 +155,7 @@ class MealServicePersistenceTest {
     }
 
     @Test
-    void historicalEditUsesOnlyThisMealsPortionAndEarlierTimingWithTheDatedPlan() {
+    void historicalEditUsesEarlierSameDayIntakeAndRefreshesLaterMealsWithTheDatedPlan() {
         var user = ratingOwner("cutoff");
         LocalDate wednesday = LocalDate.of(2026, 8, 12);
         LocalDate monday = wednesday.minusDays(2);
@@ -178,9 +178,37 @@ class MealServicePersistenceTest {
         assertTrue(stored.getRatingExplanation().contains("400 / 500 kcal (80%"));
         assertTrue(stored.getRatingExplanation().contains("Previous meal end to start -5 min"));
         assertTrue(stored.getRatingExplanation().contains("Deduction 1/1"));
-        for (var untouched : List.of(later, equalEarlier, earlier)) {
-            assertEquals(untouched.getRatingExplanation(), mealRepository.findById(untouched.getId()).orElseThrow().getRatingExplanation());
+        assertTrue(mealRepository.findById(later.getId()).orElseThrow().getRatingExplanation().contains("9440 / 500 kcal before this meal"));
+        assertTrue(stored.getRatingExplanation().contains("40 / 500 kcal before this meal"));
+        assertEquals(earlier.getRatingExplanation(), mealRepository.findById(earlier.getId()).orElseThrow().getRatingExplanation());
+        assertTrue(mealRepository.findById(equalEarlier.getId()).orElseThrow().getRatingExplanation().contains("10 / 500 kcal before this meal"));
+
+        mealService.update(user, earlier.getId(), timedSnack(wednesday.minusDays(1), 10, 8));
+        assertTrue(mealRepository.findById(saved.getId()).orElseThrow().getRatingExplanation().contains("30 / 500 kcal before this meal"));
+        mealService.delete(user, equalEarlier.getId());
+        assertTrue(mealRepository.findById(saved.getId()).orElseThrow().getRatingExplanation().contains("0 / 500 kcal before this meal"));
+    }
+
+    @Test
+    void rerateDayPreviewsAndUpdatesOnlyThatOwnersVersionTwoRatingsOnThatDate() {
+        var owner = ratingOwner("day-upgrade");
+        var other = ratingOwner("other-day-upgrade");
+        var date = LocalDate.of(2026, 8, 12);
+        var target = mealService.create(owner, timedSnack(date, 200, 10));
+        var manual = mealService.create(owner, timedSnack(date, 100, 12));
+        var dayBefore = mealService.create(owner, timedSnack(date.minusDays(1), 200, 10));
+        var otherMeal = mealService.create(other, timedSnack(date, 200, 10));
+        for (var meal : List.of(target, dayBefore, otherMeal)) {
+            jdbc.update("update meals set rating_version=2,rating=8,rating_explanation='old' where id=?", meal.getId());
         }
+        jdbc.update("update meals set rating_version=null,rating=4,rating_explanation=null where id=?", manual.getId());
+        assertEquals(1, ratings.rerateDay(owner, date, false).size());
+        assertEquals("old", mealRepository.findById(target.getId()).orElseThrow().getRatingExplanation());
+        assertEquals(1, ratings.rerateDay(owner, date, true).size());
+        assertTrue(mealRepository.findById(target.getId()).orElseThrow().getRatingExplanation().contains("Daily calories:"));
+        assertEquals(0, ratings.rerateDay(owner, date, true).size());
+        assertEquals(4, mealRepository.findById(manual.getId()).orElseThrow().getRating());
+        for (var meal : List.of(dayBefore, otherMeal)) assertEquals("old", mealRepository.findById(meal.getId()).orElseThrow().getRatingExplanation());
     }
 
     private MealRequest timedSnack(LocalDate date, int calories, int hour) {
@@ -205,7 +233,7 @@ class MealServicePersistenceTest {
         var unknownDate = LocalDate.of(2026, 7, 29);
         var unknown = mealService.create(owner, timedSnack(unknownDate, 400, 12));
         assertNull(unknown.getRating());
-        assertEquals(2, unknown.getRatingVersion());
+        assertEquals(3, unknown.getRatingVersion());
         assertTrue(unknown.getRatingExplanation().contains("goal unavailable"));
 
         var zeroDate = LocalDate.of(2026, 8, 5);
@@ -255,7 +283,7 @@ class MealServicePersistenceTest {
         var migrated = mealRepository.findById(automatic.getId()).orElseThrow();
         assertEquals(automatic.getRatingExplanation(), migrated.getRatingExplanation());
         assertEquals(originalTimestamp, migrated.getUpdatedAt());
-        assertEquals(2, migrated.getRatingVersion());
+        assertEquals(3, migrated.getRatingVersion());
         assertEquals(legacy, mealRepository.findById(alreadyVersioned.getId()).orElseThrow().getRatingExplanation());
         assertEquals(0, ratings.rerate(owner, true).changed());
         assertEquals(legacy, mealRepository.findById(otherMeal.getId()).orElseThrow().getRatingExplanation());

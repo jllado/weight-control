@@ -75,18 +75,24 @@ public class NutrientTargetService {
     }
 
     public MacroTargetsResponse macroTargets(User user, int calorieBudget) {
-        MacroTargetsResponse exact = macroTargetsUnrounded(user, calorieBudget);
+        return macroTargets(user.getMacroProteinTargetGrams(), user.getMacroFatTargetPercentage(), calorieBudget);
+    }
+
+    static MacroTargetsResponse macroTargets(BigDecimal protein, BigDecimal fatPercentage, int calorieBudget) {
+        MacroTargetsResponse exact = macroTargetsUnrounded(protein, fatPercentage, calorieBudget);
         return new MacroTargetsResponse(exact.protein(), rounded(exact.carbohydrate()), rounded(exact.fat()), calorieBudget);
     }
 
-    private MacroTargetValue rounded(MacroTargetValue value) {
+    private static MacroTargetValue rounded(MacroTargetValue value) {
         return new MacroTargetValue(value.value() == null ? null : value.value().setScale(2, RoundingMode.HALF_UP),
             value.comparison(), value.unavailableReason());
     }
 
     public MacroTargetsResponse macroTargetsUnrounded(User user, int calorieBudget) {
-        BigDecimal protein = user.getMacroProteinTargetGrams();
-        BigDecimal fatPercentage = user.getMacroFatTargetPercentage();
+        return macroTargetsUnrounded(user.getMacroProteinTargetGrams(), user.getMacroFatTargetPercentage(), calorieBudget);
+    }
+
+    private static MacroTargetsResponse macroTargetsUnrounded(BigDecimal protein, BigDecimal fatPercentage, int calorieBudget) {
         var proteinTarget = new MacroTargetValue(protein, MacroTargetComparison.MINIMUM, null);
         if (calorieBudget <= 0) {
             var unavailable = new MacroTargetValue(null, MacroTargetComparison.MAXIMUM, "No effective calorie budget for this date");

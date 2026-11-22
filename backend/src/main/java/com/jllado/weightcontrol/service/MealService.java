@@ -87,6 +87,7 @@ public class MealService {
         User owner = lockMutations(user);
         validateDate(request.date());
         Meal meal = requireOwned(user, id);
+        var previous = MealRatingService.Position.of(meal);
         FoodSnapshotCompatibility.requireAwareReplacement(request.nutrientSchemaVersion(), meal.getDishes());
         if (!meal.getMealDate().equals(request.date()) || meal.getMealType() != request.mealType()) {
             applyIdentity(meal, user, request.date(), request.mealType());
@@ -99,7 +100,7 @@ public class MealService {
             apply(meal, request);
         }
         Meal saved = repository.save(meal);
-        ratingService.apply(owner, List.of(meal));
+        ratingService.apply(owner, List.of(meal), previous);
         fastingPeriodService.recalculateAutomaticPeriods(user);
         return saved;
     }
@@ -127,6 +128,7 @@ public class MealService {
         requireConfirmation(request.confirmed());
         validateDate(request.date());
         Meal meal = requireOwned(user, id);
+        var previous = MealRatingService.Position.of(meal);
         boolean legacyV3 = Integer.valueOf(3).equals(request.nutrientSchemaVersion());
         boolean unchanged = !request.dishes().isEmpty() && CoachFoodNutrition.sameOrderedMealFoods(meal.getDishes(), request.dishes(), legacyV3);
         if (!(legacyV3 && unchanged)) FoodSnapshotCompatibility.requireAwareReplacement(request.nutrientSchemaVersion(), meal.getDishes());
@@ -141,7 +143,7 @@ public class MealService {
         }
         meal.setSource(request.source());
         Meal saved = repository.save(meal);
-        ratingService.apply(owner, List.of(meal));
+        ratingService.apply(owner, List.of(meal), previous);
         registerCoachFoods(user, meal, request);
         fastingPeriodService.recalculateAutomaticPeriods(user);
         return saved;
@@ -287,8 +289,11 @@ public class MealService {
     }
 
     public void delete(User user, Long id) {
-        lockMutations(user);
-        repository.delete(requireOwned(user, id));
+        var owner = lockMutations(user);
+        var meal = requireOwned(owner, id);
+        var previous = MealRatingService.Position.of(meal);
+        repository.delete(meal);
+        ratingService.apply(owner, List.of(), previous);
         fastingPeriodService.recalculateAutomaticPeriods(user);
     }
 

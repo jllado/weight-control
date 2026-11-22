@@ -1,6 +1,6 @@
 # Meal ratings
 
-Saving or editing a meal in the app or Coach stores its score and explanation together. A copy is assessed for its destination date. Read the saved explanation for the inputs, estimates, skipped criteria and one suggested improvement. Later meals, new sleep records and preference changes do not revise an existing score.
+Saving or editing a meal in the app or Coach stores its score and explanation together. A copy is assessed for its destination date. Read the saved explanation for the inputs, estimates, skipped criteria and one suggested improvement. An earlier meal entered, moved, edited or deleted refreshes affected automatic scores on that date. Later intake does not count toward earlier meals.
 
 ## Food and portion criteria
 
@@ -14,7 +14,11 @@ Saving or editing a meal in the app or Coach stores its score and explanation to
 
 Settings → Meal preferences controls main meals (initially lunch and dinner), the upper calorie share (65%), timing, and saturated fat (10% of energy). Plate and size criteria apply to configured main meals. Estimate volume using the logged quantities and identified foods, including itemized recipe ingredients. A plate with identifiable foods and no vegetables earns zero vegetable credit. Skip uncertain plate shares and nutrients without sufficient evidence.
 
-Divide the points earned by the points available for that meal and multiply by ten. After the timing adjustment, round once to an integer from 1 to 10. With no assessable food or portion criterion, save an explanation and leave the rating empty.
+Divide the points earned by the points available for that meal and multiply by ten. After the daily-budget and timing adjustments, round once to an integer from 1 to 10. With no assessable food or portion criterion, save an explanation and leave the rating empty.
+
+## Remaining daily budgets
+
+Every meal type uses the dated calorie budget and the carbohydrate maximum shown in Nutrition. Sum earlier meals on the same calendar date, ordering equal start times by record ID. For each budget, subtract up to two points from the normalized score in proportion to the fraction of this meal above the remaining amount. If earlier meals already exhausted the budget, only this meal’s own intake counts as new excess. Meeting the remaining amount exactly incurs no deduction. An unknown meal order skips both adjustments. Missing carbohydrate evidence skips the carbohydrate adjustment independently. The saved explanation lists the amount already eaten, target, remaining allowance, meal amount, new excess and deduction.
 
 ## Timing
 
@@ -23,3 +27,5 @@ Use the previous recorded eating occasion’s end and this meal’s start. The i
 ## Saved scores
 
 The release migrates earlier backend-generated scores once after saturated-fat enrichment. It keeps original Coach and manual ratings and leaves previously unrated meals unrated. The authenticated owner can preview the migration with POST /api/meals/rerate?apply=false. Applying it with apply=true selects the same legacy automatic scores under an owner lock. A second application has no eligible scores. The Coach rules Action describes the current calculation.
+
+To upgrade the previous automatic ratings for one owner and date, run the deployed backend with `java -jar /app/app.jar --spring.main.web-application-type=none --spring.flyway.enabled=false --app.meal-rating.rerate.mode=dry-run --app.meal-rating.rerate.owner-email=EMAIL --app.meal-rating.rerate.date=YYYY-MM-DD`. Review the meal times and scores, then repeat with `mode=apply`. The command preserves manual ratings, food records, meal timestamps and other dates.

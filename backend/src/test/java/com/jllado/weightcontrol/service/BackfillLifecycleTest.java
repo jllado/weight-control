@@ -62,6 +62,13 @@ class BackfillLifecycleTest {
             }
             assertEquals(baseline, fingerprints(database));
             assertEquals(0, summaryCount(database));
+            var mealArgs = new ArrayList<>(dryArguments);
+            mealArgs.remove("--app.weekly-summary.backfill.mode=dry-run");
+            mealArgs.addAll(List.of("--app.meal-rating.rerate.mode=dry-run", "--app.meal-rating.rerate.date=2026-11-22",
+                "--app.meal-rating.rerate.owner-email=backfill-owner@example.com"));
+            var mealOutput = runProcess(mealArgs, "meal-rerate.log");
+            assertTrue(mealOutput.contains("2026-11-22: 0 eligible"), mealOutput);
+            assertEquals(baseline, fingerprints(database));
             var dryOutput = runProcess(dryArguments, "dry-run.log");
             assertTrue(dryOutput.contains("backfill-owner@example.com"));
             assertTrue(dryOutput.contains("dry-run: 2 created, 0 existing"), dryOutput);

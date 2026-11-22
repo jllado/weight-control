@@ -6036,7 +6036,7 @@ test('dashboard shows persisted ten-point meal scores for the selected date', as
 
 test('Status meal ratings show each selected-date meal without opening Nutrition and update on reload', async ({page}, testInfo) => {
     let meals = [
-        {id: 1, date: '2026-08-12', mealType: 'LUNCH', rating: 8, ratingExplanation: 'The recorded meal met the protein target.'},
+        {id: 1, date: '2026-08-12', mealType: 'LUNCH', rating: 6, ratingExplanation: 'Daily calories: 388 kcal left, meal 927, 539 kcal over budget.\nDaily carbohydrates: 65.41 g left, meal 155.61, 90.2 g over budget.'},
         {id: 2, date: '2026-08-12', mealType: 'DINNER', rating: 9},
         {id: 3, date: '2026-08-12', mealType: 'SNACK', mealSequence: 1, rating: null},
         {id: 4, date: '2026-08-12', mealType: 'SNACK', mealSequence: 2, rating: 1},
@@ -6054,9 +6054,11 @@ test('Status meal ratings show each selected-date meal without opening Nutrition
     const row = name => ratings.locator('.status-meal-rating').filter({has: page.locator('dt').filter({hasText: new RegExp(`^${name}$`)})});
     await expect(page.locator('.home-panels-tabs').getByRole('tab', {name: 'Status', exact: true})).toHaveAttribute('aria-selected', 'true');
     await expect(ratings.locator('dt')).toHaveText(['Lunch', 'Dinner', 'Snack 1', 'Snack 2']);
-    await expect(row('Lunch').locator('dd')).toHaveText('8/10');
-    await row('Lunch').getByRole('button', {name: 'Lunch rating details: 8/10'}).click();
-    await expect(page.getByRole('dialog', {name: 'Meal rating'})).toContainText('The recorded meal met the protein target.');
+    await expect(row('Lunch').locator('dd')).toHaveText('6/10');
+    await row('Lunch').getByRole('button', {name: 'Lunch rating details: 6/10'}).click();
+    const details = page.getByRole('dialog', {name: 'Meal rating'});
+    await expect(details).toContainText('539 kcal over budget');
+    await expect(details).toContainText('90.2 g over budget');
     await page.keyboard.press('Escape');
     await expect(row('Dinner').locator('dd')).toHaveText('9/10');
     await expect(row('Dinner').getByRole('button')).toHaveCount(0);

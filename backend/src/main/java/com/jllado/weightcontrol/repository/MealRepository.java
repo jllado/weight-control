@@ -32,7 +32,7 @@ public interface MealRepository extends JpaRepository<Meal, Long> {
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.data.jpa.repository.Query(value = """
         UPDATE meals SET rating=:score, rating_explanation=:explanation, rating_version=:version, updated_at=updated_at
-        WHERE id=:id AND user_id=:owner AND rating_version IS NULL
+        WHERE id=:id AND user_id=:owner AND (rating_version IS NULL OR rating_version=2)
         """, nativeQuery = true)
     void migrateRating(long owner, long id, Integer score, String explanation, int version);
 

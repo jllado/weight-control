@@ -24,16 +24,17 @@ import org.junit.jupiter.params.provider.CsvSource;
 class MealRatingServiceTest {
     private static final LocalDate DAY = LocalDate.of(2026, 11, 21);
     private static final Preferences DEFAULTS = Preferences.defaults();
-    private static final Targets TARGETS = new Targets(2000, new BigDecimal("100"), new BigDecimal("20"), new BigDecimal("5"));
+    private static final Targets TARGETS = new Targets(2000, new BigDecimal("100"), new BigDecimal("20"), new BigDecimal("5"), null);
+    private static final MealBudget EMPTY = new MealBudget(BigDecimal.ZERO, BigDecimal.ZERO);
     private static final MealRatingTiming NO_TIMING = new MealRatingTiming(false, "Unavailable.", null);
 
     @ParameterizedTest
     @CsvSource({"1300,10", "1650,5", "2000,1", "2800,1"})
     void sizeScoresOnlyTheRecordedMainMealOnALinearScale(int kcal, int expected) {
         var meal = meal(MealType.DINNER, kcal, "20:00");
-        assertEquals(expected, MealRatingService.score(meal, TARGETS, DEFAULTS, NO_TIMING).score());
+        assertEquals(expected, MealRatingService.score(meal, TARGETS, DEFAULTS, NO_TIMING, EMPTY).score());
         meal.setMealType(MealType.SNACK);
-        var result = MealRatingService.score(meal, TARGETS, DEFAULTS, new MealRatingTiming(true, "Gap missed.", "Allow a longer gap."));
+        var result = MealRatingService.score(meal, TARGETS, DEFAULTS, new MealRatingTiming(true, "Gap missed.", "Allow a longer gap."), EMPTY);
         assertNull(result.score());
         assertTrue(result.explanation().contains("no assessable food or portion"));
     }
@@ -46,15 +47,56 @@ class MealRatingServiceTest {
         first.setSaltGrams(new BigDecimal("1.5"));
         first.setSaturatedFatGrams(new BigDecimal("8"));
         meal.getDishes().add(first);
-        var result = MealRatingService.score(meal, TARGETS, DEFAULTS, NO_TIMING);
+        var result = MealRatingService.score(meal, TARGETS, DEFAULTS, NO_TIMING, EMPTY);
         // Protein, fiber and salt each earn .5. Saturated fat earns .2 at 18% of energy.
         assertEquals(4, result.score());
         assertTrue(result.explanation().contains("1.7/4 assessable points"));
         meal.getDishes().add(food("Tomato", 1, DishUnit.UNIT));
-        result = MealRatingService.score(meal, TARGETS, DEFAULTS, NO_TIMING);
+        result = MealRatingService.score(meal, TARGETS, DEFAULTS, NO_TIMING, EMPTY);
         assertEquals(5, result.score());
         assertTrue(result.explanation().contains("0.5/1 assessable points"));
         assertTrue(result.explanation().contains("1/2 foods recorded"));
+    }
+
+    @Test void novemberDinnerIsRatedAgainstTheRemainingDailyCaloriesAndCarbohydrates() {
+        var targets = new Targets(2589, BigDecimal.valueOf(115), BigDecimal.valueOf(25), BigDecimal.valueOf(5), BigDecimal.valueOf(30));
+        var dinner = meal(MealType.DINNER, 927, "21:00");
+        dinner.setProteinGrams(new BigDecimal("48.43"));
+        dinner.setCarbohydrateGrams(new BigDecimal("155.61"));
+        var portion = food("Mixed dish", 1, DishUnit.SERVING);
+        portion.setFiberGrams(new BigDecimal("22.61"));
+        portion.setSaltGrams(new BigDecimal("3.01"));
+        portion.setSaturatedFatGrams(new BigDecimal("6.95"));
+        dinner.getDishes().add(portion);
+        var prior = new MealBudget(BigDecimal.valueOf(2201), new BigDecimal("272.67"));
+        var result = MealRatingService.score(dinner, targets, DEFAULTS, NO_TIMING, prior);
+        assertEquals(6, result.score());
+        assertTrue(result.explanation().contains("388 left, meal 927, 539 kcal of this meal over budget"));
+        assertTrue(result.explanation().contains("65.41 left, meal 155.61, 90.2 g of this meal over budget"));
+        assertEquals(9, MealRatingService.score(dinner, targets, DEFAULTS, NO_TIMING, EMPTY).score());
+    }
+
+    @Test void earlierMissingCarbsSkipOnlyCarbsAndUnknownOrderSkipsBothBudgets() {
+        var snack = meal(MealType.SNACK, 100, "15:00");
+        var earlier = meal(MealType.LUNCH, 500, "12:00");
+        earlier.setId(1L);
+        var later = meal(MealType.DINNER, 600, "21:00");
+        later.setId(3L);
+        var day = List.of(later, snack, earlier);
+        assertEquals(new MealBudget(BigDecimal.valueOf(500), null), MealBudget.before(snack, day));
+        earlier.setCarbohydrateGrams(BigDecimal.TEN);
+        assertEquals(new MealBudget(BigDecimal.valueOf(500), BigDecimal.TEN), MealBudget.before(snack, day));
+        later.setMealTime(null);
+        assertEquals(new MealBudget(null, null), MealBudget.before(snack, day));
+    }
+
+    @Test void eachDeductionUsesOnlyNewExcessAndEqualityMeetsTheLimit() {
+        var limit = BigDecimal.TEN;
+        assertEquals(0, MealBudget.impact("carbs", "g", limit, BigDecimal.ONE, BigDecimal.valueOf(9)).deduction());
+        assertEquals(2, MealBudget.impact("carbs", "g", limit, BigDecimal.valueOf(20), BigDecimal.ONE).deduction());
+        assertEquals(0, MealBudget.impact("carbs", "g", limit, BigDecimal.valueOf(20), BigDecimal.ZERO).deduction());
+        assertEquals(1, MealBudget.impact("carbs", "g", limit, BigDecimal.valueOf(9), BigDecimal.valueOf(2)).deduction());
+        assertEquals(0, MealBudget.impact("carbs", "g", null, BigDecimal.ZERO, BigDecimal.TEN).deduction());
     }
 
     @Test void identifiablePlateUsesAmountsAcrossUnitsAndReportsOpaqueDishesAsUnknown() {
@@ -62,13 +104,13 @@ class MealRatingServiceTest {
         meal.getDishes().add(food("Carrots", 130, DishUnit.GRAM)); // approximately 200 mL
         meal.getDishes().add(food("Eggs", 2, DishUnit.UNIT));
         meal.getDishes().add(food("Cooked rice", 100, DishUnit.MILLILITRE));
-        var result = MealRatingService.score(meal, TARGETS, DEFAULTS, NO_TIMING);
+        var result = MealRatingService.score(meal, TARGETS, DEFAULTS, NO_TIMING, EMPTY);
         assertTrue(result.explanation().contains("Non-starchy vegetables: 50%"));
         assertTrue(result.explanation().contains("Protein foods: 25%"));
         assertTrue(result.explanation().contains("Starchy foods: 25%"));
         assertEquals(10, result.score());
         meal.getDishes().add(food("Chicken and rice casserole", 100, DishUnit.GRAM));
-        result = MealRatingService.score(meal, TARGETS, DEFAULTS, NO_TIMING);
+        result = MealRatingService.score(meal, TARGETS, DEFAULTS, NO_TIMING, EMPTY);
         assertTrue(result.explanation().contains("3/4 foods identified"));
         assertTrue(result.explanation().contains("Non-starchy vegetables: skipped"));
     }
@@ -90,7 +132,7 @@ class MealRatingServiceTest {
     }
 
     @Test void saturdayDinnerAndLateSnackUseTheirOwnPortionsAndPreviousSevenLocalNights() {
-        var targets = new Targets(2589, BigDecimal.valueOf(115), BigDecimal.valueOf(25), null);
+        var targets = new Targets(2589, BigDecimal.valueOf(115), BigDecimal.valueOf(25), null, null);
         var dinner = meal(MealType.DINNER, 1769, "21:15");
         dinner.setProteinGrams(new BigDecimal("88.2"));
         var names = List.of("Mercadona hamburger patties", "Mercadona regular hamburger buns", "Mercadona hot-dog sausages",
@@ -111,7 +153,7 @@ class MealRatingServiceTest {
         var dinnerTiming = MealRatingTiming.evaluate(dinner, DEFAULTS, List.of(), sleeps);
         assertFalse(dinnerTiming.missed());
         assertTrue(dinnerTiming.explanation().contains("usual bedtime 22:55, gap 70 min"));
-        var dinnerScore = MealRatingService.score(dinner, targets, DEFAULTS, dinnerTiming);
+        var dinnerScore = MealRatingService.score(dinner, targets, DEFAULTS, dinnerTiming, EMPTY);
         assertTrue(dinnerScore.explanation().contains("Non-starchy vegetables: 0%"));
         assertTrue(dinnerScore.explanation().contains("1769 / 2589 kcal (68.33%"));
         assertTrue(dinnerScore.explanation().contains("Next step: Fill about half"));
@@ -126,7 +168,7 @@ class MealRatingServiceTest {
         assertTrue(timing.missed());
         assertTrue(timing.explanation().contains("Previous meal end to start 60 min"));
         assertTrue(timing.explanation().contains("usual bedtime 22:55, gap -20 min"));
-        assertEquals(9, MealRatingService.score(snack, targets, DEFAULTS, timing).score());
+        assertEquals(9, MealRatingService.score(snack, targets, DEFAULTS, timing, EMPTY).score());
     }
 
     @Test void localMedianHandlesMidnightAndEqualityMeetsBothTimePreferences() {
@@ -147,7 +189,7 @@ class MealRatingServiceTest {
         var snack = meal(MealType.SNACK, 900, "11:00");
         snack.setEstimatedSaturatedFatGrams(BigDecimal.TEN);
         snack.setSaturatedFatEstimateSource("Comparable meal estimate");
-        var result = MealRatingService.score(snack, TARGETS, DEFAULTS, NO_TIMING);
+        var result = MealRatingService.score(snack, TARGETS, DEFAULTS, NO_TIMING, EMPTY);
         assertEquals(10, result.score());
         assertTrue(result.explanation().contains("estimated meal total: Comparable meal estimate"));
     }

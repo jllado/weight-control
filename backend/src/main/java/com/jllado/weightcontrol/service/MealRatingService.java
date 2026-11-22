@@ -13,6 +13,7 @@ import com.jllado.weightcontrol.repository.UserRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,12 +23,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class MealRatingService {
-    private static final int VERSION = 2;
+    private static final int VERSION = 3;
 
     public static final String RULES = """
         Score the saved meal using its foods, portions and targets effective on the meal date. For main meals (default lunch/dinner), estimate plate volume from identifiable foods and consumed quantities: half non-starchy vegetables (2 points), one quarter protein and one quarter starch (0.5 each). Fruit does not count as vegetables. Known absence earns zero. Skip uncertain proportions. Main meal size earns 1 point through the configured share of the dated calorie target (default 65%), decreasing linearly to zero at 100%. Other meals skip plate and size.
-        Protein and fiber each earn up to 1 point in proportion to the meal's calorie share of the dated daily gram goal. Salt uses the same calorie share of the daily limit (personal or 5 g); saturated fat uses the configured share of meal energy (default 10%, 9 kcal/g). Each limit earns 1 through the limit, decreasing linearly to zero at twice the limit. Skip missing targets, amounts and partial nutrient coverage. Normalize assessable criteria to 10.
-        Deduct at most 1 point if the interval from previous meal end to this meal start is below the preference (default 90 minutes), or dinner/evening snack ends too close to usual bedtime (default 60 minutes). Use the median local bedtime of available preceding seven nights, treating times across midnight as adjacent. An evening snack follows dinner in the same evening or starts within four hours before the median bedtime or later that evening. Missing timing evidence is neutral. Round once to an integer from 1 to 10. Without assessable food or portion evidence, leave the score empty. Save the explanation and one next step with the result; later meals and sleep entries do not revise it.
+        Protein and fiber each earn up to 1 point in proportion to the meal's calorie share of the dated daily gram goal. Salt uses the same calorie share of the daily limit (personal or 5 g); saturated fat uses the configured share of meal energy (default 10%, 9 kcal/g). Each limit earns 1 through the limit, decreasing linearly to zero at twice the limit. Skip missing targets, amounts and partial nutrient coverage. Normalize assessable criteria to 10. For every meal type, total earlier meals on the same date in start-time and ID order. Deduct up to 2 points each for calories and carbohydrates: 2 times the fraction of this meal's amount above the remaining daily budget (minimum remaining zero). Use the dated calorie plan and carbohydrate maximum. Skip an adjustment when its evidence is unknown.
+        Deduct at most 1 point if the interval from previous meal end to this meal start is below the preference (default 90 minutes), or dinner/evening snack ends too close to usual bedtime (default 60 minutes). Use the median local bedtime of available preceding seven nights, treating times across midnight as adjacent. An evening snack follows dinner in the same evening or starts within four hours before the median bedtime or later that evening. Missing timing evidence is neutral. Round once to an integer from 1 to 10. Without assessable food or portion evidence, leave the score empty. Save the explanation and one next step with the result; adding, editing, moving or deleting earlier meals refreshes affected same-day automatic ratings.
         """.strip();
 
     private final MealRepository meals;
@@ -47,13 +48,30 @@ public class MealRatingService {
         this.users = users;
     }
 
-    void apply(User user, List<Meal> savedOnDate) {
+    record Position(LocalDate date, LocalTime time, long id) {
+        static Position of(Meal meal) { return new Position(meal.getMealDate(), meal.getMealTime(), meal.getId()); }
+
+        boolean affects(Meal meal) {
+            if (!date.equals(meal.getMealDate())) return false;
+            return time == null || meal.getMealTime() == null || time.isBefore(meal.getMealTime())
+                || (time.equals(meal.getMealTime()) && id <= meal.getId());
+        }
+    }
+
+    void apply(User user, List<Meal> saved, Position... previous) {
         profiles.captureInitial(user);
-        assessDate(user, savedOnDate, (meal, result) -> {
-            meal.setRating(result.score());
-            meal.setRatingExplanation(result.explanation());
-            meal.setRatingVersion(VERSION);
-        });
+        var changes = new ArrayList<>(List.of(previous));
+        saved.stream().map(Position::of).forEach(changes::add);
+        for (var date : changes.stream().map(Position::date).distinct().toList()) {
+            var day = meals.findByUserAndMealDateBetweenOrderByMealDateAscIdAsc(user, date, date);
+            var affected = day.stream().filter(meal -> saved.contains(meal)
+                || (meal.getRatingVersion() != null && changes.stream().anyMatch(change -> change.affects(meal)))).toList();
+            assessDate(user, date, day, affected, (meal, result) -> {
+                meal.setRating(result.score());
+                meal.setRatingExplanation(result.explanation());
+                meal.setRatingVersion(VERSION);
+            });
+        }
     }
 
     @Transactional
@@ -62,7 +80,8 @@ public class MealRatingService {
         var eligible = meals.findLegacyAutomaticRatings(user);
         var byDate = eligible.stream().collect(Collectors.groupingBy(Meal::getMealDate, LinkedHashMap::new, Collectors.toList()));
         for (var batch : byDate.values()) {
-            assessDate(user, batch, (meal, result) -> {
+            var date = batch.getFirst().getMealDate();
+            assessDate(user, date, meals.findByUserAndMealDateBetweenOrderByMealDateAscIdAsc(user, date, date), batch, (meal, result) -> {
                 if (apply) meals.migrateRating(user.getId(), meal.getId(), result.score(), result.explanation(), VERSION);
             });
         }
@@ -70,12 +89,27 @@ public class MealRatingService {
         return new RerateResult(eligible.size(), eligible.size(), apply);
     }
 
-    private void assessDate(User user, List<Meal> batch, java.util.function.BiConsumer<Meal, Result> save) {
-        LocalDate date = batch.getFirst().getMealDate();
-        var profile = profiles.find(user, date).orElse(new Targets(null, null, null, null));
+    record RatingChange(LocalTime time, Integer previous, Integer score) { }
+
+    @Transactional
+    public List<RatingChange> rerateDay(User authenticated, LocalDate date, boolean apply) {
+        var user = users.findByIdForUpdate(authenticated.getId()).orElseThrow();
+        var day = meals.findByUserAndMealDateBetweenOrderByMealDateAscIdAsc(user, date, date);
+        var eligible = day.stream().filter(meal -> Integer.valueOf(2).equals(meal.getRatingVersion())).toList();
+        var changes = new ArrayList<RatingChange>();
+        assessDate(user, date, day, eligible, (meal, result) -> {
+            changes.add(new RatingChange(meal.getMealTime(), meal.getRating(), result.score()));
+            if (apply) meals.migrateRating(user.getId(), meal.getId(), result.score(), result.explanation(), VERSION);
+        });
+        return changes;
+    }
+
+    private void assessDate(User user, LocalDate date, List<Meal> day, List<Meal> batch, java.util.function.BiConsumer<Meal, Result> save) {
+        if (batch.isEmpty()) return;
+        var profile = profiles.find(user, date).orElse(new Targets(null, null, null, null, null));
         Integer saved = plans.savedCalories(user, date);
         var targets = new Targets(saved == null ? profile.weekdayCalories() : saved,
-            profile.proteinGrams(), profile.fiberGrams(), profile.saltGrams());
+            profile.proteinGrams(), profile.fiberGrams(), profile.saltGrams(), profile.fatPercentage());
         var prefs = preferences.forDate(user, date);
         var history = new ArrayList<MealRepository.Timing>();
         var yesterday = date.minusDays(1);
@@ -85,13 +119,13 @@ public class MealRatingService {
         var nights = sleeps.findByUserAndSleepDateBetweenOrderBySleepDateAsc(user, date.minusDays(8), date);
         for (var meal : batch) {
             var timing = MealRatingTiming.evaluate(meal, prefs, history, nights);
-            save.accept(meal, score(meal, targets, prefs, timing));
+            save.accept(meal, score(meal, targets, prefs, timing, MealBudget.before(meal, day)));
         }
     }
 
     record Result(Integer score, String explanation) { }
 
-    static Result score(Meal meal, Targets targets, Preferences prefs, MealRatingTiming timing) {
+    static Result score(Meal meal, Targets targets, Preferences prefs, MealRatingTiming timing, MealBudget budget) {
         var quality = new Assessment();
         var nutrients = NutrientSummaryService.summarize(List.of(meal));
         double kcal = meal.getCalories();
@@ -126,7 +160,13 @@ public class MealRatingService {
             false, estimatedTotal ? "estimated meal total: " + meal.getSaturatedFatEstimateSource() : coverage(nutrients.saturatedFatCoverage(), total),
             "Replace one high-saturated-fat ingredient with an unsaturated alternative.",
             estimatedTotal || (total != 0 && nutrients.saturatedFatCoverage().foodsWithValues() == total));
-        return quality.finish(timing);
+        Integer kcalTarget = targets.weekdayCalories();
+        BigDecimal carbTarget = kcalTarget == null ? null : NutrientTargetService.macroTargets(targets.proteinGrams(),
+            targets.fatPercentage(), kcalTarget).carbohydrate().value();
+        var calories = MealBudget.impact("calories", "kcal", kcalTarget == null ? null : BigDecimal.valueOf(kcalTarget),
+            budget.earlierCalories(), BigDecimal.valueOf(meal.getCalories()));
+        var carbs = MealBudget.impact("carbohydrates", "g", carbTarget, budget.earlierCarbs(), meal.getCarbohydrateGrams());
+        return quality.finish(timing, calories, carbs);
     }
 
     private static String coverage(NutrientCoverage coverage, int total) {
@@ -192,20 +232,28 @@ public class MealRatingService {
             add(name, fraction, 1, amount + ", " + reference + ", " + evidence, action);
         }
 
-        Result finish(MealRatingTiming timing) {
+        Result finish(MealRatingTiming timing, MealBudget.Impact calories, MealBudget.Impact carbs) {
             if (possible == 0) {
+                lines.add("Daily budgets: no adjustment applied to an unrated meal.");
                 lines.add("Timing: " + timing.explanation() + " No deduction applied.");
                 return new Result(null, "Unrated: no assessable food or portion evidence.\n" + String.join("\n", lines)
                     + "\nNext step: Record identifiable foods and their portions.");
             }
+            lines.add(calories.explanation());
+            lines.add(carbs.explanation());
             int penalty = timing.missed() ? 1 : 0;
             double normalized = 10 * awarded / possible;
-            int score = (int) Math.clamp(Math.round(normalized - penalty), 1, 10);
+            int score = (int) Math.clamp(Math.round(normalized - calories.deduction() - carbs.deduction() - penalty), 1, 10);
             lines.add("Timing: " + timing.explanation() + " Deduction " + penalty + "/1.");
             if (biggestLoss == 0 && missingEvidence != null) nextStep = missingEvidence;
-            if (penalty > 0 && biggestLoss * 10 / possible < 1) nextStep = timing.action();
+            double loss = biggestLoss * 10 / possible;
+            if (penalty > loss) nextStep = timing.action();
+            if (calories.deduction() > Math.max(loss, penalty)) nextStep = "Plan this portion around the calories left for the day.";
+            if (carbs.deduction() > Math.max(Math.max(loss, penalty), calories.deduction())) {
+                nextStep = "Adjust the carbohydrate portion to the grams left for the day.";
+            }
             return new Result(score, "Meal quality " + score + "/10 from " + number(awarded) + "/" + number(possible)
-                + " assessable points, scaled to " + number(normalized) + "/10 before timing.\n" + String.join("\n", lines)
+                + " assessable points, scaled to " + number(normalized) + "/10 before daily-budget and timing deductions.\n" + String.join("\n", lines)
                 + "\nNext step: " + nextStep);
         }
     }

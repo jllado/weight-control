@@ -13,9 +13,13 @@ import org.springframework.core.type.AnnotatedTypeMetadata;
 @Conditional(NormalStartup.Condition.class)
 public @interface NormalStartup {
     class Condition implements org.springframework.context.annotation.Condition {
+        public static boolean maintenance(org.springframework.core.env.Environment environment) {
+            return environment.containsProperty("app.weekly-summary.backfill.mode") || environment.containsProperty("app.meal-rating.rerate.mode");
+        }
+
         @Override
         public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
-            return !context.getEnvironment().containsProperty("app.weekly-summary.backfill.mode");
+            return !maintenance(context.getEnvironment());
         }
     }
 }
