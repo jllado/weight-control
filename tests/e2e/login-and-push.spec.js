@@ -14315,7 +14315,7 @@ test('daily totals and sparse nutrient trends separate complete Omega-3 from par
                 left: element.getBoundingClientRect().left, top: element.getBoundingClientRect().top
             })));
             expect(new Set(boxes.map(box => Math.round(box.left))).size).toBe(1);
-            expect(new Set(boxes.map(box => Math.round(box.top))).size).toBe(5);
+            expect(new Set(boxes.map(box => Math.round(box.top))).size).toBe(6);
         }
         await totals.screenshot({path: testInfo.outputPath(`daily-totals-${width}.png`)});
         await trends.screenshot({path: testInfo.outputPath(`nutrient-trends-${width}.png`)});
