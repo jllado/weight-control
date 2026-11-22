@@ -10970,16 +10970,22 @@ for (const width of [390, 1280]) {
         const response = {...dashboard, workoutPlanReviewDueDate: '2026-08-12'};
         await mockAuthenticatedDashboard(page, dashboard.anchorDate, {dashboardResponse: response});
         await openSpaRoute(page, '/');
-        const reminder = page.locator('.dashboard-plan-review');
-        await expect(reminder).toContainText('Workout plan review due · 12/08/2026');
-        const link = reminder.getByRole('link', {name: 'Review workout plan'});
+        const reminder = page.getByRole('region', {name: 'Workout plan review due'});
+        await expect(reminder.locator('time')).toHaveText('Due 12/08/2026');
+        await expect(reminder.locator('time')).toHaveAttribute('datetime', '2026-08-12');
+        const link = reminder.getByRole('link', {name: 'Review plan'});
         await expect(link).toHaveAttribute('href', '/workouts?tab=plan');
         await reminder.scrollIntoViewIfNeeded();
         const box = await reminder.boundingBox();
+        const date = await reminder.locator('time').boundingBox();
+        const action = await link.boundingBox();
         expect(box.x).toBeGreaterThanOrEqual(0);
         expect(box.x + box.width).toBeLessThanOrEqual(width);
-        await page.screenshot({path: test.info().outputPath(`dashboard-review-${width}.png`)});
-        await link.click();
+        if (width === 390) expect(action.y).toBeGreaterThanOrEqual(date.y + date.height);
+        else expect(action.x).toBeGreaterThan(date.x + date.width);
+        await reminder.screenshot({path: test.info().outputPath(`dashboard-review-${width}.png`)});
+        if (width === 390) await link.tap();
+        else { await link.focus(); await page.keyboard.press('Enter'); }
         await expect(page).toHaveURL(/workouts\?tab=plan/);
         response.workoutPlanReviewDueDate = null;
         await openSpaRoute(page, '/');
