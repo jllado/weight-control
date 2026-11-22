@@ -109,6 +109,16 @@ const validators = operations.map(({ tool }) => {
     const validate = schemasafe.validator(tool.inputSchema, { mode: 'spec', formatAssertion: true, includeErrors: true, isJSON: true });
     return JSON.stringify(tool.name) + ': ' + validate.toModule({ semi: false });
 });
+// Some MCP clients check fractional multipleOf using binary floating-point division.
+// Advertise the decimal limit in words. The compiled validators above enforce it.
+const advertisedConfig = JSON.stringify(config, (_key, value) => {
+    if (value?.multipleOf !== 0.01 && value?.multipleOf !== 0.001) return value;
+    const { multipleOf, ...field } = value;
+    const precision = multipleOf === 0.01 ? 2 : 3;
+    const hint = 'Use at most ' + precision + ' decimal places.';
+    field.description = field.description ? field.description + ' ' + hint : hint;
+    return field;
+});
 const source = readFileSync(relative('worker.mjs'), 'utf8');
 mkdirSync(dirname(values.output), { recursive: true });
-writeFileSync(values.output, source + '\nexport default createWorker(' + JSON.stringify(config) + ', {\n' + validators.join(',\n') + '\n});\n');
+writeFileSync(values.output, source + '\nexport default createWorker(' + advertisedConfig + ', {\n' + validators.join(',\n') + '\n});\n');

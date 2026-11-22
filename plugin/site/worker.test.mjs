@@ -18,8 +18,8 @@ const rangeQuery = '?from=' + from + '&to=' + date;
 const note = { date, content: 'Synthetic test note', confirmed: true };
 const values = {
     quantity: 100, calories: 103, proteinGrams: 12, carbohydrateGrams: 7, fatGrams: 3,
-    omega3Milligrams: 15, epaDhaMilligrams: 4, alaMilligrams: 9, magnesiumMilligrams: 20,
-    vitaminDMicrograms: 2, fiberGrams: 3, saltGrams: 0.17, saturatedFatGrams: 1.2
+    omega3Milligrams: 5.10, epaDhaMilligrams: 4, alaMilligrams: 1, magnesiumMilligrams: 20,
+    vitaminDMicrograms: 2, fiberGrams: 0.47, saltGrams: 0.07, saturatedFatGrams: 1.2
 };
 const dish = {
     name: 'Synthetic test food', unit: 'GRAM', ...values, reference: values, addToCatalog: false,
@@ -209,6 +209,27 @@ test('a declined meal stays unsaved, and one confirmed meal reads back with the 
     assert.equal(saved.isError, false, saved.content[0].text);
     const read = await tool('getMeals', range);
     assert.deepEqual(JSON.parse(read.content[0].text), [{ ...meal, id: 1 }]);
+});
+
+test('meal discovery accepts decimal fractions while the Worker enforces their precision', async t => {
+    const { result: { tools } } = await rpc('tools/list');
+    const upstream = t.mock.method(globalThis, 'fetch', () => Response.json({}));
+    for (const name of ['createMeal', 'updateMeal']) {
+        const schema = tools.find(tool => tool.name === name).inputSchema;
+        assert.doesNotMatch(JSON.stringify(schema), /"multipleOf":0\./);
+        for (const invalid of [
+            { ...dish, fiberGrams: 0.471 },
+            { ...dish, reference: { ...dish.reference, omega3Milligrams: 5.101 } },
+            { ...dish, reference: { ...dish.reference, quantity: 12.3456 } }
+        ]) {
+            const args = { ...meal, dishes: [invalid] };
+            if (name === 'updateMeal') args.id = 11;
+            const result = await tool(name, args);
+            assert.equal(result.isError, true);
+            assert.match(result.content[0].text, /multipleOf/);
+        }
+    }
+    assert.equal(upstream.mock.callCount(), 0);
 });
 
 test('invalid identifiers, obsolete meal payloads and missing consent are rejected before forwarding', async t => {

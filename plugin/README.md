@@ -11,6 +11,7 @@ Keep Site access limited to the owner. Set the server-side secrets `CHATGPT_ACTI
 ## Updating the integration
 
 - Update the shared OpenAPI contract when an operation changes. The Worker derives its tools from that contract. Keep operation IDs aligned with the skill and preserve the backend's validation, confirmation and readback semantics.
+- The Worker enforces the full numeric contract. Its advertised tool schemas describe two- and three-decimal limits in words so Chat clients can pass valid nutrient and quantity values through to the Worker.
 - The directly installable [Chat skill](skills/weight-control-coach/SKILL.md) includes Chat-specific instructions followed by the canonical rules from the [GPT configuration](../docs/coach/coach-gpt.md#instructions). When a coaching rule changes, update the canonical rules in both places and check their agreement.
 - The [Sites project](site/.openai/hosting.json) identifies the private deployment. The plugin's `.app.json` maps its installed skill to that Site's registered app. Keep the package name, app ID and manifest intact when updating the existing plugin.
 
