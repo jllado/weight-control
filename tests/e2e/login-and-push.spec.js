@@ -1298,7 +1298,7 @@ test('authentication failure is visible on the login page', async ({page}) => {
     await expect(page).toHaveURL('/login');
 });
 
-test('Coach launcher is authenticated and opens the configured GPT in a new tab', async ({page}, testInfo) => {
+test('Coach launcher opens the configured destination in a new tab on mobile and desktop after sign-in', async ({page}, testInfo) => {
     await mockLogin(page);
     await page.goto('/');
     await expect(page).toHaveURL('/login');
@@ -1312,17 +1312,19 @@ test('Coach launcher is authenticated and opens the configured GPT in a new tab'
     }));
     await openSpaRoute(authenticatedPage, '/reflections');
 
-    const coachPagePromise = authenticatedPage.context().waitForEvent('page');
     const launcher = authenticatedPage.getByRole('button', {name: 'Open Coach'});
     for (const width of [376, 1280]) {
         await authenticatedPage.setViewportSize({width, height: 900});
         await expectChatGptIcon(launcher);
         await authenticatedPage.locator('.app-header-actions').screenshot({path: testInfo.outputPath(`chatgpt-shell-${width}.png`)});
+
+        const coachPagePromise = authenticatedPage.context().waitForEvent('page');
+        await launcher.click();
+        const coachPage = await coachPagePromise;
+        await expect(coachPage).toHaveURL(coachUrl);
+        expect(await coachPage.evaluate(() => window.opener)).toBeNull();
+        await coachPage.close();
     }
-    await launcher.click();
-    const coachPage = await coachPagePromise;
-    expect(await coachPage.evaluate(() => window.opener)).toBeNull();
-    await coachPage.close();
     await authenticatedPage.close();
 });
 

@@ -1,0 +1,20 @@
+{
+  "apps": "./.app.json",
+  "author": {
+    "name": "App developer"
+  },
+  "description": "Review your Weight Control records and save confirmed updates from Chat.",
+  "interface": {
+    "capabilities": [],
+    "category": "Other",
+    "defaultPrompt": null,
+    "developerName": "App developer",
+    "displayName": "Weight Control Coach",
+    "longDescription": "Review your Weight Control records and save confirmed updates from Chat.",
+    "shortDescription": "Review your Weight Control records and save confirmed updates from Chat.",
+    "websiteURL": "https://weight-control-coach.goofyhero11.chatgpt.site"
+  },
+  "name": "dev-bab89a399cac8191b02a471adf43231e",
+  "version": "1.1.0",
+  "skills": "./skills/"
+}

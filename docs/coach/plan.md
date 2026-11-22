@@ -11,9 +11,13 @@ The coach must support conversations like the reviewed chest-and-belly example w
 
 The coach remains informational and must not diagnose conditions, replace clinicians, or override clinician-prescribed exercises.
 
+## Private Chat plugin
+
+The owner-only ChatGPT Sites Worker maps the GPT's 30 operations to MCP tools and calls the existing Weight Control API using its single-owner credential. Ordinary Chat uses a packaged coaching skill. Include writes and readback, calculation, images and dated reflection behavior in cutover acceptance. Keep synthetic writes isolated from the owner's health records. The [plugin guide](../../plugin/README.md) describes publishing and verification.
+
 ## Product decisions
 
-- Keep one private custom GPT named `Weight Control Coach`.
+- Offer Weight Control Coach privately to the owner. Migrate ordinary Chat to the Sites plugin after acceptance and keep the existing private GPT available during cutover.
 - Keep reflections as a specialized workflow and a readable catalog domain.
 - Use an adaptive opening: a generic starter produces “What would you like to work on today?”, while a specific request is handled immediately.
 - Retrieve relevant read-only data automatically without asking for permission on every call.

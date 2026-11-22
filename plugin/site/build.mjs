@@ -1,0 +1,89 @@
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { parseArgs } from 'node:util';
+import schemasafe from '@exodus/schemasafe';
+import { parse } from 'yaml';
+
+const relative = path => fileURLToPath(new URL(path, import.meta.url));
+const { values } = parseArgs({ options: {
+    schema: { type: 'string', default: relative('../../docs/coach/coach-action.openapi.yaml') },
+    skill: { type: 'string', default: relative('../skills/weight-control-coach/SKILL.md') },
+    output: { type: 'string', default: relative('dist/server/index.js') }
+} });
+const contract = parse(readFileSync(values.schema, 'utf8'));
+const pluginDescriptions = {
+    getProgressPhotoFiles: 'Retrieve labeled images for the requested sides of one owned photo set. Request only the sides needed for the visual comparison.',
+    saveReflection: 'Save the exact confirmed DAILY or WEEKLY proposal with its current warningReview. DAILY summary ≤200, rationale ≤500, findings ≤120, next action ≤200. Correct validation errors and confirm material changes before retrying.'
+};
+
+function toolSchema(source) {
+    if (source.$ref) return toolSchema(contract.components.schemas[source.$ref.split('/').at(-1)]);
+    const { nullable, ...schema } = source;
+    if (nullable) {
+        schema.type = [...new Set([].concat(schema.type, 'null'))];
+        if (schema.enum) schema.enum = [...new Set([...schema.enum, null])];
+    }
+    if (schema.properties) {
+        schema.properties = Object.fromEntries(Object.entries(schema.properties).map(([name, field]) => [name, toolSchema(field)]));
+    }
+    if (schema.items) schema.items = toolSchema(schema.items);
+    for (const clause of ['anyOf', 'oneOf', 'allOf']) {
+        if (schema[clause]) schema[clause] = schema[clause].map(toolSchema);
+    }
+    if (schema.format === 'int64') {
+        delete schema.format;
+        schema.minimum = Math.max(schema.minimum ?? Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER);
+        schema.maximum = Math.min(schema.maximum ?? Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER);
+    }
+    // The Coach accepts Java LocalTime (HH:mm or HH:mm:ss with optional fractional seconds).
+    if (schema.format === 'time') {
+        delete schema.format;
+        schema.pattern = '^(?:[01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9](?:\\.[0-9]{1,9})?)?$';
+    }
+    return schema;
+}
+
+function operationConfig(path, method, operation) {
+    const bodySchema = operation.requestBody?.content['application/json'].schema;
+    const inputSchema = bodySchema ? toolSchema(bodySchema) : { type: 'object', properties: {} };
+    const body = Object.keys(inputSchema.properties);
+    const query = [];
+    for (const param of operation.parameters ?? []) {
+        const field = toolSchema(param.schema);
+        if (param.description) field.description = param.description;
+        inputSchema.properties[param.name] = field;
+        if (param.required) inputSchema.required = [...(inputSchema.required ?? []), param.name];
+        if (param.in === 'query') query.push(param.name);
+        // Closed body alternatives (DAILY/WEEKLY) validate the same flat tool object.
+        for (const branch of [...(inputSchema.oneOf ?? []), ...(inputSchema.anyOf ?? [])]) {
+            if (branch.additionalProperties === false) branch.properties[param.name] = field;
+        }
+    }
+    inputSchema.additionalProperties = false;
+    if (operation['x-openai-isConsequential']) {
+        inputSchema.properties.confirmed = { type: 'boolean', const: true, description: 'Send true after the user confirms the current proposal.' };
+        inputSchema.required = [...new Set([...inputSchema.required, 'confirmed'])];
+    }
+    const destructive = ['put', 'delete'].includes(method) || operation.operationId.startsWith('delete')
+        || ['saveCoachWarning', 'saveReflection'].includes(operation.operationId);
+    const tool = {
+        name: operation.operationId, title: operation.summary,
+        description: pluginDescriptions[operation.operationId] ?? operation.description ?? operation.summary,
+        inputSchema,
+        annotations: { readOnlyHint: method === 'get', openWorldHint: false, destructiveHint: destructive }
+    };
+    return { tool, path, method: method.toUpperCase(), body, query, allowsNoContent: Object.hasOwn(operation.responses, '204') };
+}
+
+const operations = Object.entries(contract.paths).flatMap(([path, methods]) =>
+    Object.entries(methods).map(([method, operation]) => operationConfig(path, method, operation)));
+const instructions = readFileSync(values.skill, 'utf8').replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, '').trim();
+const config = { baseUrl: contract.servers[0].url, operations, instructions };
+const validators = operations.map(({ tool }) => {
+    const validate = schemasafe.validator(tool.inputSchema, { mode: 'spec', formatAssertion: true, includeErrors: true, isJSON: true });
+    return JSON.stringify(tool.name) + ': ' + validate.toModule({ semi: false });
+});
+const source = readFileSync(relative('worker.mjs'), 'utf8');
+mkdirSync(dirname(values.output), { recursive: true });
+writeFileSync(values.output, source + '\nexport default createWorker(' + JSON.stringify(config) + ', {\n' + validators.join(',\n') + '\n});\n');

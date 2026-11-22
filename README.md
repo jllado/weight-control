@@ -90,7 +90,7 @@ The Settings screen provides a manual send button after the feature is enabled.
 
 ### Weight Control Coach
 
-The private Coach GPT uses bearer-authenticated Actions to read selected health records and perform explicitly confirmed writes. Follow the complete [Coach GPT configuration](docs/coach/coach-gpt.md) when configuring the private GPT.
+The private Weight Control Coach plugin connects ordinary ChatGPT conversations to the existing Coach API through an owner-only ChatGPT Sites Worker. Weight Control stores the records and applies its write rules. See the [plugin setup and acceptance guide](plugin/README.md) and the [original private GPT configuration](docs/coach/coach-gpt.md).
 
 Configure these production values in the deployment environment:
 
@@ -99,10 +99,10 @@ CHATGPT_ACTION_TOKEN=replace-with-a-long-random-token
 CHATGPT_ACTION_USER_EMAIL=replace-with-your-login-email
 CHATGPT_ACTION_PUBLIC_BASE_URL=https://weightcontrol.example.com
 CHATGPT_FILE_SIGNING_SECRET=replace-with-at-least-32-random-characters
-VITE_CHATGPT_COACH_URL=https://chatgpt.com/g/your-private-gpt
+VITE_CHATGPT_COACH_URL=https://chatgpt.com/plugins/plugin_asdk_app_sites_bab89a399cac8191b02a471adf43231e
 ```
 
-Keep the Action token and signing secret outside source control. The public base URL must use HTTPS, and the Coach URL must point to the saved private GPT.
+Keep the Action token and signing secret outside source control. Use HTTPS for the public base URL. After plugin acceptance, set the launcher URL above at build time. **Open Coach** opens the plugin page. Choose **Try in chat** to enter the conversation. To roll back, restore the previously configured private GPT URL and rebuild and deploy the frontend.
 
 Coach Actions transmit the requested health records to ChatGPT. Selected progress photos are also transmitted when requested; their signed URLs expire after five minutes and do not expose session cookies, storage paths, or permanent public links.
 

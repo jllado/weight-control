@@ -30,6 +30,7 @@ scripts/check.sh frontend install
 yarn serve # port 8080; /api proxies to localhost:8081
 scripts/check.sh frontend check:coach # schema and GPT instruction limits
 scripts/check.sh frontend test:coach # validator regression tests
+scripts/check.sh frontend test:coach-plugin # Sites tool contracts and synthetic save/readback (install plugin/site dependencies first)
 scripts/check.sh frontend lint
 scripts/check.sh frontend build
 scripts/check.sh frontend test:e2e
@@ -64,12 +65,15 @@ Run `docker compose up --build` only for full-stack or container-specific valida
 Browser/PWA -> Caddy -> Vue frontend
                     -> Spring Boot /api -> MariaDB
 Push service worker -> notification action URL -> Vue route/query action -> backend API
-Private Coach GPT -> bearer-authenticated /api/chatgpt-actions/** -> scoped application services
+ChatGPT Chat -> private Coach plugin -> owner-only Sites Worker /mcp -> /api/chatgpt-actions/**
+Private Coach GPT -> /api/chatgpt-actions/**
+/api/chatgpt-actions/** -> owner bearer authentication -> scoped application services
 ```
 
 - `src/main.js` registers global Vue and PrimeVue dependencies, `src/router.js` owns routes, and `src/App.vue` owns application navigation and dialogs.
 - Compact row/card actions use `CompactAction` (required icon and accessible name, optional awaited action); shared `action-group`/`action-group--compact` styles in `App.vue` own spacing and alignment. See [the button audit](button-audit.md).
 - Save forms use `SaveFields` with local pending state; standalone mutation buttons use `ActionButton` with an awaited callback. See [save performance and feedback](save-performance.md) for the local audit and validation.
+- **Open Coach** uses the build-time `VITE_CHATGPT_COACH_URL`. The plugin destination is its ChatGPT landing page, where **Try in chat** starts a conversation. To roll back the launcher, restore the previous private GPT URL and rebuild and deploy the frontend. See the [Sites build and cutover guide](../plugin/README.md).
 - Components call feature helpers in `src/services/`; helpers use `src/services/api.js`, which prefixes `/api` and includes the session cookie.
 - Production Caddy routes public assets through an explicit allow-list before the SPA fallback; deployment passes rendered configuration to Caddy reload through stdin so atomic file replacement cannot leave its running bind mount stale.
 - Release builds embed their Git source-tree identity in HTML and public read-only `/api/version`; `scripts/verify-deployment.py <base-url> <expected-tree>` verifies both identities and readiness without a browser or login. See the repository release skill for the delivery gate.
@@ -223,6 +227,7 @@ Existing assigned routines retain their `automaticTrigger` as a fixed rule; `aut
 
 | Change type | Required starting checks |
 | --- | --- |
+| Coach Sites plugin | `scripts/check.sh frontend test:coach-plugin` after installing its locked dependencies, then verify the installed plugin in Chat ([publishing and acceptance](../plugin/README.md)) |
 | Coach schema/instructions | `scripts/check.sh frontend check:coach`; validator changes also require `scripts/check.sh frontend test:coach`; live GPT acceptance remains separate |
 | Documentation only | `git diff --check`; verify paths, commands, and Markdown links |
 | Frontend source | `scripts/check.sh frontend lint`; add `scripts/check.sh frontend build` for build/configuration risk |

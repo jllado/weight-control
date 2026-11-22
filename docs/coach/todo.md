@@ -935,3 +935,7 @@ Meal preflight uses enabled Code Interpreter with Decimal/HALF_UP scaling and su
 Verify meal and workout saves and edits across the app and Coach, including legacy scores, same-day ordering, multi-session days, missing evidence and historical plan boundaries. Deploy the backend rules and private GPT together and verify a read-only rules and stored-evidence request after publication.
 
 - Saturated-fat delivery includes version 4 Coach writes, owner-wide historical estimates, one-time recalculation of earlier automatic meal scores and publication of the matching private GPT configuration.
+
+## Private Coach migration to ordinary Chat
+
+Use the [plugin cutover checklist](../../plugin/README.md#acceptance-before-switching-the-app) for the owner-only ChatGPT Sites connector. Record fixture save/readback, installed-plugin behavior, production read and app-link verification as separate evidence. Keep the original private GPT available through the switch.
